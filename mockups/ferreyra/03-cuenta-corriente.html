@@ -8,10 +8,18 @@
 .head h1{font-family:'Barlow Semi Condensed';font-size:24px;font-weight:700;}
 .head p{color:var(--muted);font-size:13.5px;margin-top:3px;}
 .head .acts{margin-left:auto;display:flex;gap:10px;}
-.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px;}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:18px;}
+@media(max-width:900px){#tabla th:nth-child(4),#tabla td:nth-child(4){display:none;}}
+@media(max-width:680px){#tabla th:nth-child(3),#tabla td:nth-child(3){display:none;}}
+@media(max-width:760px){
+  .mini{grid-template-columns:1fr;}
+  .head .acts{flex-direction:column;width:100%;}
+  .head .acts .btn{width:100%;}
+  .panel .hd{flex-wrap:wrap;row-gap:8px;}
+}
+@media(max-width:560px){#tabla th:nth-child(7),#tabla td:nth-child(7){display:none;}}
 </style></head><body>
 <div class="stage desk">
-  <div class="hint">Pantalla de escritorio — deslizá hacia los costados o girá el teléfono para verla completa.</div>
   <div class="framewrap"><div class="frame">
     <div class="desktop" data-menu="clientes" data-crumb="Clientes" data-title="N° 246">
       <div class="content">
@@ -36,7 +44,7 @@
             <span class="tag grey">2026</span>
             <button class="chipf" id="orden" style="margin-left:8px;">Más antiguo primero</button>
             <span class="lnk" onclick="toast('Descarga del estado de cuenta en PDF — demo')">Exportar PDF</span></div>
-          <table>
+          <table id="tabla">
             <thead><tr><th>Fecha</th><th>Comprobante</th><th>Detalle</th><th>Cargado por</th><th class="r">Debe</th><th class="r">Haber</th><th class="r" id="thsaldo">Saldo acumulado</th></tr></thead>
             <tbody id="tb"></tbody>
             <tfoot><tr style="background:#fafbf9;font-weight:600;">

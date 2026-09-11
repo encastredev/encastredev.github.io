@@ -111,16 +111,14 @@ function buildPhone(){
   }
 }
 
-/* ---------- escalado del marco de escritorio en pantallas chicas ---------- */
-function scaleFrame(){
-  const f = document.querySelector('.frame');
-  if (!f) return;
-  const wrap = f.parentElement;
-  const avail = wrap.clientWidth;
-  const s = Math.min(1, Math.max(avail / 1440, 0.46));
-  f.style.transform = `scale(${s})`;
-  wrap.style.height = (f.offsetHeight * s) + 'px';
-  wrap.scrollLeft = 0;
+/* ---------- las tablas anchas obtienen su propio desplazamiento ---------- */
+function wrapTables(){
+  document.querySelectorAll('.panel > table').forEach(t => {
+    const box = document.createElement('div');
+    box.className = 'tscroll';
+    t.parentNode.insertBefore(box, t);
+    box.appendChild(t);
+  });
 }
 
 /* ---------- utilidades ---------- */
@@ -140,7 +138,5 @@ document.addEventListener('DOMContentLoaded', () => {
   buildTopnav();
   buildDesktop();
   buildPhone();
-  scaleFrame();
-  window.addEventListener('resize', scaleFrame);
-  window.addEventListener('load', scaleFrame);
+  wrapTables();
 });

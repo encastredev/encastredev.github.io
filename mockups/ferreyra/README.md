@@ -54,9 +54,9 @@ funcionan las flechas del teclado.
 - Los datos son de ejemplo. El nombre del comercio es real; el titular y el teléfono
   son ficticios.
 - El estado no se guarda: al recargar una pantalla vuelve a su punto inicial.
-- Las pantallas de administración están diseñadas a 1440px. En celular se muestran
-  escaladas con desplazamiento horizontal; se ven mejor en notebook o con el teléfono
-  acostado.
+- Todas las pantallas son responsive: las de administración adaptan el menú lateral a
+  una barra superior y ocultan las columnas secundarias de las tablas en celular. Se
+  probaron de 320px hasta 1680px de ancho.
 - Todas las páginas llevan `noindex` para que no aparezcan en buscadores.
 
 ## Para editarlo

@@ -10,9 +10,10 @@
 .bar2 .buscar svg{width:15px;height:15px;color:var(--muted);}
 .bar2 .buscar input{border:none;outline:none;font:inherit;font-size:13.5px;width:100%;}
 .empty{padding:34px;text-align:center;color:var(--muted);font-size:13.5px;}
+@media(max-width:900px){#tabla th:nth-child(3),#tabla td:nth-child(3),#tabla th:nth-child(7),#tabla td:nth-child(7){display:none;}}
+@media(max-width:640px){#tabla th:nth-child(4),#tabla td:nth-child(4){display:none;}}
 </style></head><body>
 <div class="stage desk">
-  <div class="hint">Pantalla de escritorio — deslizá hacia los costados o girá el teléfono para verla completa.</div>
   <div class="framewrap"><div class="frame">
     <div class="desktop" data-menu="clientes" data-title="Clientes">
       <div class="content">
@@ -33,7 +34,7 @@
         <div class="panel">
           <div class="hd"><h2>Clientes</h2><span class="tag grey" id="cnt">152 clientes</span>
             <span class="lnk" style="cursor:default;color:var(--muted)">Ordenado por saldo</span></div>
-          <table>
+          <table id="tabla">
             <thead><tr><th>N°</th><th>Cliente</th><th>Localidad</th><th>Vendedor</th><th class="r">Saldo</th><th class="r">Días sin pagar</th><th class="r">Límite</th></tr></thead>
             <tbody id="tb"></tbody>
           </table>
