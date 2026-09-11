@@ -1,0 +1,64 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Panel general · Distribuidora Ferreyra</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+.grid2{display:grid;grid-template-columns:1.45fr 1fr;gap:16px;}
+.age{display:flex;flex-direction:column;gap:13px;padding:16px 18px;}
+.age .row{display:grid;grid-template-columns:86px 1fr 100px;gap:12px;align-items:center;font-size:13px;}
+.age .row b{font-family:'Barlow Semi Condensed';font-size:14.5px;text-align:right;}
+</style></head><body>
+<div class="stage desk">
+  <div class="hint">Pantalla de escritorio — deslizá hacia los costados o girá el teléfono para verla completa.</div>
+  <div class="framewrap"><div class="frame">
+    <div class="desktop" data-menu="panel" data-title="Panel general">
+      <div class="content">
+        <div class="kpis">
+          <div class="kpi"><div class="lbl">Deuda total por cobrar</div><div class="val">$ 18.437.250</div><div class="sub down">152 clientes con saldo</div></div>
+          <div class="kpi"><div class="lbl">Cobrado esta semana</div><div class="val">$ 2.184.900</div><div class="sub up">▲ 12% vs. semana anterior</div></div>
+          <div class="kpi"><div class="lbl">Deuda vencida +60 días</div><div class="val">$ 3.912.400</div><div class="sub down">17 clientes — requiere gestión</div></div>
+          <div class="kpi"><div class="lbl">Cobranzas por rendir</div><div class="val">$ 486.300</div><div class="sub" style="color:var(--amber-dark)">6 pagos cargados por vendedores</div></div>
+        </div>
+        <div class="grid2">
+          <div class="panel">
+            <div class="hd"><h2>Quién debe más — ranking de deudores</h2>
+              <a class="lnk" href="02-clientes.html">Ver todos</a></div>
+            <table><tbody>
+              <tr><th>Cliente</th><th>Vendedor</th><th class="r">Saldo</th><th class="r">Días</th><th style="width:130px;"></th></tr>
+              <tr class="clickable" onclick="location.href='03-cuenta-corriente.html'"><td><b>El Tornillo SRL</b> · N° 118</td><td>Marcos</td><td class="r num" style="color:var(--red)">$ 1.264.800</td><td class="r">74</td><td><div class="bar"><i style="width:96%"></i></div></td></tr>
+              <tr class="clickable" onclick="location.href='03-cuenta-corriente.html'"><td><b>Ferretería Don Pedro</b> · N° 031</td><td>Luis</td><td class="r num" style="color:var(--red)">$ 987.150</td><td class="r">51</td><td><div class="bar"><i style="width:75%"></i></div></td></tr>
+              <tr class="clickable" onclick="location.href='03-cuenta-corriente.html'"><td><b>Corralón El Obraje</b> · N° 205</td><td>Marcos</td><td class="r num" style="color:var(--red)">$ 743.020</td><td class="r">38</td><td><div class="bar"><i style="width:56%;background:var(--amber)"></i></div></td></tr>
+              <tr class="clickable" onclick="location.href='03-cuenta-corriente.html'"><td><b>Ferretería La Estrella</b> · N° 246</td><td>Luis</td><td class="r num">$ 243.866</td><td class="r">17</td><td><div class="bar"><i style="width:19%;background:var(--amber)"></i></div></td></tr>
+              <tr class="clickable" onclick="location.href='03-cuenta-corriente.html'"><td><b>Sanitarios Iguazú</b> · N° 087</td><td>Raúl</td><td class="r num">$ 198.540</td><td class="r">9</td><td><div class="bar"><i style="width:15%;background:var(--green)"></i></div></td></tr>
+            </tbody></table>
+            <div style="padding:11px 18px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;">
+              Tocá cualquier fila para abrir la cuenta corriente del cliente.
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div class="panel">
+              <div class="hd"><h2>Deuda por antigüedad</h2></div>
+              <div class="age">
+                <div class="row"><span>0–30 días</span><div class="bar" style="height:9px;"><i style="width:58%;background:var(--green)"></i></div><b>$ 10.694.150</b></div>
+                <div class="row"><span>30–60 días</span><div class="bar" style="height:9px;"><i style="width:21%;background:var(--amber)"></i></div><b>$ 3.830.700</b></div>
+                <div class="row"><span>+60 días</span><div class="bar" style="height:9px;"><i style="width:21%;"></i></div><b>$ 3.912.400</b></div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="hd"><h2>Última actividad</h2></div>
+              <table><tbody>
+                <tr><td style="width:70px;"><span class="tag green">Pago</span></td><td>La Estrella · efectivo<br><span style="color:var(--muted);font-size:12px;">Luis · hace 20 min</span></td><td class="r num">$ 243.866</td></tr>
+                <tr><td><span class="tag grey">Remito</span></td><td>N° 11812 · Don Pedro<br><span style="color:var(--muted);font-size:12px;">hoy 09:40</span></td><td class="r num">$ 156.900</td></tr>
+                <tr><td><span class="tag amber">NC</span></td><td>NC-0086 · El Obraje<br><span style="color:var(--muted);font-size:12px;">ayer 16:05</span></td><td class="r num">$ 38.400</td></tr>
+                <tr><td><span class="tag green">Pago</span></td><td>Sanitarios Iguazú · transf.<br><span style="color:var(--muted);font-size:12px;">Raúl · ayer 18:22</span></td><td class="r num">$ 120.000</td></tr>
+              </tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+<script src="assets/nav.js"></script>
+</body></html>

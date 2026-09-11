@@ -1,0 +1,137 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Nota de crédito · Distribuidora Ferreyra</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+.wrap{display:grid;grid-template-columns:1fr 340px;gap:18px;}
+.chk{width:17px;height:17px;border-radius:5px;border:1.5px solid #c9cec8;display:inline-block;position:relative;cursor:pointer;}
+.chk.on{background:var(--amber);border-color:var(--amber);}
+.chk.on:after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid #fff;
+  border-width:0 2px 2px 0;transform:rotate(45deg);}
+.opt2{border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:10px 12px;font-size:13px;
+  font-weight:600;color:var(--steel);margin-bottom:8px;display:flex;gap:9px;align-items:flex-start;cursor:pointer;}
+.opt2 small{display:block;font-weight:400;color:var(--muted);font-size:11.5px;margin-top:2px;line-height:1.35;}
+.opt2.on{border-color:var(--amber);background:var(--amber-soft);color:#7c5504;}
+.opt2.on small{color:#8a6414;}
+.radio{width:15px;height:15px;border-radius:50%;border:1.5px solid #c9cec8;flex-shrink:0;margin-top:2px;}
+.opt2.on .radio{border:4.5px solid var(--amber);background:#fff;}
+.sum{display:flex;justify-content:space-between;padding:7px 0;font-size:13.5px;}
+.sum.big{border-top:1px solid var(--line);margin-top:5px;padding-top:11px;font-family:'Barlow Semi Condensed';
+  font-size:19px;font-weight:700;}
+tr.off{opacity:.5;}
+</style></head><body>
+<div class="stage desk">
+  <div class="hint">Pantalla de escritorio — cambiá cantidades y motivo y mirá el saldo recalcularse.</div>
+  <div class="framewrap"><div class="frame">
+    <div class="desktop" data-menu="nc" data-crumb="Notas de crédito" data-title="Nueva">
+      <div class="content">
+        <div style="margin-bottom:16px;">
+          <h1 style="font-family:'Barlow Semi Condensed';font-size:23px;font-weight:700;">Nota de crédito NC-0087</h1>
+          <p style="color:var(--muted);font-size:13.5px;margin-top:3px;">Ferretería La Estrella · N° 246 · sobre <b style="color:var(--ink)">Remito N° 11795</b> del 24/08/2026 · solicitada por Luis</p>
+        </div>
+        <div class="wrap">
+          <div class="panel">
+            <div class="hd"><h2>Qué devuelve el cliente</h2>
+              <span class="lnk" id="todo">Seleccionar todo el remito</span></div>
+            <table>
+              <thead><tr><th style="width:34px;"></th><th>Producto</th><th class="r">Entregado</th><th style="width:130px;">Devuelve</th><th class="r">P. unitario</th><th class="r">Subtotal</th></tr></thead>
+              <tbody id="tb"></tbody>
+            </table>
+            <div style="padding:12px 18px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;">
+              No se puede acreditar más cantidad de la que figura entregada en el remito.
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div class="panel">
+              <div class="hd"><h2>Motivo</h2></div>
+              <div style="padding:14px 16px;" id="motivos">
+                <div class="opt2 on" data-k="dev"><span class="radio"></span><div>Devolución de mercadería<small>Vuelve al stock vendible y baja el saldo</small></div></div>
+                <div class="opt2" data-k="fal"><span class="radio"></span><div>Mercadería fallada<small>Baja el saldo · va a depósito no conforme</small></div></div>
+                <div class="opt2" data-k="bon"><span class="radio"></span><div>Bonificación o ajuste<small>Baja el saldo · no toca el stock</small></div></div>
+                <div class="opt2" data-k="err" style="margin-bottom:0;"><span class="radio"></span><div>Error de carga<small>Revierte el renglón del remito</small></div></div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="hd"><h2>Resumen</h2></div>
+              <div style="padding:13px 16px 16px;">
+                <div class="sum"><span style="color:var(--muted)">Saldo antes</span><b class="num">$ 243.866</b></div>
+                <div class="sum"><span style="color:var(--muted)">Nota de crédito</span><b class="num" id="nc" style="color:var(--green)">− $ 0</b></div>
+                <div class="sum big"><span>Nuevo saldo</span><span id="nuevo">$ 243.866</span></div>
+                <div class="note grey" style="margin-top:12px;" id="efecto"></div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                  <button class="btn" style="flex:1;" onclick="history.back()">Cancelar</button>
+                  <button class="btn pri" style="flex:1.4;" id="emitir">Emitir e imprimir</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+<script src="assets/nav.js"></script>
+<script>
+const ITEMS = [
+  {cod:'CF80',  nom:'Cerradura 205 caja derecha',      ent:4,  pu:27234, q:2},
+  {cod:'PT244', nom:'Manguera cristal 6x8 rollo 50 m', ent:3,  pu:15700, q:1},
+  {cod:'TL414', nom:'Silicona acética trans. 250 ml',  ent:12, pu:4300,  q:0},
+  {cod:'PT531', nom:'Clavos punta París 5" · 20 kg',   ent:2,  pu:5244,  q:0}
+];
+const SALDO = 243866;
+const EFECTOS = {
+  dev:'La mercadería vuelve al <b>stock vendible</b>.',
+  fal:'La mercadería <b>no vuelve al stock</b>: queda como no conforme para reclamar al proveedor.',
+  bon:'Ajuste de precio: <b>no se toca el stock</b>.',
+  err:'Revierte los renglones del remito original.'
+};
+let motivo = 'dev';
+const fmt = n => '$ ' + Math.round(n).toLocaleString('es-AR');
+
+function pinta(){
+  document.getElementById('tb').innerHTML = ITEMS.map((it,i) => `
+    <tr class="${it.q ? '' : 'off'}">
+      <td><span class="chk ${it.q ? 'on' : ''}" data-i="${i}"></span></td>
+      <td><b>${it.cod}</b> ${it.nom}</td>
+      <td class="r">${it.ent}</td>
+      <td><span class="stp"><button data-d="-1" data-i="${i}">−</button><b>${it.q}</b><button data-d="1" data-i="${i}">+</button></span></td>
+      <td class="r num">${fmt(it.pu)}</td>
+      <td class="r num">${it.q ? fmt(it.q * it.pu) : '—'}</td>
+    </tr>`).join('');
+  const total = ITEMS.reduce((a,i) => a + i.q * i.pu, 0);
+  document.getElementById('nc').textContent = '− ' + fmt(total);
+  document.getElementById('nuevo').textContent = fmt(SALDO - total);
+  document.getElementById('efecto').innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><div>' + EFECTOS[motivo] + '</div>';
+  document.getElementById('emitir').disabled = total <= 0;
+  enlazar();
+}
+function enlazar(){
+  document.querySelectorAll('.stp button').forEach(b => b.onclick = () => {
+    const it = ITEMS[b.dataset.i];
+    it.q = Math.max(0, Math.min(it.ent, it.q + Number(b.dataset.d)));
+    pinta();
+  });
+  document.querySelectorAll('.chk').forEach(c => c.onclick = () => {
+    const it = ITEMS[c.dataset.i];
+    it.q = it.q ? 0 : 1;
+    pinta();
+  });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.opt2').forEach(o => o.addEventListener('click', () => {
+    document.querySelectorAll('.opt2').forEach(x => x.classList.remove('on'));
+    o.classList.add('on'); motivo = o.dataset.k; pinta();
+  }));
+  document.getElementById('todo').addEventListener('click', () => {
+    ITEMS.forEach(i => i.q = i.ent); pinta();
+  });
+  document.getElementById('emitir').addEventListener('click', () => {
+    const total = ITEMS.reduce((a,i) => a + i.q * i.pu, 0);
+    toast('NC-0087 emitida por ' + fmt(total) + ' — saldo actualizado a ' + fmt(SALDO - total));
+  });
+  pinta();
+});
+</script>
+</body></html>

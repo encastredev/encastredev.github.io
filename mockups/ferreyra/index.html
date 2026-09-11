@@ -1,0 +1,183 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Distribuidora Ferreyra · Boceto navegable del sistema</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+body{background:#fff;}
+.wrap{max-width:1080px;margin:0 auto;padding:0 22px;}
+.hero{background:var(--ink);color:#fff;padding:58px 0 52px;}
+.hero .kick{font-family:'Barlow Semi Condensed';font-weight:600;font-size:13px;color:#9aa2ab;letter-spacing:.4px;}
+.hero .rule{width:62px;height:4px;background:var(--amber);border-radius:99px;margin:20px 0 22px;}
+.hero h1{font-size:clamp(32px,5.4vw,50px);font-weight:700;line-height:1.08;letter-spacing:-.5px;}
+.hero h1 em{font-style:normal;color:var(--amber);}
+.hero p{font-size:clamp(15px,2.2vw,18px);color:#c3c9cf;max-width:660px;margin-top:18px;line-height:1.55;}
+.stats{display:flex;flex-wrap:wrap;gap:34px;margin-top:34px;padding-top:26px;border-top:1px solid #3a4149;}
+.stats div b{display:block;font-family:'Barlow Semi Condensed';font-size:30px;font-weight:700;line-height:1;}
+.stats div span{font-size:12.5px;color:#9aa2ab;}
+
+section{padding:52px 0;}
+section.alt{background:var(--bg);}
+.eyebrow{font-family:'Barlow Semi Condensed';font-size:12.5px;font-weight:700;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--amber-dark);}
+h2{font-size:clamp(23px,3.4vw,31px);font-weight:700;margin-top:8px;line-height:1.15;}
+section > .wrap > p.intro{color:var(--steel);max-width:680px;margin-top:12px;font-size:15px;line-height:1.6;}
+
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:16px;margin-top:30px;}
+.step{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;}
+.step b.n{display:flex;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+  align-items:center;justify-content:center;font-family:'Barlow Semi Condensed';font-size:15px;margin-bottom:11px;}
+.step h3{font-size:15.5px;font-weight:600;margin-bottom:5px;}
+.step p{font-size:13px;color:var(--steel);line-height:1.5;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px;margin-top:26px;}
+.card2{display:block;background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;transition:.16s;}
+.card2:hover{border-color:var(--amber);transform:translateY(-2px);box-shadow:0 8px 20px rgba(35,40,48,.09);}
+.card2 .top{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+.card2 .nn{font-family:'Barlow Semi Condensed';font-size:13px;font-weight:700;color:var(--muted);}
+.card2 h3{font-size:16px;font-weight:600;margin-top:2px;}
+.card2 p{font-size:13px;color:var(--steel);line-height:1.5;margin-top:7px;}
+.card2 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;}
+.card2 .go{margin-top:12px;font-size:13px;font-weight:600;color:var(--amber-dark);}
+
+.foot2{background:var(--ink);color:#c3c9cf;padding:34px 0;font-size:13px;}
+.foot2 b{color:#fff;font-family:'Barlow Semi Condensed';font-size:17px;}
+.note2{background:var(--amber-soft);border:1px solid #f0d9a8;border-radius:12px;padding:18px 20px;
+  font-size:13.5px;color:#7c5504;line-height:1.55;margin-top:30px;}
+</style></head><body>
+
+<div class="hero"><div class="wrap">
+  <div class="kick">Boceto navegable del sistema · Etapa 1</div>
+  <div class="rule"></div>
+  <h1>Toda la cobranza en un solo lugar.<br><em>Sin planillas y sin señal.</em></h1>
+  <p>Hoy cada cliente es un archivo de Excel, el pago viaja de mano en mano hasta que alguien lo carga, y en las zonas nuevas no se puede trabajar porque no hay internet. Este boceto muestra cómo queda la operación con un solo sistema: la administración ve la deuda al instante, el vendedor carga la cobranza en el momento aunque esté sin señal, y cada ferretería consulta su propia cuenta.</p>
+  <div class="stats">
+    <div><b>11</b><span>pantallas navegables</span></div>
+    <div><b>3</b><span>tipos de acceso</span></div>
+    <div><b>150+</b><span>cuentas corrientes</span></div>
+    <div><b>0</b><span>abonos satelitales</span></div>
+  </div>
+</div></div>
+
+<section><div class="wrap">
+  <div class="eyebrow">Cómo funciona</div>
+  <h2>De cuatro pasos a uno solo</h2>
+  <p class="intro">Hoy una cobranza pasa por cuatro manos antes de quedar registrada. En el sistema, el vendedor la carga una vez y todo lo demás ocurre solo.</p>
+  <div class="steps">
+    <div class="step"><b class="n">1</b><h3>El cliente paga</h3><p>Le entrega el dinero al vendedor en el mostrador, como siempre.</p></div>
+    <div class="step"><b class="n">2</b><h3>El vendedor lo carga</h3><p>Desde el celular, en el momento, con o sin señal. Foto del recibo incluida.</p></div>
+    <div class="step"><b class="n">3</b><h3>El saldo se actualiza</h3><p>La administración lo ve al instante y el cliente también, en su portal.</p></div>
+    <div class="step"><b class="n">4</b><h3>La comisión se calcula</h3><p>El pago ya suma a la liquidación semanal del vendedor. Sin planillas.</p></div>
+  </div>
+  <div class="note2">
+    <b>Sobre este boceto:</b> las 11 pantallas son navegables e interactivas. Se puede filtrar la lista de clientes, registrar un pago y ver el saldo cambiar, activar el modo sin señal y sincronizar, armar una nota de crédito con cantidades y cerrar la semana de comisiones. Los datos son de ejemplo y el diseño es un punto de partida para conversar, no la versión final.
+  </div>
+</div></section>
+
+<section class="alt"><div class="wrap">
+  <div class="eyebrow">Módulo de administración</div>
+  <h2>El negocio completo en una pantalla</h2>
+  <p class="intro">Cuánto le deben, quién debe más, qué deuda se está envejeciendo y cuánto se cobró esta semana. Todo lo que hoy exige abrir planilla por planilla.</p>
+  <div class="cards">
+    <a class="card2" href="01-panel-general.html">
+      <div class="top"><span class="nn">01</span><span class="tag grey">Escritorio</span></div>
+      <h3>Panel general</h3>
+      <p>Deuda total, ranking de deudores, antigüedad de la deuda y la última actividad del día.</p>
+      <div class="tags"><span class="tag amber">$ 18.437.250</span><span class="tag grey">152 clientes</span></div>
+      <div class="go">Abrir pantalla →</div>
+    </a>
+    <a class="card2" href="02-clientes.html">
+      <div class="top"><span class="nn">02</span><span class="tag grey">Escritorio</span></div>
+      <h3>Clientes</h3>
+      <p>El listado completo con buscador y filtros: con deuda, vencidos, por vendedor. Se marca quien supera su límite de crédito.</p>
+      <div class="tags"><span class="tag grey">Buscador vivo</span><span class="tag grey">Filtros</span></div>
+      <div class="go">Abrir pantalla →</div>
+    </a>
+    <a class="card2" href="03-cuenta-corriente.html">
+      <div class="top"><span class="nn">03</span><span class="tag grey">Escritorio</span></div>
+      <h3>Cuenta corriente</h3>
+      <p>La misma lógica de las planillas actuales —remitos, entregas, saldo— pero calculada sola y con historial auditado.</p>
+      <div class="tags"><span class="tag grey">Saldo acumulado</span><span class="tag grey">Auditoría</span></div>
+      <div class="go">Abrir pantalla →</div>
+    </a>
+    <a class="card2" href="04-registrar-cobranza.html">
+      <div class="top"><span class="nn">04</span><span class="tag grey">Escritorio</span></div>
+      <h3>Registrar cobranza</h3>
+      <p>Monto, medio de pago y aplicación a comprobantes. Cambiá el monto y mirá cómo se recalcula el saldo antes de guardar.</p>
+      <div class="tags"><span class="tag green">Interactiva</span><span class="tag grey">Pagos parciales</span></div>
+      <div class="go">Abrir pantalla →</div>
+    </a>
+    <a class="card2" href="05-nota-credito.html">
+      <div class="top"><span class="nn">05</span><span class="tag grey">Escritorio</span></div>
+      <h3>Nota de crédito</h3>
+      <p>Se emite sobre el remito original, con cantidades y motivo. El motivo define si la mercadería vuelve al stock o no.</p>
+      <div class="tags"><span class="tag green">Interactiva</span><span class="tag grey">Sin ventas falsas</span></div>
+      <div class="go">Abrir pantalla →</div>
+    </a>
+    <a class="card2" href="06-comisiones.html">
+      <div class="top"><span class="nn">06</span><span class="tag grey">Escritorio</span></div>
+      <h3>Comisiones semanales</h3>
+      <p>La liquidación por vendedor con el detalle de cada pago que la respalda. El cierre de la semana, en un botón.</p>
+      <div class="tags"><span class="tag amber">$ 109.245</span><span class="tag grey">3 vendedores</span></div>
+      <div class="go">Abrir pantalla →</div>
+    </a>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">Módulo de vendedores</div>
+  <h2>La ruta completa en el bolsillo, sin depender de la señal</h2>
+  <p class="intro">La app descarga los datos a la mañana y funciona todo el día sin internet. Al recuperar señal, envía sola lo que se cargó. Probá el interruptor de la pantalla 07.</p>
+  <div class="cards">
+    <a class="card2" href="07-app-mis-clientes.html">
+      <div class="top"><span class="nn">07</span><span class="tag amber">App</span></div>
+      <h3>Mis clientes</h3>
+      <p>Sus clientes con saldo al día, ordenados por deuda o por ruta. Tocá el cartel de señal para ver la sincronización.</p>
+      <div class="tags"><span class="tag green">Interactiva</span><span class="tag grey">Modo offline</span></div>
+      <div class="go">Abrir pantalla →</div>
+    </a>
+    <a class="card2" href="08-app-ficha-cliente.html">
+      <div class="top"><span class="nn">08</span><span class="tag amber">App</span></div>
+      <h3>Ficha del cliente</h3>
+      <p>Saldo, movimientos y datos del comercio. Todo consultable en el mostrador, aunque no haya una raya de señal.</p>
+      <div class="tags"><span class="tag grey">Movimientos</span><span class="tag grey">Datos</span></div>
+      <div class="go">Abrir pantalla →</div>
+    </a>
+    <a class="card2" href="09-app-cobranza.html">
+      <div class="top"><span class="nn">09</span><span class="tag amber">App</span></div>
+      <h3>Registrar cobranza</h3>
+      <p>Tres toques: monto, medio de pago y foto del recibo. Se guarda en el teléfono y se envía sola al recuperar señal.</p>
+      <div class="tags"><span class="tag green">Interactiva</span><span class="tag grey">Foto del recibo</span></div>
+      <div class="go">Abrir pantalla →</div>
+    </a>
+    <a class="card2" href="10-app-nota-credito.html">
+      <div class="top"><span class="nn">10</span><span class="tag amber">App</span></div>
+      <h3>Pedir nota de crédito</h3>
+      <p>El vendedor recibe la devolución y la carga con foto y motivo. El saldo no cambia hasta que la administración aprueba.</p>
+      <div class="tags"><span class="tag green">Interactiva</span><span class="tag grey">Requiere aprobación</span></div>
+      <div class="go">Abrir pantalla →</div>
+    </a>
+  </div>
+</div></section>
+
+<section class="alt"><div class="wrap">
+  <div class="eyebrow">Módulo de clientes</div>
+  <h2>Cada ferretería ve su propia cuenta</h2>
+  <p class="intro">Menos llamados preguntando cuánto deben, y el pago visible apenas el vendedor lo carga.</p>
+  <div class="cards">
+    <a class="card2" href="11-portal-cliente.html" style="max-width:420px;">
+      <div class="top"><span class="nn">11</span><span class="tag amber">App</span></div>
+      <h3>Portal del cliente</h3>
+      <p>Saldo al día, remitos, pagos y descarga del estado de cuenta. Acceso seguro: cada uno ve solo lo suyo.</p>
+      <div class="tags"><span class="tag grey">Link seguro</span><span class="tag grey">Estado de cuenta</span></div>
+      <div class="go">Abrir pantalla →</div>
+    </a>
+  </div>
+</div></section>
+
+<div class="foot2"><div class="wrap">
+  <b>Encastre</b><br>
+  Boceto de producto preparado para Distribuidora Ferreyra · Septiembre 2026<br>
+  encastre.dev@gmail.com · Posadas, Misiones
+</div></div>
+</body></html>

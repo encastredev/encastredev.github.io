@@ -1,0 +1,103 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Cuenta corriente · Distribuidora Ferreyra</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+.head{display:flex;align-items:flex-start;gap:18px;margin-bottom:18px;}
+.head h1{font-family:'Barlow Semi Condensed';font-size:24px;font-weight:700;}
+.head p{color:var(--muted);font-size:13.5px;margin-top:3px;}
+.head .acts{margin-left:auto;display:flex;gap:10px;}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px;}
+</style></head><body>
+<div class="stage desk">
+  <div class="hint">Pantalla de escritorio — deslizá hacia los costados o girá el teléfono para verla completa.</div>
+  <div class="framewrap"><div class="frame">
+    <div class="desktop" data-menu="clientes" data-crumb="Clientes" data-title="N° 246">
+      <div class="content">
+        <div class="head">
+          <div>
+            <h1>Ferretería La Estrella</h1>
+            <p>Marcelo Fernández · Av. San Martín 1691 oeste, Km 3 · Cel 3751 000000 · Vendedor: <b style="color:var(--ink)">Luis</b></p>
+          </div>
+          <div class="acts">
+            <button class="btn" onclick="toast('Se envía el estado de cuenta por WhatsApp — demo')">Enviar estado de cuenta</button>
+            <button class="btn dark" onclick="toast('Alta de remito — fuera del alcance de esta demo')">+ Nuevo remito</button>
+            <a class="btn pri" href="04-registrar-cobranza.html">+ Registrar pago</a>
+          </div>
+        </div>
+        <div class="mini">
+          <div class="kpi"><div class="lbl">Saldo actual</div><div class="val" id="saldo" style="color:var(--red)">$ 243.866</div><div class="sub" id="subsaldo">Último pago hace 17 días</div></div>
+          <div class="kpi"><div class="lbl">Total remitos</div><div class="val">$ 470.375</div><div class="sub">2 remitos emitidos</div></div>
+          <div class="kpi"><div class="lbl">Total entregas</div><div class="val" id="entregas" style="color:var(--green)">$ 226.509</div><div class="sub" id="subentregas">1 pago registrado</div></div>
+        </div>
+        <div class="panel">
+          <div class="hd"><h2>Movimientos de cuenta corriente</h2>
+            <span class="tag grey">2026</span>
+            <button class="chipf" id="orden" style="margin-left:8px;">Más antiguo primero</button>
+            <span class="lnk" onclick="toast('Descarga del estado de cuenta en PDF — demo')">Exportar PDF</span></div>
+          <table>
+            <thead><tr><th>Fecha</th><th>Comprobante</th><th>Detalle</th><th>Cargado por</th><th class="r">Debe</th><th class="r">Haber</th><th class="r" id="thsaldo">Saldo acumulado</th></tr></thead>
+            <tbody id="tb"></tbody>
+            <tfoot><tr style="background:#fafbf9;font-weight:600;">
+              <td colspan="4"><b>Saldo al 10/09/2026</b></td>
+              <td class="r num" id="tdebe">$ 470.375</td><td class="r num" id="thaber">$ 226.509</td>
+              <td class="r num" id="tsaldo" style="font-size:15px;color:var(--red)">$ 243.866</td>
+            </tr></tfoot>
+          </table>
+        </div>
+        <p style="margin-top:14px;color:var(--muted);font-size:12.5px;">Todos los movimientos quedan auditados: usuario, fecha y hora. Las anulaciones se registran con contraasiento, nada se borra.</p>
+      </div>
+    </div>
+  </div></div>
+</div>
+<script src="assets/nav.js"></script>
+<script>
+const BASE = [
+  {f:'09/06/2026', c:'<b>Remito N° 11556</b>', d:'Mercadería entregada', u:'Admin',     debe:226509, haber:0},
+  {f:'12/06/2026', c:'<span class="tag green">Pago</span>', d:'Efectivo — cancela remito 11556', u:'Luis (app)', debe:0, haber:226509},
+  {f:'24/08/2026', c:'<b>Remito N° 11795</b>', d:'Mercadería entregada', u:'Admin',     debe:243866, haber:0}
+];
+let asc = true;
+
+// si venimos de registrar una cobranza, se suma el movimiento
+const pago = Number(new URLSearchParams(location.search).get('pago') || 0);
+const MOVS = BASE.slice();
+if (pago > 0) MOVS.push({f:'10/09/2026', c:'<span class="tag green">Pago</span>',
+  d:'Efectivo — aplica a remito 11795', u:'Admin', debe:0, haber:pago, nuevo:true});
+
+function pinta(){
+  let acc = 0;
+  const conSaldo = MOVS.map(m => { acc += m.debe - m.haber; return Object.assign({}, m, {saldo:acc}); });
+  const filas = asc ? conSaldo : conSaldo.slice().reverse();
+  document.getElementById('tb').innerHTML = filas.map(m => `
+    <tr${m.nuevo ? ' style="background:var(--green-soft)"' : ''}>
+      <td>${m.f}</td><td>${m.c}</td><td>${m.d}${m.nuevo ? ' <span class="tag green">nuevo</span>' : ''}</td><td>${m.u}</td>
+      <td class="r num">${m.debe ? money(m.debe) : '—'}</td>
+      <td class="r num" style="color:var(--green)">${m.haber ? money(m.haber) : '—'}</td>
+      <td class="r num">${asc ? money(m.saldo) : '<span style="color:var(--muted)">—</span>'}</td>
+    </tr>`).join('');
+  document.getElementById('thsaldo').textContent = asc ? 'Saldo acumulado' : 'Saldo';
+  const debe = MOVS.reduce((a,m) => a + m.debe, 0), haber = MOVS.reduce((a,m) => a + m.haber, 0);
+  document.getElementById('tdebe').textContent = money(debe);
+  document.getElementById('thaber').textContent = money(haber);
+  document.getElementById('tsaldo').textContent = money(debe - haber);
+  document.getElementById('saldo').textContent = money(debe - haber);
+  if (pago > 0){
+    document.getElementById('entregas').textContent = money(haber);
+    document.getElementById('subentregas').textContent = '2 pagos registrados';
+    document.getElementById('subsaldo').textContent = 'Último pago hoy';
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('orden').addEventListener('click', e => {
+    asc = !asc;
+    e.target.textContent = asc ? 'Más antiguo primero' : 'Más reciente primero';
+    e.target.classList.toggle('on', !asc);
+    pinta();
+  });
+  pinta();
+  if (pago > 0) toast('Pago registrado — el saldo del cliente ya está actualizado');
+});
+</script>
+</body></html>

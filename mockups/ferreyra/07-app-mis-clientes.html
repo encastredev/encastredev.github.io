@@ -1,0 +1,98 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>App · Mis clientes · Distribuidora Ferreyra</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;}
+.filters .chipf{white-space:nowrap;flex-shrink:0;}
+.buscador{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 13px;display:flex;gap:8px;align-items:center;}
+.buscador svg{width:16px;height:16px;color:var(--muted);flex-shrink:0;}
+.buscador input{border:none;outline:none;font:inherit;font-size:14px;width:100%;}
+</style></head><body>
+<div class="stage phone-stage">
+  <div class="phoneframe">
+    <div class="phone" data-tab="clientes" data-time="9:41">
+      <div class="appbar">
+        <div class="row">
+          <h1>Mis clientes</h1>
+          <button class="chip off" id="net" style="margin-left:auto;"><span class="dot"></span><span id="nettxt">Sin señal — modo offline</span></button>
+        </div>
+        <div style="display:flex;gap:14px;margin-top:10px;">
+          <div><div style="font-size:11.5px;color:#9aa2ab;">Por cobrar en mi zona</div><div class="num" style="font-size:22px;font-weight:700;">$ 4.312.700</div></div>
+          <div style="margin-left:auto;text-align:right;"><div style="font-size:11.5px;color:#9aa2ab;">Cobrado hoy</div><div class="num" style="font-size:22px;font-weight:700;color:#7fd6a6;">$ 243.866</div></div>
+        </div>
+      </div>
+      <div class="mbody">
+        <div class="buscador">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input id="q" placeholder="Buscar cliente…">
+        </div>
+        <div class="filters">
+          <button class="chipf on" data-f="deuda">Mayor deuda</button>
+          <button class="chipf" data-f="ruta">Ruta de hoy</button>
+          <button class="chipf" data-f="vencido">+60 días</button>
+        </div>
+        <div class="note amber" id="cola">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>
+          <div><b>2 cobranzas</b> guardadas en el teléfono. Se envían solas al recuperar señal.</div>
+        </div>
+        <div id="lista" style="display:flex;flex-direction:column;gap:11px;padding-bottom:56px;"></div>
+      </div>
+      <a class="fab" href="09-app-cobranza.html">+</a>
+    </div>
+  </div>
+</div>
+<script src="assets/nav.js"></script>
+<script>
+const CL = [
+  {i:'DP', nom:'Ferretería Don Pedro',   mt:'N° 031 · Oberá',        s:987150, d:51, ruta:false, hoy:false},
+  {i:'LE', nom:'Ferretería La Estrella', mt:'N° 246 · Km 3',         s:243866, d:17, ruta:true,  hoy:true},
+  {i:'CG', nom:'Corralón Guaraní',       mt:'N° 152 · Campo Grande', s:187300, d:12, ruta:true,  hoy:false},
+  {i:'MA', nom:'Materiales del Alto',    mt:'N° 194 · A. del Valle', s:96480,  d:8,  ruta:true,  hoy:false},
+  {i:'ET', nom:'El Tornillo SRL',        mt:'N° 118 · San Vicente',  s:1264800,d:74, ruta:false, hoy:false},
+  {i:'SI', nom:'Sanitarios Iguazú',      mt:'N° 087 · Jardín Amér.', s:78540,  d:9,  ruta:false, hoy:false}
+];
+let filtro = 'deuda';
+function pinta(){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  let rows = CL.filter(c => {
+    if (filtro === 'ruta' && !c.ruta) return false;
+    if (filtro === 'vencido' && c.d < 60) return false;
+    return !q || (c.nom + ' ' + c.mt).toLowerCase().includes(q);
+  });
+  if (filtro === 'deuda' || filtro === 'vencido') rows = rows.slice().sort((a,b) => b.s - a.s);
+  document.getElementById('lista').innerHTML = rows.length ? rows.map(c => `
+    <a class="card cli" href="08-app-ficha-cliente.html">
+      <div class="ini">${c.i}</div>
+      <div><div class="nm">${c.nom}</div><div class="mt">${c.mt}${c.hoy ? ' · <b style="color:var(--green)">pagó hoy ✓</b>' : ''}</div></div>
+      <div class="sd"><span class="num" style="${c.d >= 60 ? 'color:var(--red)' : ''}">${money(c.s)}</span><small>${c.d} días</small></div>
+    </a>`).join('') :
+    '<div class="card" style="text-align:center;color:var(--muted);font-size:13.5px;">Sin resultados.</div>';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('q').addEventListener('input', pinta);
+  document.querySelectorAll('.chipf').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.chipf').forEach(x => x.classList.remove('on'));
+    b.classList.add('on'); filtro = b.dataset.f; pinta();
+  }));
+  let online = false;
+  document.getElementById('net').addEventListener('click', () => {
+    online = !online;
+    const el = document.getElementById('net');
+    el.className = 'chip ' + (online ? 'on' : 'off');
+    document.getElementById('nettxt').textContent = online ? 'Conectado — sincronizando' : 'Sin señal — modo offline';
+    const cola = document.getElementById('cola');
+    if (online){
+      cola.className = 'note green';
+      cola.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><div><b>2 cobranzas enviadas.</b> La administración ya las ve, sin que nadie tenga que avisar.</div>';
+      toast('Sincronizado: 2 cobranzas enviadas');
+    } else {
+      cola.className = 'note amber';
+      cola.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg><div><b>2 cobranzas</b> guardadas en el teléfono. Se envían solas al recuperar señal.</div>';
+    }
+  });
+  pinta();
+});
+</script>
+</body></html>

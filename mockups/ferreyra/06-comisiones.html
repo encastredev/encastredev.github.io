@@ -1,0 +1,103 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Comisiones semanales · Distribuidora Ferreyra</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+.weekpick{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.wk{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-weight:600;font-size:14px;
+  display:flex;gap:10px;align-items:center;}
+.wk button{padding:0 6px;color:var(--muted);font-size:16px;}
+.wk button:hover{color:var(--ink);}
+.det{background:#fafbf9;}
+.det td{padding:0;}
+.det table{font-size:12.5px;}
+.det th{background:#f2f4f1;padding:7px 18px;}
+.det td{padding:8px 18px;}
+</style></head><body>
+<div class="stage desk">
+  <div class="hint">Pantalla de escritorio — tocá "Ver detalle" para desplegar los pagos de cada vendedor.</div>
+  <div class="framewrap"><div class="frame">
+    <div class="desktop" data-menu="comisiones" data-title="Comisiones semanales">
+      <div class="content">
+        <div class="weekpick">
+          <div class="wk"><button id="ant">‹</button><span id="sem">Semana del 31/08 al 06/09/2026</span><button id="sig">›</button></div>
+          <span class="tag amber" id="estado">Cierre pendiente</span>
+          <div style="margin-left:auto;display:flex;gap:10px;">
+            <button class="btn" onclick="toast('Descarga del detalle en PDF — demo')">Exportar PDF</button>
+            <button class="btn pri" id="cerrar">Cerrar semana y liquidar</button>
+          </div>
+        </div>
+        <div class="kpis" style="grid-template-columns:repeat(3,1fr);">
+          <div class="kpi"><div class="lbl">Cobranzas de la semana</div><div class="val">$ 2.184.900</div><div class="sub">38 pagos confirmados</div></div>
+          <div class="kpi"><div class="lbl">Total a liquidar en comisiones</div><div class="val" style="color:var(--amber-dark)">$ 109.245</div><div class="sub">3 vendedores</div></div>
+          <div class="kpi"><div class="lbl">Pagos sin rendir</div><div class="val">$ 486.300</div><div class="sub down">No entran al cierre hasta rendirse</div></div>
+        </div>
+        <div class="panel">
+          <div class="hd"><h2>Liquidación por vendedor</h2></div>
+          <table>
+            <thead><tr><th>Vendedor</th><th class="r">Pagos</th><th class="r">Cobrado en la semana</th><th class="r">% comisión</th><th class="r">Comisión</th><th></th></tr></thead>
+            <tbody id="tb"></tbody>
+            <tfoot><tr style="background:#fafbf9;font-weight:600;">
+              <td><b>Total</b></td><td class="r num">38</td><td class="r num">$ 2.184.900</td><td></td>
+              <td class="r num" style="font-size:15px;">$ 109.245</td><td></td></tr></tfoot>
+          </table>
+        </div>
+        <p style="margin-top:14px;color:var(--muted);font-size:12.5px;">El porcentaje es configurable por vendedor. Solo entran al cierre los pagos ya rendidos y confirmados.</p>
+      </div>
+    </div>
+  </div></div>
+</div>
+<script src="assets/nav.js"></script>
+<script>
+const VEND = [
+  {n:'Luis',   z:'zona Km 3 / Oberá',  p:17, c:1024500, pct:5, det:[
+    ['06/09','Ferretería La Estrella','Efectivo','$ 243.866'],
+    ['05/09','Corralón Guaraní','Transferencia','$ 187.300'],
+    ['04/09','Materiales del Alto','Efectivo','$ 96.480'],
+    ['02/09','Ferretería Don Pedro','Cheque','$ 310.000'],
+    ['01/09','Otros 13 pagos','—','$ 186.854']]},
+  {n:'Marcos', z:'zona San Vicente',   p:13, c:782400,  pct:5, det:[
+    ['05/09','El Tornillo SRL','Transferencia','$ 420.000'],
+    ['03/09','Corralón El Obraje','Efectivo','$ 168.400'],
+    ['01/09','Otros 11 pagos','—','$ 194.000']]},
+  {n:'Raúl',   z:'zona El Soberbio',   p:8,  c:378000,  pct:5, det:[
+    ['04/09','Sanitarios Iguazú','Transferencia','$ 120.000'],
+    ['02/09','Ferretería San Jorge','Efectivo','$ 74.210'],
+    ['01/09','Otros 6 pagos','—','$ 183.790']]}
+];
+const fmt = n => '$ ' + Math.round(n).toLocaleString('es-AR');
+let abierto = -1;
+
+function pinta(){
+  document.getElementById('tb').innerHTML = VEND.map((v,i) => {
+    const fila = `<tr>
+      <td><b>${v.n}</b> · ${v.z}</td>
+      <td class="r">${v.p}</td>
+      <td class="r num">${fmt(v.c)}</td>
+      <td class="r">${v.pct}%</td>
+      <td class="r num" style="color:var(--amber-dark)">${fmt(v.c * v.pct / 100)}</td>
+      <td class="r"><span class="lnk" style="color:var(--blue);font-size:13px;font-weight:500;cursor:pointer;" data-i="${i}">${abierto === i ? 'Ocultar' : 'Ver detalle'}</span></td></tr>`;
+    if (abierto !== i) return fila;
+    return fila + `<tr class="det"><td colspan="6"><table>
+      <thead><tr><th>Fecha</th><th>Cliente</th><th>Medio</th><th class="r">Monto</th></tr></thead>
+      <tbody>${v.det.map(d => `<tr><td>${d[0]}</td><td>${d[1]}</td><td>${d[2]}</td><td class="r num">${d[3]}</td></tr>`).join('')}</tbody>
+    </table></td></tr>`;
+  }).join('');
+  document.querySelectorAll('[data-i]').forEach(el => el.onclick = () => {
+    abierto = abierto === Number(el.dataset.i) ? -1 : Number(el.dataset.i); pinta();
+  });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  pinta();
+  document.getElementById('ant').onclick = () => toast('Semana anterior — demo con una sola semana cargada');
+  document.getElementById('sig').onclick = () => toast('Semana siguiente — demo con una sola semana cargada');
+  document.getElementById('cerrar').onclick = e => {
+    document.getElementById('estado').textContent = 'Liquidada';
+    document.getElementById('estado').className = 'tag green';
+    e.target.disabled = true; e.target.textContent = 'Semana liquidada';
+    toast('Semana cerrada — $ 109.245 en comisiones listos para liquidar');
+  };
+});
+</script>
+</body></html>

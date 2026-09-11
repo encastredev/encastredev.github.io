@@ -1,0 +1,134 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>App · Registrar cobranza · Distribuidora Ferreyra</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+.montoin{font-family:'Barlow Semi Condensed';font-size:26px;font-weight:700;}
+.montoin input{font:inherit;border:none;outline:none;width:100%;background:none;}
+.ok{text-align:center;padding:28px 18px;}
+.ok .circ{width:74px;height:74px;border-radius:50%;background:var(--green-soft);display:flex;align-items:center;
+  justify-content:center;margin:0 auto 16px;}
+.ok .circ svg{width:34px;height:34px;color:var(--green);}
+</style></head><body>
+<div class="stage phone-stage">
+  <div class="phoneframe">
+    <div class="phone" data-tab="cobranzas" data-time="9:38" data-tabbar="off">
+      <div class="appbar">
+        <div class="row">
+          <a href="08-app-ficha-cliente.html" style="font-size:20px;">‹</a>
+          <h1 style="font-size:18px;" id="titulo">Registrar cobranza</h1>
+          <span class="chip off" style="margin-left:auto;"><span class="dot"></span>Offline</span>
+        </div>
+      </div>
+
+      <div class="mbody" id="form">
+        <div class="card" style="display:flex;align-items:center;gap:12px;">
+          <div class="ini" style="width:42px;height:42px;border-radius:12px;background:#eef0ee;color:var(--steel);font-family:'Barlow Semi Condensed';font-weight:700;display:flex;align-items:center;justify-content:center;">LE</div>
+          <div>
+            <div style="font-weight:600;font-size:15px;">Ferretería La Estrella</div>
+            <div style="color:var(--muted);font-size:12.5px;">N° 246 · saldo actual <b style="color:var(--red)">$ 243.866</b></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Monto cobrado</label>
+          <div class="input montoin focus"><span>$</span><input id="monto" value="243.866" inputmode="numeric"></div>
+          <div style="display:flex;gap:8px;margin-top:9px;">
+            <button class="chipf on" data-m="243866">Saldo total</button>
+            <button class="chipf" data-m="150000">$ 150.000</button>
+            <button class="chipf" data-m="0">Otro</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Medio de pago</label>
+          <div class="seg" style="grid-template-columns:1fr 1fr 1fr;">
+            <div class="opt on">Efectivo</div><div class="opt">Transferencia</div><div class="opt">Cheque</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Comprobante (opcional)</label>
+          <div class="input" id="foto" style="justify-content:center;gap:9px;border-style:dashed;color:var(--muted);padding:18px;cursor:pointer;">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Sacar foto del recibo
+          </div>
+        </div>
+        <div class="note green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+          <div>Se guarda en el teléfono y se envía al recuperar señal. El nuevo saldo del cliente queda en <b id="nuevo">$ 0</b>.</div>
+        </div>
+        <button class="btn pri" id="guardar" style="justify-content:center;padding:15px;font-size:16px;border-radius:12px;">Guardar cobranza</button>
+      </div>
+
+      <div class="mbody hide" id="listo">
+        <div class="ok">
+          <div class="circ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg></div>
+          <div style="font-family:'Barlow Semi Condensed';font-size:24px;font-weight:700;" id="okmonto">$ 243.866</div>
+          <div style="color:var(--muted);font-size:13.5px;margin-top:4px;">cobrados a Ferretería La Estrella</div>
+          <div class="tag amber" style="margin-top:12px;">Guardada en el teléfono · pendiente de envío</div>
+        </div>
+        <div class="card" style="padding:6px 15px;">
+          <div style="display:flex;padding:10px 0;border-bottom:1px solid #eff1ee;font-size:13.5px;"><span style="color:var(--muted);width:120px;">Medio</span><b>Efectivo</b></div>
+          <div style="display:flex;padding:10px 0;border-bottom:1px solid #eff1ee;font-size:13.5px;"><span style="color:var(--muted);width:120px;">Saldo anterior</span><b>$ 243.866</b></div>
+          <div style="display:flex;padding:10px 0;font-size:13.5px;"><span style="color:var(--muted);width:120px;">Nuevo saldo</span><b id="oknuevo">$ 0</b></div>
+        </div>
+        <div class="note amber">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>
+          <div>Al recuperar señal se envía sola. Ya suma a tu comisión de la semana.</div>
+        </div>
+        <a class="btn pri" href="07-app-mis-clientes.html" style="justify-content:center;padding:14px;border-radius:12px;">Volver a mis clientes</a>
+        <button class="btn" id="otra" style="justify-content:center;padding:13px;border-radius:12px;">Cargar otra cobranza</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="assets/nav.js"></script>
+<script>
+const SALDO = 243866;
+const fmt = n => '$ ' + Math.round(n).toLocaleString('es-AR');
+const val = () => Number(document.getElementById('monto').value.replace(/[^\d]/g, '')) || 0;
+function recalc(){
+  const m = Math.min(val(), SALDO);
+  document.getElementById('nuevo').textContent = fmt(SALDO - m);
+  document.getElementById('guardar').disabled = m <= 0;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('monto');
+  inp.addEventListener('input', () => {
+    const n = Number(inp.value.replace(/[^\d]/g, '')) || 0;
+    inp.value = n ? n.toLocaleString('es-AR') : '';
+    recalc();
+  });
+  document.querySelectorAll('.chipf[data-m]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.chipf[data-m]').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    if (Number(b.dataset.m) > 0) inp.value = Number(b.dataset.m).toLocaleString('es-AR');
+    else { inp.value = ''; inp.focus(); }
+    recalc();
+  }));
+  document.querySelectorAll('.seg .opt').forEach(o => o.addEventListener('click', () => {
+    document.querySelectorAll('.seg .opt').forEach(x => x.classList.remove('on'));
+    o.classList.add('on');
+  }));
+  document.getElementById('foto').addEventListener('click', function(){
+    this.style.borderStyle = 'solid';
+    this.style.color = 'var(--green)';
+    this.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Foto adjunta · recibo_11795.jpg';
+  });
+  document.getElementById('guardar').addEventListener('click', () => {
+    const m = Math.min(val(), SALDO);
+    document.getElementById('okmonto').textContent = fmt(m);
+    document.getElementById('oknuevo').textContent = fmt(SALDO - m);
+    document.getElementById('form').classList.add('hide');
+    document.getElementById('listo').classList.remove('hide');
+    document.getElementById('titulo').textContent = 'Cobranza guardada';
+    window.scrollTo(0,0);
+  });
+  document.getElementById('otra').addEventListener('click', () => {
+    document.getElementById('listo').classList.add('hide');
+    document.getElementById('form').classList.remove('hide');
+    document.getElementById('titulo').textContent = 'Registrar cobranza';
+  });
+  recalc();
+});
+</script>
+</body></html>

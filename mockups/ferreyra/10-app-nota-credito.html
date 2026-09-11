@@ -1,0 +1,119 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>App · Nota de crédito · Distribuidora Ferreyra</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+.itm{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid #eff1ee;}
+.itm:last-child{border-bottom:none;}
+.itm .nm{font-weight:600;font-size:13.5px;line-height:1.25;}
+.itm .mt{color:var(--muted);font-size:11.5px;margin-top:2px;}
+.itm .stp{margin-left:auto;flex-shrink:0;}
+.itm.off{opacity:.5;}
+.photo{width:52px;height:52px;border-radius:9px;background:#e9ebe8;border:1px dashed #c9cec8;display:flex;
+  align-items:center;justify-content:center;color:var(--muted);flex-shrink:0;}
+.ok{text-align:center;padding:26px 18px;}
+.ok .circ{width:72px;height:72px;border-radius:50%;background:var(--amber-soft);display:flex;align-items:center;
+  justify-content:center;margin:0 auto 15px;}
+.ok .circ svg{width:32px;height:32px;color:var(--amber-dark);}
+</style></head><body>
+<div class="stage phone-stage">
+  <div class="phoneframe">
+    <div class="phone" data-tab="clientes" data-time="11:24" data-tabbar="off">
+      <div class="appbar">
+        <div class="row">
+          <a href="08-app-ficha-cliente.html" style="font-size:20px;">‹</a>
+          <h1 style="font-size:18px;" id="titulo">Solicitar nota de crédito</h1>
+          <span class="chip off" style="margin-left:auto;"><span class="dot"></span>Offline</span>
+        </div>
+      </div>
+
+      <div class="mbody" id="form">
+        <div class="card" style="padding:12px 14px;">
+          <div style="font-weight:600;font-size:14.5px;">Ferretería La Estrella</div>
+          <div style="color:var(--muted);font-size:12.5px;margin-top:2px;">Remito N° 11795 · 24/08/2026 · $ 243.866</div>
+        </div>
+        <div class="card" style="padding:6px 14px 10px;">
+          <div style="font-size:12.5px;font-weight:600;color:var(--steel);padding:9px 0 3px;">¿Qué devuelve?</div>
+          <div id="items"></div>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Motivo</label>
+          <div class="seg" style="grid-template-columns:1fr 1fr;">
+            <div class="opt on">Devolución</div><div class="opt">Fallada</div>
+          </div>
+        </div>
+        <div class="card" id="foto" style="display:flex;gap:11px;align-items:center;cursor:pointer;">
+          <div class="photo"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+          <div style="font-size:12.5px;color:var(--steel);font-weight:500;">Sacar foto de la mercadería<br><span style="color:var(--muted);font-weight:400;">Queda adjunta al pedido</span></div>
+        </div>
+        <div class="note amber">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+          <div>Total estimado: <b id="total">$ 70.168</b>. La nota se emite cuando el administrador la aprueba — el saldo del cliente no cambia hasta ese momento.</div>
+        </div>
+        <button class="btn pri" id="enviar" style="justify-content:center;padding:14px;font-size:15.5px;border-radius:12px;">Enviar solicitud</button>
+      </div>
+
+      <div class="mbody hide" id="listo">
+        <div class="ok">
+          <div class="circ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 8v5"/><path d="M12 16h.01"/><circle cx="12" cy="12" r="10"/></svg></div>
+          <div style="font-family:'Barlow Semi Condensed';font-size:23px;font-weight:700;">Solicitud enviada</div>
+          <div style="color:var(--muted);font-size:13.5px;margin-top:4px;">Por <b id="okmonto">$ 70.168</b> · esperando aprobación</div>
+        </div>
+        <div class="card" style="padding:6px 15px;">
+          <div style="display:flex;padding:10px 0;border-bottom:1px solid #eff1ee;font-size:13.5px;"><span style="color:var(--muted);width:120px;">Cliente</span><b>La Estrella · N° 246</b></div>
+          <div style="display:flex;padding:10px 0;border-bottom:1px solid #eff1ee;font-size:13.5px;"><span style="color:var(--muted);width:120px;">Sobre remito</span><b>N° 11795</b></div>
+          <div style="display:flex;padding:10px 0;font-size:13.5px;"><span style="color:var(--muted);width:120px;">Estado</span><span class="tag amber">Pendiente de aprobación</span></div>
+        </div>
+        <div class="note grey">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5"/><path d="M12 8h.01"/></svg>
+          <div>Nada se pierde en el camino: la solicitud queda registrada con foto y motivo, aunque estés sin señal.</div>
+        </div>
+        <a class="btn pri" href="05-nota-credito.html" style="justify-content:center;padding:14px;border-radius:12px;">Ver cómo la aprueba el administrador</a>
+        <a class="btn" href="08-app-ficha-cliente.html" style="justify-content:center;padding:13px;border-radius:12px;">Volver al cliente</a>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="assets/nav.js"></script>
+<script>
+const ITEMS = [
+  {cod:'CF80',  nom:'Cerradura 205 caja derecha',      ent:4,  pu:27234, q:2},
+  {cod:'PT244', nom:'Manguera cristal 6x8 rollo 50 m', ent:3,  pu:15700, q:1},
+  {cod:'TL414', nom:'Silicona acética trans. 250 ml',  ent:12, pu:4300,  q:0}
+];
+const fmt = n => '$ ' + Math.round(n).toLocaleString('es-AR');
+function pinta(){
+  document.getElementById('items').innerHTML = ITEMS.map((it,i) => `
+    <div class="itm ${it.q ? '' : 'off'}">
+      <div><div class="nm">${it.nom}</div><div class="mt">${it.cod} · entregadas ${it.ent}</div></div>
+      <span class="stp"><button data-d="-1" data-i="${i}">−</button><b>${it.q}</b><button data-d="1" data-i="${i}">+</button></span>
+    </div>`).join('');
+  const total = ITEMS.reduce((a,i) => a + i.q * i.pu, 0);
+  document.getElementById('total').textContent = fmt(total);
+  document.getElementById('enviar').disabled = total <= 0;
+  document.querySelectorAll('.stp button').forEach(b => b.onclick = () => {
+    const it = ITEMS[b.dataset.i];
+    it.q = Math.max(0, Math.min(it.ent, it.q + Number(b.dataset.d)));
+    pinta();
+  });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  pinta();
+  document.querySelectorAll('.seg .opt').forEach(o => o.addEventListener('click', () => {
+    document.querySelectorAll('.seg .opt').forEach(x => x.classList.remove('on'));
+    o.classList.add('on');
+  }));
+  document.getElementById('foto').addEventListener('click', function(){
+    this.innerHTML = '<div class="photo" style="background:var(--green-soft);border:1px solid #cbe6d6;color:var(--green);"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div><div style="font-size:12.5px;color:var(--steel);font-weight:500;">Foto adjunta<br><span style="color:var(--muted);font-weight:400;">devolucion_11795.jpg</span></div>';
+  });
+  document.getElementById('enviar').addEventListener('click', () => {
+    document.getElementById('okmonto').textContent =
+      fmt(ITEMS.reduce((a,i) => a + i.q * i.pu, 0));
+    document.getElementById('form').classList.add('hide');
+    document.getElementById('listo').classList.remove('hide');
+    document.getElementById('titulo').textContent = 'Solicitud enviada';
+  });
+});
+</script>
+</body></html>

@@ -1,0 +1,97 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Clientes · Distribuidora Ferreyra</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+.bar2{display:flex;align-items:center;gap:9px;margin-bottom:16px;flex-wrap:wrap;}
+.bar2 .buscar{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 13px;width:300px;
+  display:flex;gap:8px;align-items:center;}
+.bar2 .buscar svg{width:15px;height:15px;color:var(--muted);}
+.bar2 .buscar input{border:none;outline:none;font:inherit;font-size:13.5px;width:100%;}
+.empty{padding:34px;text-align:center;color:var(--muted);font-size:13.5px;}
+</style></head><body>
+<div class="stage desk">
+  <div class="hint">Pantalla de escritorio — deslizá hacia los costados o girá el teléfono para verla completa.</div>
+  <div class="framewrap"><div class="frame">
+    <div class="desktop" data-menu="clientes" data-title="Clientes">
+      <div class="content">
+        <div class="bar2">
+          <div class="buscar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input id="q" placeholder="Buscar por nombre, número o localidad…">
+          </div>
+          <button class="chipf on" data-f="todos">Todos</button>
+          <button class="chipf" data-f="deuda">Con deuda</button>
+          <button class="chipf" data-f="vencido">+60 días</button>
+          <button class="chipf" data-f="luis">Vendedor: Luis</button>
+          <div style="margin-left:auto;display:flex;gap:9px;">
+            <button class="btn">Exportar</button>
+            <button class="btn pri">+ Nuevo cliente</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="hd"><h2>Clientes</h2><span class="tag grey" id="cnt">152 clientes</span>
+            <span class="lnk" style="cursor:default;color:var(--muted)">Ordenado por saldo</span></div>
+          <table>
+            <thead><tr><th>N°</th><th>Cliente</th><th>Localidad</th><th>Vendedor</th><th class="r">Saldo</th><th class="r">Días sin pagar</th><th class="r">Límite</th></tr></thead>
+            <tbody id="tb"></tbody>
+          </table>
+          <div class="empty hide" id="empty">No hay clientes que coincidan con la búsqueda.</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+<script src="assets/nav.js"></script>
+<script>
+const CLIENTES = [
+  {n:'118', nom:'El Tornillo SRL',            loc:'San Vicente',          v:'Marcos', s:1264800, d:74, lim:1000000},
+  {n:'031', nom:'Ferretería Don Pedro',       loc:'Oberá',                v:'Luis',   s:987150,  d:51, lim:1200000},
+  {n:'205', nom:'Corralón El Obraje',         loc:'Campo Grande',         v:'Marcos', s:743020,  d:38, lim:900000},
+  {n:'246', nom:'Ferretería La Estrella',     loc:'Posadas · Km 3',       v:'Luis',   s:243866,  d:17, lim:600000},
+  {n:'087', nom:'Sanitarios Iguazú',          loc:'Jardín América',       v:'Raúl',   s:198540,  d:9,  lim:500000},
+  {n:'152', nom:'Corralón Guaraní',           loc:'Campo Grande',         v:'Luis',   s:187300,  d:12, lim:700000},
+  {n:'194', nom:'Materiales del Alto',        loc:'Aristóbulo del Valle', v:'Luis',   s:96480,   d:8,  lim:400000},
+  {n:'063', nom:'Ferretería San Jorge',       loc:'Eldorado',             v:'Raúl',   s:74210,   d:22, lim:500000},
+  {n:'211', nom:'Pinturería del Litoral',     loc:'Posadas',              v:'Marcos', s:41900,   d:5,  lim:350000},
+  {n:'174', nom:'Casa Hernández',             loc:'El Soberbio',          v:'Raúl',   s:0,       d:0,  lim:300000},
+  {n:'098', nom:'Corralón Santa Rita',        loc:'Santa Rita',           v:'Marcos', s:0,       d:0,  lim:450000}
+];
+let filtro = 'todos';
+
+function pinta(){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const rows = CLIENTES.filter(c => {
+    if (filtro === 'deuda'   && c.s <= 0) return false;
+    if (filtro === 'vencido' && c.d < 60)  return false;
+    if (filtro === 'luis'    && c.v !== 'Luis') return false;
+    if (!q) return true;
+    return (c.nom + ' ' + c.n + ' ' + c.loc + ' ' + c.v).toLowerCase().includes(q);
+  });
+  document.getElementById('tb').innerHTML = rows.map(c => {
+    const col = c.s === 0 ? 'var(--green)' : (c.d >= 60 ? 'var(--red)' : 'var(--ink)');
+    const excede = c.s > c.lim;
+    return `<tr class="clickable" onclick="location.href='03-cuenta-corriente.html'">
+      <td style="color:var(--muted)">${c.n}</td>
+      <td><b>${c.nom}</b></td>
+      <td>${c.loc}</td>
+      <td>${c.v}</td>
+      <td class="r num" style="color:${col}">${c.s === 0 ? 'al día' : money(c.s)}</td>
+      <td class="r">${c.d || '—'}</td>
+      <td class="r">${excede ? '<span class="tag red">supera límite</span>' : '<span style="color:var(--muted)">' + money(c.lim) + '</span>'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('cnt').textContent = rows.length + ' de ' + CLIENTES.length + ' (demo)';
+  document.getElementById('empty').classList.toggle('hide', rows.length > 0);
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('q').addEventListener('input', pinta);
+  document.querySelectorAll('.chipf').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.chipf').forEach(x => x.classList.remove('on'));
+    b.classList.add('on'); filtro = b.dataset.f; pinta();
+  }));
+  pinta();
+});
+</script>
+</body></html>

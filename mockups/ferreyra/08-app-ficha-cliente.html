@@ -1,0 +1,88 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>App · Ficha del cliente · Distribuidora Ferreyra</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+.tabs{display:flex;gap:6px;background:#eef0ee;border-radius:10px;padding:4px;}
+.tabs button{flex:1;padding:8px 4px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);}
+.tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.mov{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid #eff1ee;}
+.mov:last-child{border-bottom:none;}
+.mov .ic2{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.mov .ic2 svg{width:16px;height:16px;}
+.mov .t{font-weight:600;font-size:13.5px;}
+.mov .d{color:var(--muted);font-size:11.5px;margin-top:2px;}
+.dato{display:flex;padding:10px 0;border-bottom:1px solid #eff1ee;font-size:13.5px;}
+.dato:last-child{border-bottom:none;}
+.dato span{color:var(--muted);width:104px;flex-shrink:0;}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+</style></head><body>
+<div class="stage phone-stage">
+  <div class="phoneframe">
+    <div class="phone" data-tab="clientes" data-time="9:44">
+      <div class="appbar">
+        <div class="row">
+          <a href="07-app-mis-clientes.html" style="font-size:20px;">‹</a>
+          <h1 style="font-size:18px;">Ferretería La Estrella</h1>
+          <span class="chip off" style="margin-left:auto;"><span class="dot"></span>Offline</span>
+        </div>
+        <div style="margin-top:12px;">
+          <div style="font-size:11.5px;color:#9aa2ab;">Saldo actual</div>
+          <div class="num" style="font-size:30px;font-weight:700;">$ 243.866</div>
+          <div style="font-size:11.5px;color:#9aa2ab;margin-top:2px;">N° 246 · Km 3 · último pago hace 17 días</div>
+        </div>
+      </div>
+      <div class="mbody">
+        <div class="acts">
+          <a class="btn pri" href="09-app-cobranza.html" style="padding:13px;border-radius:11px;">Registrar cobranza</a>
+          <a class="btn" href="10-app-nota-credito.html" style="padding:13px;border-radius:11px;">Pedir nota de crédito</a>
+        </div>
+        <div class="tabs">
+          <button class="on" data-t="mov">Movimientos</button>
+          <button data-t="datos">Datos</button>
+        </div>
+        <div class="card" id="panel-mov" style="padding:4px 15px;">
+          <div class="mov">
+            <div class="ic2" style="background:#eef0ee;"><svg viewBox="0 0 24 24" fill="none" stroke="var(--steel)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
+            <div><div class="t">Remito N° 11795</div><div class="d">24 de agosto 2026</div></div>
+            <div style="margin-left:auto;" class="num">$ 243.866</div>
+          </div>
+          <div class="mov">
+            <div class="ic2" style="background:var(--green-soft);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div><div class="t">Pago en efectivo</div><div class="d">12 de junio · cargado por mí</div></div>
+            <div style="margin-left:auto;color:var(--green);" class="num">− $ 226.509</div>
+          </div>
+          <div class="mov">
+            <div class="ic2" style="background:#eef0ee;"><svg viewBox="0 0 24 24" fill="none" stroke="var(--steel)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
+            <div><div class="t">Remito N° 11556</div><div class="d">9 de junio 2026</div></div>
+            <div style="margin-left:auto;" class="num">$ 226.509</div>
+          </div>
+        </div>
+        <div class="card hide" id="panel-datos" style="padding:6px 15px;">
+          <div class="dato"><span>Titular</span><b>Marcelo Fernández</b></div>
+          <div class="dato"><span>Dirección</span><b>Av. San Martín 1691 oeste, Km 3</b></div>
+          <div class="dato"><span>Celular</span><b>3751 000000</b></div>
+          <div class="dato"><span>Límite</span><b>$ 600.000</b></div>
+          <div class="dato"><span>Condición</span><b>Cuenta corriente · 30 días</b></div>
+        </div>
+        <div class="note grey">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5"/><path d="M12 8h.01"/></svg>
+          <div>Los datos se descargaron esta mañana. Podés consultarlos sin señal durante todo el recorrido.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="assets/nav.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById('panel-mov').classList.toggle('hide', b.dataset.t !== 'mov');
+    document.getElementById('panel-datos').classList.toggle('hide', b.dataset.t !== 'datos');
+  }));
+});
+</script>
+</body></html>
