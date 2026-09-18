@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>02 · Inventario · GROW Stock</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c1b'/%3E%3Crect x='20' y='26' width='24' height='12' fill='%23ffe827'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="escritorio" data-pantalla="02-inventario.html">
+<main id="pagina">
+  <div class="cabecera">
+    <div>
+      <div class="antetitulo"><i data-i="box" class="i-sm"></i> Operación</div>
+      <h1 class="titulo">Inventario</h1>
+      <p class="bajada">Buscá como pregunta el cliente en el mostrador: por código GROW, por el número de otra marca (referencia cruzada) o por el modelo de la máquina.</p>
+    </div>
+    <div class="fila">
+      <span class="chico tenue">Probá:</span>
+      <button class="chip" type="button" data-prueba="P959052">P959052</button>
+      <button class="chip" type="button" data-prueba="320D">320D</button>
+      <button class="chip" type="button" data-prueba="filtro hidraulico">filtro hidráulico</button>
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="filtros">
+      <label class="buscador"><span class="sr">Buscar</span><i data-i="search"></i><input class="input" id="q" type="search" placeholder="Código, referencia (P959052) o máquina (320D)…" autocomplete="off"></label>
+      <select class="select" id="f-dep" aria-label="Depósito"><option value="ALL">Todos los depósitos</option><option value="MIS">Misiones</option><option value="MIA">Miami (etapa 2)</option></select>
+      <select class="select" id="f-cat" aria-label="Categoría"><option value="">Todas las categorías</option></select>
+      <select class="select" id="f-estado" aria-label="Estado de stock">
+        <option value="">Cualquier stock</option><option value="ok">Stock OK</option><option value="bajo">Bajo mínimo</option><option value="sin">Sin stock</option><option value="contar">A contar</option>
+      </select>
+      <label class="interruptor chico"><input type="checkbox" id="f-pend"> Sin etiqueta</label>
+    </div>
+    <div class="resultados">
+      <span id="res-txt"></span>
+      <span class="fila" id="accion-sel" hidden>
+        <b id="sel-n"></b>
+        <a class="btn btn-chico btn-acento" id="sel-ir"><i data-i="tag"></i>Imprimir etiquetas</a>
+        <button class="btn btn-chico btn-fantasma" type="button" id="sel-limpiar">Quitar selección</button>
+      </span>
+    </div>
+    <div class="tabla-caja">
+      <table class="tabla" id="tabla-inventario">
+        <thead><tr>
+          <th style="width:36px"><span class="sr">Seleccionar</span></th>
+          <th>Código</th>
+          <th>Descripción</th>
+          <th>Marca</th>
+          <th>Ubicación</th>
+          <th class="num">Stock</th>
+          <th class="num">Venta púb. ARG</th>
+          <th>Estado</th>
+          <th>Etiqueta</th>
+          <th class="flecha"><span class="sr">Abrir</span></th>
+        </tr></thead>
+        <tbody id="filas"></tbody>
+      </table>
+    </div>
+    <div class="tabla-pie"><span class="chico tenue" id="pie-txt"></span><button class="btn btn-chico" type="button" id="mas">Mostrar 25 más</button></div>
+  </section>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, icono, ui } = G;
+  const st = { q: G.qs('q', ''), dep: G.qs('dep', 'ALL'), cat: G.qs('cat', ''), estado: G.qs('estado', ''), pend: G.qs('pend') === '1', limite: 25 };
+  const abiertos = new Set();
+  const seleccion = new Set();
+
+  const $ = (id) => document.getElementById(id);
+  const cats = [...new Set(G.productos.map((p) => p.categoria))].sort();
+  $('f-cat').insertAdjacentHTML('beforeend', cats.map((c) => `<option>${esc(c)}</option>`).join(''));
+  $('q').value = st.q; $('f-dep').value = st.dep; $('f-cat').value = st.cat; $('f-estado').value = st.estado; $('f-pend').checked = st.pend;
+
+  function resultados() {
+    let filas = st.q.trim() ? G.buscar(st.q) : G.productos.map((p) => ({ p }));
+    filas = filas.filter(({ p }) => {
+      if (!G.presente(p, st.dep)) return false;
+      if (st.cat && p.categoria !== st.cat) return false;
+      if (st.estado && G.estadoStock(p, st.dep) !== st.estado) return false;
+      if (st.pend && (G.etiquetado(p.id) || G.stock(p.id) <= 0)) return false;
+      return true;
+    });
+    if (!st.q.trim()) filas.sort((a, b) => G.stock(b.p.id, st.dep) - G.stock(a.p.id, st.dep) || a.p.codigo.localeCompare(b.p.codigo));
+    return filas;
+  }
+
+  function detalle(p) {
+    const pr = G.precios(p);
+    const porDep = G.DEPOSITOS.map((d) => ({ d, items: G.stockItems(p.id, d.id) })).filter((x) => x.items.length);
+    return `<div class="grilla">
+      <div class="panel"><div class="fuerte chico" style="margin-bottom:6px">${icono('pin', 'i-sm')} Dónde está</div>
+        ${porDep.map(({ d, items }) => items.map((s) => `<div class="fila entre chico" style="padding:3px 0"><span class="corta">${d.nombre} · ${esc(G.ubic(s.ubic, d.id).nombre)}</span><b class="num">${s.cant} u.</b></div>`).join('')).join('') || '<span class="tenue chico">Sin ubicación</span>'}
+        ${G.enTransito(p.id) ? `<div class="chico" style="margin-top:4px">${icono('truck', 'i-sm')} ${G.enTransito(p.id)} u. en tránsito</div>` : ''}
+      </div>
+      <div class="panel"><div class="fuerte chico" style="margin-bottom:6px">${icono('dollar', 'i-sm')} Precios</div>
+        <dl class="kv chico"><dt>Costo FOB</dt><dd>${fmt.usd(pr.fob)}</dd><dt>Costo ARG${pr.argEstimado ? ' (est.)' : ''}</dt><dd>${fmt.usd(pr.arg)}</dd><dt>Venta público</dt><dd>${fmt.usd(pr.venta)}</dd></dl>
+      </div>
+      <div class="panel"><div class="fuerte chico" style="margin-bottom:6px">${icono('link', 'i-sm')} Referencias cruzadas</div>
+        <div class="chips">${p.refs.slice(0, 6).map((r) => `<button type="button" class="chip mono" data-prueba="${esc(r)}">${esc(r)}</button>`).join('') || '<span class="tenue chico">Sin referencias en el Excel</span>'}</div>
+        ${p.compat.length ? `<div class="chico tenue" style="margin-top:8px">Compatible con ${p.compat.length} familia(s) de máquinas</div>` : ''}
+      </div>
+    </div>
+    <div class="fila" style="margin-top:12px">
+      <a class="btn btn-chico btn-oscuro" href="${G.href('03-ficha-producto.html', { id: p.id })}">${icono('file')}Ver ficha completa</a>
+      <a class="btn btn-chico" href="${G.href('04-movimiento.html', { id: p.id })}">${icono('arrows')}Registrar movimiento</a>
+      <a class="btn btn-chico" href="${G.href('06-etiquetas-producto.html', { ids: p.id })}">${icono('tag')}Etiquetar</a>
+    </div>`;
+  }
+
+  function render() {
+    const filas = resultados();
+    const visibles = filas.slice(0, st.limite);
+    const unidades = filas.reduce((a, r) => a + Math.max(0, G.stock(r.p.id, st.dep)), 0);
+    $('res-txt').innerHTML = `<b class="num">${fmt.int(filas.length)}</b> producto(s) · <span class="num">${fmt.int(unidades)}</span> unidades${st.q ? ` para “${esc(st.q)}”` : ''}`;
+    $('filas').innerHTML = visibles.map(({ p, via, match }) => {
+      const abierto = abiertos.has(p.id);
+      const items = G.stockItems(p.id, st.dep);
+      const pr = G.precios(p);
+      const marcaVia = via && !['código', 'descripción'].includes(via);
+      return `<tr class="fila-dato${abierto ? ' abierta' : ''}" data-id="${p.id}" aria-expanded="${abierto}">
+        <td data-stop><input type="checkbox" class="check" data-sel="${p.id}" ${seleccion.has(p.id) ? 'checked' : ''} aria-label="Seleccionar ${esc(p.codigo)}"></td>
+        <td class="codigo">${G.resaltar(p.codigo, via === 'código' ? st.q : '')}</td>
+        <td><div class="desc">${G.resaltar(p.descripcion, via === 'descripción' ? st.q : '')}</div>
+          <div class="sub">${esc(p.categoria)}${p.subcategoria ? ' · ' + esc(p.subcategoria) : ''}</div>
+          ${marcaVia ? `<div class="coincide">${icono('link', 'i-sm')}por ${via}: <mark>${esc(match)}</mark></div>` : ''}</td>
+        <td>${esc(p.marca || '—')}</td>
+        <td>${items.slice(0, 2).map((s) => ui.ubicCorta(s)).join(' ')}${items.length > 2 ? ` <span class="chico tenue">+${items.length - 2}</span>` : ''}</td>
+        <td class="num"><b style="font-size:15px">${G.stock(p.id, st.dep)}</b></td>
+        <td class="num">${pr.venta ? fmt.usd(pr.venta) : '<span class="tenue chico">sin costo</span>'}</td>
+        <td>${ui.estado(p, st.dep)}</td>
+        <td>${ui.etiqueta(p)}</td>
+        <td class="flecha">${icono('chevron')}</td>
+      </tr>${abierto ? `<tr class="detalle"><td colspan="10">${detalle(p)}</td></tr>` : ''}`;
+    }).join('') || `<tr><td colspan="10"><div class="vacio-estado">${icono('search')}No encontramos productos con esa búsqueda y filtros.</div></td></tr>`;
+    $('pie-txt').textContent = `Mostrando ${fmt.int(visibles.length)} de ${fmt.int(filas.length)}`;
+    $('mas').hidden = visibles.length >= filas.length;
+    $('accion-sel').hidden = !seleccion.size;
+    $('sel-n').textContent = `${seleccion.size} seleccionado(s)`;
+    $('sel-ir').href = G.href('06-etiquetas-producto.html', { ids: [...seleccion].join(',') });
+  }
+
+  const aplicar = () => { st.limite = 25; render(); };
+  $('q').addEventListener('input', G.demorar(() => { st.q = $('q').value; aplicar(); }, 160));
+  $('f-dep').addEventListener('change', (e) => { st.dep = e.target.value; aplicar(); });
+  $('f-cat').addEventListener('change', (e) => { st.cat = e.target.value; aplicar(); });
+  $('f-estado').addEventListener('change', (e) => { st.estado = e.target.value; aplicar(); });
+  $('f-pend').addEventListener('change', (e) => { st.pend = e.target.checked; aplicar(); });
+  $('mas').addEventListener('click', () => { st.limite += 25; render(); });
+  $('sel-limpiar').addEventListener('click', () => { seleccion.clear(); render(); });
+
+  document.getElementById('pagina').addEventListener('click', (e) => {
+    const prueba = e.target.closest('[data-prueba]');
+    if (prueba) { st.q = prueba.dataset.prueba; $('q').value = st.q; aplicar(); $('q').focus(); return; }
+    if (e.target.closest('[data-stop]') || e.target.closest('.detalle')) return;
+    const fila = e.target.closest('tr.fila-dato');
+    if (fila) {
+      const id = fila.dataset.id;
+      if (abiertos.has(id)) abiertos.delete(id); else abiertos.add(id);
+      render();
+    }
+  });
+  $('filas').addEventListener('change', (e) => {
+    const c = e.target.closest('[data-sel]');
+    if (!c) return;
+    if (c.checked) seleccion.add(c.dataset.sel); else seleccion.delete(c.dataset.sel);
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

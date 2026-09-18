@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>05 · Mapa del depósito · GROW Stock</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c1b'/%3E%3Crect x='20' y='26' width='24' height='12' fill='%23ffe827'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="escritorio" data-pantalla="05-mapa-deposito.html">
+<main id="pagina">
+  <div class="cabecera">
+    <div>
+      <div class="antetitulo"><i data-i="map" class="i-sm"></i> Operación</div>
+      <h1 class="titulo">Mapa del depósito</h1>
+      <p class="bajada">Las ubicaciones del Excel ordenadas en un solo formato. El color indica cuántas unidades hay; tocá un lugar para ver qué tiene.</p>
+    </div>
+    <div id="deps"></div>
+  </div>
+
+  <section class="card" style="margin-bottom:16px">
+    <div class="filtros" style="border-bottom:0">
+      <label class="buscador"><span class="sr">Dónde está</span><i data-i="search"></i><input class="input" id="q" placeholder="¿Dónde está…? Código, referencia o descripción" autocomplete="off"></label>
+      <span class="chico tinta-2" id="hallados"></span>
+      <div class="leyenda"><span>Menos</span><span class="rampa"><span style="background:var(--seq-1)"></span><span style="background:var(--seq-2)"></span><span style="background:var(--seq-3)"></span><span style="background:var(--seq-4)"></span><span style="background:var(--seq-5)"></span></span><span>Más unidades</span></div>
+    </div>
+  </section>
+
+  <div class="dos-col">
+    <section class="card"><div class="card-cuerpo" id="mapa"></div></section>
+    <section class="card" id="panel-ubic" aria-live="polite"></section>
+  </div>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, icono, ui } = G;
+  const $ = (id) => document.getElementById(id);
+  const st = { dep: G.qs('dep', 'MIS'), sel: G.qs('ubic', ''), hallados: new Set() };
+  if (!st.sel) st.sel = st.dep === 'MIA' ? 'R1A' : 'G7';
+
+  function contenido(dep) {
+    const mapa = {};
+    G.productos.forEach((p) => G.stockItems(p.id, dep).forEach((s) => {
+      const m = mapa[s.ubic] || (mapa[s.ubic] = { u: 0, prods: [] });
+      m.u += s.cant; m.prods.push({ p, cant: s.cant });
+    }));
+    return mapa;
+  }
+  const nivel = (u) => (u <= 0 ? '' : u <= 3 ? 'n1' : u <= 10 ? 'n2' : u <= 25 ? 'n3' : u <= 60 ? 'n4' : 'n5');
+
+  function celda(id, etiquetaCorta, info, extraCls) {
+    const u = info ? info.u : 0;
+    const cls = ['celda', info ? nivel(u) : 'vacia', st.sel === id ? 'sel' : '', st.hallados.has(id) ? 'hallado' : '', extraCls || ''].join(' ');
+    return `<button type="button" class="${cls}" data-ubic="${esc(id)}" ${info ? '' : 'disabled'} aria-label="${esc(G.ubic(id, st.dep).nombre)}: ${u} unidades"><span class="nv">${esc(etiquetaCorta)}</span><span>${info ? u : ''}</span></button>`;
+  }
+
+  function mapaMisiones(c) {
+    const racks = {};
+    G.ubicaciones('MIS').filter((u) => u.zona === 'rack').forEach((u) => {
+      const [, l, n] = u.id.match(/^([A-L])(\d+)$/);
+      racks[l] = Math.max(racks[l] || 0, +n);
+    });
+    const altoMax = Math.max(...Object.values(racks));
+    const letras = 'ABCDEFGHIJKL'.split('').filter((l) => racks[l] != null);
+    const racksHTML = letras.map((l) => {
+      let niveles = '';
+      for (let n = altoMax; n >= 0; n--) niveles += n <= Math.max(racks[l], 3) ? celda(`${l}${n}`, n, c[`${l}${n}`]) : '<span style="height:32px"></span>';
+      return `<div class="rack">${niveles}<div class="rack-nombre">${l}</div></div>`;
+    }).join('');
+
+    const estantes = [0, 1, 2, 3, 4, 5].map((n) => {
+      const id = `EST${n}`;
+      const cajas = G.cajas.filter((x) => x.estante === id).sort((a, b) => a.numero - b.numero);
+      const totalCajas = cajas.reduce((a, x) => a + (c[x.id] ? c[x.id].u : 0), 0);
+      const info = c[id];
+      return `<div class="estante">
+        <div class="fila entre"><b>Estante ${n}</b><span class="chico tenue num">${(info ? info.u : 0) + totalCajas} u.</span></div>
+        ${celda(id, 'suelto', info)}
+        ${cajas.length ? `<div class="cajas">${cajas.map((x) => `<button type="button" class="caja-btn${st.sel === x.id ? ' sel' : ''}${st.hallados.has(x.id) ? ' hallado' : ''}" data-ubic="${x.id}"><span class="fila" style="gap:6px;flex-wrap:nowrap"><span class="muestra" style="background:${x.colorExcel}"></span><b class="corta">${esc(x.nombre)}</b></span><span class="tenue num">${c[x.id] ? c[x.id].u : 0} u.</span></button>`).join('')}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    const zonasCols = ['A', 'B', 'C', 'D'].map((l) => zona(`COL-${l}`, `Columna ${l}`, c));
+    const especiales = [['MOST', 'Mostrador'], ['CAJA-VOLVO', 'Caja Volvo'], ['BAJO-H3', 'Debajo de H3'], ['BOX-EST', 'Box estante'], ['EST?', 'Estante sin número'], ['SIN', 'Sin ubicación']].map(([id, n]) => zona(id, n, c));
+
+    return `<div class="zona-titulo">Estanterías (letra = estantería, número = nivel)</div><div class="racks">${racksHTML}</div>
+      <div class="separador"></div>
+      <div class="zona-titulo">Estantes y cajas <span class="tenue" style="text-transform:none;letter-spacing:0;font-weight:400">· los colores son los mismos que usan en el Excel</span></div><div class="grilla">${estantes}</div>
+      <div class="separador"></div>
+      <div class="zona-titulo">Columnas, mostrador y lugares especiales</div><div class="zonas">${zonasCols.join('')}${especiales.join('')}</div>`;
+  }
+
+  function zona(id, nombre, c) {
+    const info = c[id];
+    const alerta = id === 'SIN' || id === 'EST?' || id === 'BOX-EST';
+    return `<button type="button" class="celda zona ${info ? nivel(info.u) : 'vacia'}${st.sel === id ? ' sel' : ''}${st.hallados.has(id) ? ' hallado' : ''}" data-ubic="${esc(id)}" ${info ? '' : 'disabled'}>
+      <span class="zn">${alerta ? icono('alert', 'i-sm') + ' ' : ''}${esc(nombre)}</span><span class="zc">${info ? `${info.prods.length} prod. · ${info.u} u.` : 'vacío'}</span></button>`;
+  }
+
+  function mapaMiami(c) {
+    const racks = [1, 2, 3, 4, 5, 6].map((r) => `<div class="rack">${['D', 'C', 'B', 'A'].map((n) => celda(`R${r}${n}`, n, c[`R${r}${n}`])).join('')}<div class="rack-nombre">${r}</div></div>`).join('');
+    return `<div class="zona-titulo">Racks (número = rack, letra = nivel)</div><div class="racks" style="grid-template-columns:repeat(auto-fit,minmax(64px,1fr))">${racks}</div>
+      <div class="separador"></div><div class="zona-titulo">Otras zonas</div><div class="zonas">${zona('RECEP', 'Recepción', c)}</div>
+      <div class="alerta info" style="margin-top:14px">${icono('info')}<span><b>Etapa 2.</b> El depósito de Miami se suma en la etapa 2. Esta distribución es de ejemplo: la real se define en el relevamiento del warehouse.</span></div>`;
+  }
+
+  function render() {
+    $('deps').innerHTML = ui.depositos(st.dep, false);
+    const c = contenido(st.dep);
+    $('mapa').innerHTML = st.dep === 'MIA' ? mapaMiami(c) : mapaMisiones(c);
+    const info = c[st.sel];
+    const u = G.ubic(st.sel, st.dep);
+    const valor = info ? info.prods.reduce((a, x) => a + (G.precios(x.p).arg || 0) * x.cant, 0) : 0;
+    $('panel-ubic').innerHTML = `<div class="card-cab"><div><div class="card-titulo">${icono('pin')}${esc(u.nombre)}</div><div class="card-sub">${G.depo(st.dep).nombre}${info ? ` · ${info.prods.length} producto(s) · ${info.u} u. · ${fmt.usd(valor)}` : ''}</div></div></div>
+      <div class="card-cuerpo">${info ? info.prods.sort((a, b) => b.cant - a.cant).map(({ p, cant }) => `
+        <a class="lista-item" href="${G.href('03-ficha-producto.html', { id: p.id })}">
+          <span class="pin ${st.dep === 'MIA' ? 'us' : ''}">${cant}</span>
+          <div style="min-width:0"><div class="mono fuerte corta">${esc(p.codigo)}</div><div class="chico tenue corta">${esc(p.descripcion)}</div></div>
+          ${icono('chevron')}
+        </a>`).join('') : `<div class="vacio-estado">${icono('box')}Elegí una ubicación del mapa</div>`}</div>`;
+  }
+
+  function buscar() {
+    const q = $('q').value.trim();
+    st.hallados = new Set();
+    if (q.length >= 2) {
+      G.buscar(q).slice(0, 40).forEach(({ p }) => G.stockItems(p.id, st.dep).forEach((s) => st.hallados.add(s.ubic)));
+      $('hallados').textContent = st.hallados.size ? `Aparece en ${st.hallados.size} ubicación(es)` : 'No está en este depósito';
+      if (st.hallados.size) st.sel = [...st.hallados][0];
+    } else {
+      $('hallados').textContent = '';
+    }
+    render();
+  }
+
+  document.getElementById('pagina').addEventListener('click', (e) => {
+    const d = e.target.closest('[data-seg="dep"]');
+    if (d) { st.dep = d.dataset.v; st.sel = st.dep === 'MIA' ? 'R1A' : 'G7'; buscar(); return; }
+    const u = e.target.closest('[data-ubic]');
+    if (u && !u.disabled) {
+      st.sel = u.dataset.ubic; render();
+      if (innerWidth < 1180) $('panel-ubic').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+  $('q').addEventListener('input', G.demorar(buscar, 160));
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>01 · Panel general · GROW Stock</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c1b'/%3E%3Crect x='20' y='26' width='24' height='12' fill='%23ffe827'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="escritorio" data-pantalla="01-panel.html">
+<main id="pagina">
+  <div class="cabecera">
+    <div>
+      <div class="antetitulo"><i data-i="dashboard" class="i-sm"></i> Operación</div>
+      <h1 class="titulo">Panel general</h1>
+      <p class="bajada">Cómo está el stock hoy en los dos depósitos. Tocá un indicador para ir al detalle.</p>
+    </div>
+    <div id="sel-dep"></div>
+  </div>
+
+  <div class="grilla" id="kpis" style="margin-bottom:16px"></div>
+
+  <div class="dos-col">
+    <div class="pila">
+      <section class="card">
+        <div class="card-cab"><div><div class="card-titulo">Unidades en stock por categoría</div><div class="card-sub">Las mismas categorías de growglb.com, asignadas automáticamente desde la descripción</div></div></div>
+        <div class="card-cuerpo"><div class="barras" id="barras"></div></div>
+      </section>
+      <section class="card">
+        <div class="card-cab"><div class="card-titulo"><i data-i="history"></i>Últimos movimientos</div><a class="btn btn-chico btn-fantasma" data-href="04-movimiento.html">Registrar <i data-i="plus"></i></a></div>
+        <div class="card-cuerpo" id="movs"></div>
+      </section>
+    </div>
+    <div class="pila">
+      <section class="card">
+        <div class="card-cab"><div class="card-titulo"><i data-i="truck"></i>Envíos <span class="badge b-etapa2"><i data-i="clock"></i>Etapa 2</span></div><span class="chico tenue" id="tr-resumen"></span></div>
+        <div class="card-cuerpo" id="transitos"></div>
+      </section>
+      <section class="card">
+        <div class="card-cab"><div class="card-titulo"><i data-i="alert"></i>Para reponer</div><a class="btn btn-chico btn-fantasma" data-href="02-inventario.html" data-extra="estado=bajo">Ver todos</a></div>
+        <div class="card-cuerpo" id="reponer"></div>
+      </section>
+      <a class="card card-cuerpo" data-href="09-migracion.html" style="text-decoration:none;display:grid;gap:6px">
+        <div class="card-titulo"><i data-i="sheet"></i>Del Excel al sistema</div>
+        <div class="tinta-2 chico" id="migra"></div>
+      </a>
+    </div>
+  </div>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, icono, ui } = G;
+  let dep = G.qs('dep', 'ALL');
+
+  document.querySelectorAll('[data-href]').forEach((a) => {
+    const extra = Object.fromEntries(new URLSearchParams(a.dataset.extra || ''));
+    a.href = G.href(a.dataset.href, extra);
+  });
+  const r = G.resumen;
+  document.getElementById('migra').innerHTML = `Detectamos <b>${fmt.int(r.codigosDuplicados)}</b> códigos repetidos, <b>${fmt.int(r.variantesUbicacion)}</b> formas de escribir ubicaciones y <b>${fmt.int(r.preciosComoTexto)}</b> precios como texto. Ya están normalizados. ${icono('chevron', 'i-sm')}`;
+
+  function render(animar) {
+    document.getElementById('sel-dep').innerHTML = ui.depositos(dep, true);
+    const k = G.kpis(dep);
+    const tiles = [
+      { cls: 'destacado', ic: 'dollar', etq: 'Valor del stock (costo ARG)', valor: fmt.usdCorto(k.valor), pie: `${fmt.int(k.unidades)} unidades`, id: 'k-valor' },
+      { ic: 'box', etq: 'Productos con stock', valor: fmt.int(k.conStock), pie: `de ${fmt.int(k.registrados)} registrados`, link: ['02-inventario.html', {}], id: 'k-prod' },
+      { ic: 'x', etq: 'Sin stock', valor: fmt.int(k.sin), pie: '<span class="badge b-alerta">' + icono('x') + 'Reponer</span>', link: ['02-inventario.html', { estado: 'sin' }], id: 'k-sin' },
+      { ic: 'alert', etq: 'Bajo mínimo', valor: fmt.int(k.bajo), pie: '<span class="badge b-aviso">' + icono('alert') + 'Revisar</span>', link: ['02-inventario.html', { estado: 'bajo' }], id: 'k-bajo' },
+      { ic: 'tag', etq: 'Sin etiqueta GROW', valor: fmt.int(k.pendientes), pie: 'productos con stock', link: ['06-etiquetas-producto.html', {}], id: 'k-etq' },
+      { ic: 'truck', etq: 'Unidades en tránsito', valor: fmt.int(k.transitoU), pie: `${k.transitos} envío(s) Miami ↔ Misiones · ${ui.etapa2()}`, link: ['11-app-recepcion.html', {}], id: 'k-tr' },
+    ];
+    document.getElementById('kpis').innerHTML = tiles.map((t) => {
+      const tag = t.link ? 'a' : 'div';
+      const hrefAttr = t.link ? ` href="${G.href(t.link[0], t.link[1])}"` : '';
+      return `<${tag} class="card kpi ${t.cls || ''}${animar ? ' cambio' : ''}" id="${t.id}"${hrefAttr}><span class="kpi-etq">${icono(t.ic)}${t.etq}</span><span class="kpi-valor num">${t.valor}</span><span class="kpi-pie">${t.pie}</span></${tag}>`;
+    }).join('');
+    if (animar) setTimeout(() => document.querySelectorAll('.kpi.cambio').forEach((x) => x.classList.remove('cambio')), 700);
+
+    // barras por categoría
+    const cats = {};
+    G.productos.forEach((p) => {
+      const n = G.stock(p.id, dep);
+      if (n <= 0) return;
+      const c = cats[p.categoria] || (cats[p.categoria] = { u: 0, p: 0, v: 0 });
+      c.u += n; c.p += 1;
+      const pr = G.precios(p);
+      if (pr.arg) c.v += pr.arg * n;
+    });
+    const orden = Object.entries(cats).sort((a, b) => b[1].u - a[1].u);
+    const max = Math.max(1, ...orden.map(([, v]) => v.u));
+    document.getElementById('barras').innerHTML = orden.map(([nombre, v]) => `
+      <div class="barra-fila" data-cat="${esc(nombre)}" data-u="${v.u}" data-p="${v.p}" data-v="${v.v}" tabindex="0">
+        <span class="etq">${esc(nombre)}</span>
+        <span class="barra-pista"><span class="barra-relleno" style="width:${Math.max(1, (v.u / max) * 82)}%"></span><span class="barra-valor">${fmt.int(v.u)}</span></span>
+      </div>`).join('');
+
+    // movimientos
+    const e = G.estado();
+    const movs = e.movimientos.filter((m) => dep === 'ALL' || m.dep === dep || m.destino === dep).slice(0, 7);
+    document.getElementById('movs').innerHTML = movs.map((m) => {
+      const p = G.producto(m.pid);
+      return `<a class="lista-item${m.nuevo ? ' nuevo' : ''}" href="${G.href('03-ficha-producto.html', { id: p.id })}">
+        ${ui.movIcono(m)}
+        <div style="min-width:0"><div class="corta"><b>${ui.movTipo(m)}</b> · <span class="mono">${esc(p.codigo)}</span> <span class="tenue">${esc(p.descripcion)}</span></div>
+        <div class="chico tenue corta">${esc(m.motivo)} · ${G.depo(m.dep).corto} ${esc(m.ubic)} · ${esc(m.usuario)} · ${fmt.hace(m.fecha)}</div></div>
+        ${ui.cant(m.cant)}
+      </a>`;
+    }).join('') || '<div class="vacio-estado">Sin movimientos</div>';
+
+    // envíos
+    const envios = e.transitos.filter((t) => dep === 'ALL' || t.origen === dep || t.destino === dep);
+    document.getElementById('tr-resumen').textContent = `${k.transitos} en tránsito`;
+    document.getElementById('transitos').innerHTML = envios.map((t) => {
+      const u = t.items.reduce((a, i) => a + i.cant, 0);
+      const badge = t.estado === 'transito' ? `<span class="badge b-info">${icono('truck')}En tránsito</span>` : t.estado === 'recibido' ? `<span class="badge b-ok">${icono('check')}Recibido</span>` : `<span class="badge b-neutro">${icono('check')}Despachado</span>`;
+      return `<details class="desplegable${t.nuevo ? ' nuevo' : ''}" ${t.nuevo ? 'open' : ''}>
+        <summary class="lista-item">
+          <span class="pin us">${G.depo(t.origen).corto}</span>
+          <div style="min-width:0"><div><b class="mono">${esc(t.envio)}</b> · ${u} u. · ${t.bultos} bulto(s)</div><div class="chico tenue corta">${t.cliente ? 'A ' + esc(t.cliente) : G.depo(t.origen).nombre + ' → ' + G.depo(t.destino).nombre} · ${fmt.hace(t.fecha)}</div></div>
+          <span class="fila" style="flex-wrap:nowrap">${badge}${icono('chevron', 'chev')}</span>
+        </summary>
+        <div class="desplegable-cuerpo">
+          ${t.items.map((i) => { const p = G.producto(i.pid); return `<div class="fila entre chico" style="padding:4px 0"><a href="${G.href('03-ficha-producto.html', { id: p.id })}" class="corta"><span class="mono">${esc(p.codigo)}</span> ${esc(p.descripcion)}</a><b class="num">${i.cant} u.</b></div>`; }).join('')}
+          <div class="chico tenue" style="margin:6px 0 10px">${esc(t.transporte)}</div>
+          ${t.estado === 'transito' ? `<a class="btn btn-chico btn-oscuro" href="${G.href('11-app-recepcion.html', { sel: t.envio })}">${icono('phone')}Recibir con el celular</a>` : ''}
+        </div>
+      </details>`;
+    }).join('') || '<div class="vacio-estado">Sin envíos</div>';
+
+    // para reponer
+    const bajos = G.productos.filter((p) => G.presente(p, dep) && G.estadoStock(p, dep) === 'bajo')
+      .sort((a, b) => (G.precios(b).arg || 0) - (G.precios(a).arg || 0)).slice(0, 5);
+    document.getElementById('reponer').innerHTML = bajos.map((p) => `
+      <a class="lista-item" href="${G.href('03-ficha-producto.html', { id: p.id })}">
+        <span class="pin">${G.stock(p.id, dep)}</span>
+        <div style="min-width:0"><div class="mono fuerte corta">${esc(p.codigo)}</div><div class="chico tenue corta">${esc(p.descripcion)} · mínimo ${G.minimo(p)}</div></div>
+        ${ui.estado(p, dep)}
+      </a>`).join('') || '<div class="vacio-estado">Todo en orden</div>';
+  }
+
+  document.getElementById('pagina').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-seg="dep"]');
+    if (b) { dep = b.dataset.v; render(true); }
+  });
+  const barras = document.getElementById('barras');
+  barras.addEventListener('mouseover', (ev) => {
+    const f = ev.target.closest('.barra-fila');
+    if (!f) return;
+    G.tooltip.mostrar(`<b>${esc(f.dataset.cat)}</b><div class="tt"><span>Unidades</span><span>${fmt.int(+f.dataset.u)}</span></div><div class="tt"><span>Productos</span><span>${fmt.int(+f.dataset.p)}</span></div><div class="tt"><span>Valor costo ARG</span><span>${fmt.usd(+f.dataset.v)}</span></div>`, ev);
+  });
+  barras.addEventListener('mousemove', (ev) => G.tooltip.mover(ev));
+  barras.addEventListener('mouseleave', () => G.tooltip.ocultar());
+  barras.addEventListener('click', (ev) => {
+    const f = ev.target.closest('.barra-fila');
+    if (f) location.href = G.href('02-inventario.html', { cat: f.dataset.cat });
+  });
+
+  render(false);
+})();
+</script>
+</body>
+</html>
