@@ -20,7 +20,7 @@ const SCREENS = [
     probar: ['Cambiar la cantidad y ver el stock resultante', 'Confirmar un egreso', 'Ir a la ficha y ver el stock descontado'] },
   { archivo: '05-mapa-deposito.html', etapa: 1, n: '05', titulo: 'Mapa del depósito', disp: 'notebook', rol: 'Depósito',
     resumen: 'Las estanterías, estantes, cajas y el mostrador, con lo que hay en cada lugar.',
-    probar: ['Buscar un producto y ver dónde se ilumina', 'Hacer clic en una ubicación', 'Ver las cajas con los colores del Excel'] },
+    probar: ['Buscar un producto y ver dónde se ilumina', 'Tocar “Editar depósito” y agregar una estantería, un estante o una caja', 'Mover productos a la estantería nueva y verla en el mapa'] },
   { archivo: '06-etiquetas-producto.html', etapa: 1, n: '06', titulo: 'Etiquetas de producto', disp: 'notebook', rol: 'Depósito',
     resumen: 'Etiquetas de la Xprinter XP-H500B: Part N con sufijo, descripción y unidades por empaque, desde el sistema o a mano.',
     probar: ['Cambiar el sufijo del Part N (proveedor, .GEN o .ALT) y el tipo de parte', 'Cargar una etiqueta manual', 'Activar “ver solo lo que imprime” y calibrar en mm'] },
@@ -175,7 +175,7 @@ window.G = (function () {
 
   /* ---------------- URL y flujo entre pantallas ---------------- */
   const params = new URLSearchParams(location.search);
-  const CLAVES_FLUJO = ['envio', 'eitems', 'eorigen', 'edestino', 'ebultos', 'ecliente', 'recibido', 'ritems', 'mov', 'mid', 'mdep', 'mubic', 'mcant', 'mnueva', 'mdest', 'mref', 'etq', 'ajustes'];
+  const CLAVES_FLUJO = ['envio', 'eitems', 'eorigen', 'edestino', 'ebultos', 'ecliente', 'recibido', 'ritems', 'mov', 'mid', 'mdep', 'mubic', 'mcant', 'mnueva', 'mdest', 'mref', 'etq', 'ajustes', 'nuevas'];
   const qs = (k, def) => (params.has(k) ? params.get(k) : def);
   // La foto sacada con el celular viaja en el #hash: no llega al servidor, así que su largo no molesta
   const FOTO_FLUJO = new URLSearchParams(location.hash.slice(1)).get('foto') || '';
@@ -187,6 +187,7 @@ window.G = (function () {
   /** Link a otra pantalla conservando el flujo de la demo (+ parámetros propios) */
   function href(archivo, extra) {
     const p = paramsFlujo();
+    if (NUEVAS.length) p.set('nuevas', NUEVAS.join(',')); else p.delete('nuevas');
     let foto = FOTO_FLUJO;
     Object.entries(extra || {}).forEach(([k, v]) => {
       if (k === 'foto') { foto = v || ''; return; }
@@ -216,6 +217,50 @@ window.G = (function () {
     minimo: { 'Filtros': 2 },
     minimoDef: 1,
   };
+
+  /* ---------------- estructura del depósito creada en la demo ----------------
+     Formato (viaja en ?nuevas=): R:M:5 = estantería M con 5 niveles · E:6 = estante 6 · C:4:7:FF9900 = caja Nº7 en el estante 4 */
+  const NUEVAS = (params.get('nuevas') || '').split(',').filter(Boolean);
+  function idsDeEstructura(spec) {
+    const [tipo, a, b] = spec.split(':');
+    if (tipo === 'R') return Array.from({ length: Math.min(20, Math.max(1, parseInt(b, 10) || 1)) }, (_, i) => `${a}${i}`);
+    if (tipo === 'E') return [`EST${a}`];
+    if (tipo === 'C') return [`EST${a}-C${b}`];
+    return [];
+  }
+  function crearEstructura(spec) {
+    const [tipo, a, b, c] = spec.split(':');
+    const creadas = [];
+    const agregar = (u) => { if (!ubicMis.has(u.id)) { DATA.ubicaciones.push(u); ubicMis.set(u.id, u); creadas.push(u); } };
+    if (tipo === 'R' && /^[A-Z]{1,3}$/.test(a)) {
+      idsDeEstructura(spec).forEach((id, i) => agregar({ id, zona: 'rack', nombre: `Estantería ${a} · Nivel ${i}`, nueva: true }));
+    } else if (tipo === 'E' && /^\d{1,2}$/.test(a)) {
+      agregar({ id: `EST${a}`, zona: 'estante', nombre: `Estante ${a}`, nueva: true });
+    } else if (tipo === 'C' && /^\d{1,2}$/.test(a) && /^\d{1,2}$/.test(b) && /^[0-9A-F]{6}$/i.test(c || '')) {
+      const id = `EST${a}-C${b}`;
+      if (!DATA.cajas.some((x) => x.id === id)) DATA.cajas.push({ id, estante: `EST${a}`, numero: +b, nombre: `Caja Nº${b}`, colorExcel: '#' + c, nueva: true });
+      agregar({ id, zona: 'caja', nombre: `Estante ${a} › Caja Nº${b}`, nueva: true });
+    }
+    return creadas;
+  }
+  /** Agrega una estantería / estante / caja y la recuerda para las otras pantallas */
+  function agregarEstructura(spec) {
+    const creadas = crearEstructura(spec);
+    if (creadas.length) NUEVAS.push(spec);
+    return creadas;
+  }
+  /** Da de baja algo creado en la demo, solo si está vacío (como en el sistema real) */
+  function quitarEstructura(spec) {
+    const ids = idsDeEstructura(spec);
+    const conStock = productos.some((p) => stockItems(p.id, 'MIS').some((s) => ids.includes(s.ubic) && s.cant > 0));
+    if (conStock) throw new Error('No se puede dar de baja: todavía tiene productos. Primero reubicalos.');
+    // se sacan en el lugar (sin reasignar) para que G.cajas y G.ubicaciones sigan apuntando a la misma lista
+    for (let i = DATA.ubicaciones.length - 1; i >= 0; i--) if (ids.includes(DATA.ubicaciones[i].id)) DATA.ubicaciones.splice(i, 1);
+    for (let i = DATA.cajas.length - 1; i >= 0; i--) if (ids.includes(DATA.cajas[i].id)) DATA.cajas.splice(i, 1);
+    ids.forEach((id) => ubicMis.delete(id));
+    const i = NUEVAS.indexOf(spec);
+    if (i >= 0) NUEVAS.splice(i, 1);
+  }
 
   let E = null; // estado
   function sembrar() {
@@ -262,6 +307,7 @@ window.G = (function () {
 
     movimientos.sort((a, b) => b.fecha.localeCompare(a.fecha));
     E = { stock, etiquetados, movimientos, transitos, fotos: {}, config: JSON.parse(JSON.stringify(CONFIG)), eventos: [], seq: 1 };
+    NUEVAS.forEach(crearEstructura);
     aplicarFlujo();
     return E;
   }
@@ -804,6 +850,7 @@ window.G = (function () {
     params, qs, href, paramsFlujo,
     estado, producto: (id) => porId.get(id), porCodigo, depo, ubicaciones, ubic, stockItems, stock, presente, minimo, estadoStock, etiquetado, enTransito,
     precios, aplicarMovimiento, buscar, kpis, fotos, agregarFoto, reducirImagen, fotoHTML,
+    agregarEstructura, quitarEstructura, idsDeEstructura, nuevas: () => NUEVAS.slice(),
     codigoBarras, code128Valores, TIPOS_PARTE, sufijoProveedor, sufijoDefecto, partN, etiqueta, etiquetaProducto, etiquetaDespacho,
     ui, tooltip, toast, pantalla,
   };
