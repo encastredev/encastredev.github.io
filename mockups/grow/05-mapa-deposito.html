@@ -16,14 +16,50 @@
       <h1 class="titulo">Mapa del depósito</h1>
       <p class="bajada">Las ubicaciones del Excel ordenadas en un solo formato. El color indica cuántas unidades hay; tocá un lugar para ver qué tiene.</p>
     </div>
-    <div id="deps"></div>
+    <div class="fila">
+      <div id="deps"></div>
+      <button class="btn" type="button" id="btn-editar"><i data-i="wrench"></i><span id="btn-editar-txt">Editar depósito</span></button>
+    </div>
   </div>
+
+  <section class="card" id="editor" hidden style="margin-bottom:16px">
+    <div class="card-cab">
+      <div><div class="card-titulo"><i data-i="wrench"></i>Configuración del depósito</div>
+        <div class="card-sub">Lo que se agrega acá aparece en el mapa, en los movimientos y en las etiquetas de ubicación. En este boceto no queda guardado al recargar.</div></div>
+    </div>
+    <div class="card-cuerpo pila" style="gap:12px">
+      <div class="grilla">
+        <div class="panel pila" style="gap:10px">
+          <b>Nueva estantería</b>
+          <div class="form-grilla" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px">
+            <label class="campo"><span>Nombre</span><input class="input mono" id="e-nombre" maxlength="3" autocomplete="off"></label>
+            <label class="campo"><span>Niveles</span><input class="input" id="e-niveles" type="number" min="1" max="15" value="5"></label>
+          </div>
+          <div class="chico tenue" id="e-previa"></div>
+          <button class="btn btn-oscuro" type="button" id="e-crear-rack"><i data-i="plus"></i>Crear estantería</button>
+        </div>
+        <div class="panel pila" style="gap:10px">
+          <b>Nuevo estante</b>
+          <div class="chico tenue">Para mercadería suelta o para guardar cajas adentro.</div>
+          <button class="btn btn-oscuro" type="button" id="e-crear-estante"><i data-i="plus"></i><span id="e-estante-txt">Crear estante</span></button>
+        </div>
+        <div class="panel pila" style="gap:10px">
+          <b>Nueva caja</b>
+          <label class="campo"><span>En el estante</span><select class="select" id="e-estante"></select></label>
+          <div class="campo"><span>Color (como en el Excel)</span><div class="muestras-color" id="e-colores" role="radiogroup" aria-label="Color de la caja"></div></div>
+          <button class="btn btn-oscuro" type="button" id="e-crear-caja"><i data-i="plus"></i><span id="e-caja-txt">Crear caja</span></button>
+        </div>
+      </div>
+      <div id="e-aviso" aria-live="polite"></div>
+      <div id="e-creadas"></div>
+    </div>
+  </section>
 
   <section class="card" style="margin-bottom:16px">
     <div class="filtros" style="border-bottom:0">
       <label class="buscador"><span class="sr">Dónde está</span><i data-i="search"></i><input class="input" id="q" placeholder="¿Dónde está…? Código, referencia o descripción" autocomplete="off"></label>
       <span class="chico tinta-2" id="hallados"></span>
-      <div class="leyenda"><span>Menos</span><span class="rampa"><span style="background:var(--seq-1)"></span><span style="background:var(--seq-2)"></span><span style="background:var(--seq-3)"></span><span style="background:var(--seq-4)"></span><span style="background:var(--seq-5)"></span></span><span>Más unidades</span></div>
+      <div class="leyenda"><span>Menos</span><span class="rampa"><span style="background:var(--seq-1)"></span><span style="background:var(--seq-2)"></span><span style="background:var(--seq-3)"></span><span style="background:var(--seq-4)"></span><span style="background:var(--seq-5)"></span></span><span>Más unidades</span><span class="celda libre" style="width:22px;height:14px"></span><span>Libre</span></div>
     </div>
   </section>
 
@@ -38,7 +74,8 @@
 (function () {
   const { fmt, esc, icono, ui } = G;
   const $ = (id) => document.getElementById(id);
-  const st = { dep: G.qs('dep', 'MIS'), sel: G.qs('ubic', ''), hallados: new Set() };
+  const COLORES_CAJA = ['FFC000', '92D050', 'FFFF00', 'F4B084', 'B4C6E7', 'C6E0B4', 'FF9FB2', 'D9B3FF'];
+  const st = { dep: G.qs('dep', 'MIS'), sel: G.qs('ubic', ''), hallados: new Set(), editar: false, recien: new Set(), color: COLORES_CAJA[0] };
   if (!st.sel) st.sel = st.dep === 'MIA' ? 'R1A' : 'G7';
 
   function contenido(dep) {
@@ -50,36 +87,53 @@
     return mapa;
   }
   const nivel = (u) => (u <= 0 ? '' : u <= 3 ? 'n1' : u <= 10 ? 'n2' : u <= 25 ? 'n3' : u <= 60 ? 'n4' : 'n5');
+  const definidas = () => new Set(G.ubicaciones(st.dep).map((u) => u.id));
 
-  function celda(id, etiquetaCorta, info, extraCls) {
+  function celda(id, etiquetaCorta, info, definida) {
     const u = info ? info.u : 0;
-    const cls = ['celda', info ? nivel(u) : 'vacia', st.sel === id ? 'sel' : '', st.hallados.has(id) ? 'hallado' : '', extraCls || ''].join(' ');
-    return `<button type="button" class="${cls}" data-ubic="${esc(id)}" ${info ? '' : 'disabled'} aria-label="${esc(G.ubic(id, st.dep).nombre)}: ${u} unidades"><span class="nv">${esc(etiquetaCorta)}</span><span>${info ? u : ''}</span></button>`;
+    const libre = !info && definida;
+    const cls = ['celda', info ? nivel(u) : libre ? 'libre' : 'vacia', st.sel === id ? 'sel' : '', st.hallados.has(id) ? 'hallado' : '', st.recien.has(id) ? 'recien' : ''].join(' ');
+    return `<button type="button" class="${cls}" data-ubic="${esc(id)}" ${info || libre ? '' : 'disabled'} aria-label="${esc(G.ubic(id, st.dep).nombre)}: ${libre ? 'libre' : u + ' unidades'}"><span class="nv">${esc(etiquetaCorta)}</span><span>${info ? u : libre ? '·' : ''}</span></button>`;
   }
 
-  function mapaMisiones(c) {
+  /* ---------- estructura actual (Excel + lo agregado en la demo) ---------- */
+  function racksActuales() {
     const racks = {};
     G.ubicaciones('MIS').filter((u) => u.zona === 'rack').forEach((u) => {
-      const [, l, n] = u.id.match(/^([A-L])(\d+)$/);
-      racks[l] = Math.max(racks[l] || 0, +n);
+      const m = u.id.match(/^([A-Z]{1,3})(\d+)$/);
+      if (!m) return;
+      const r = racks[m[1]] || (racks[m[1]] = { max: 0, nueva: !!u.nueva });
+      r.max = Math.max(r.max, +m[2]);
     });
-    const altoMax = Math.max(...Object.values(racks));
-    const letras = 'ABCDEFGHIJKL'.split('').filter((l) => racks[l] != null);
-    const racksHTML = letras.map((l) => {
+    return racks;
+  }
+  const estantesActuales = () => [...new Set([0, 1, 2, 3, 4, 5].concat(G.ubicaciones('MIS').filter((u) => /^EST\d+$/.test(u.id)).map((u) => +u.id.slice(3))))].sort((a, b) => a - b);
+  const proximaLetra = () => { const r = racksActuales(); return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').find((l) => !r[l]) || 'Z'; };
+  const proximoEstante = () => Math.max(...estantesActuales()) + 1;
+  const proximaCaja = () => Math.max(0, ...G.cajas.map((x) => x.numero)) + 1;
+
+  function mapaMisiones(c) {
+    const racks = racksActuales();
+    const def = definidas();
+    const altoMax = Math.max(...Object.values(racks).map((r) => r.max));
+    const nombres = Object.keys(racks).sort((a, b) => (racks[a].nueva - racks[b].nueva) || (racks[a].nueva ? 0 : a.localeCompare(b)));
+    const racksHTML = nombres.map((l) => {
+      const r = racks[l];
       let niveles = '';
-      for (let n = altoMax; n >= 0; n--) niveles += n <= Math.max(racks[l], 3) ? celda(`${l}${n}`, n, c[`${l}${n}`]) : '<span style="height:32px"></span>';
-      return `<div class="rack">${niveles}<div class="rack-nombre">${l}</div></div>`;
+      for (let n = altoMax; n >= 0; n--) niveles += n <= Math.max(r.max, 3) ? celda(`${l}${n}`, n, c[`${l}${n}`], def.has(`${l}${n}`)) : '<span style="height:32px"></span>';
+      return `<div class="rack${r.nueva ? ' rack-nueva' : ''}">${niveles}<div class="rack-nombre">${esc(l)}</div></div>`;
     }).join('');
 
-    const estantes = [0, 1, 2, 3, 4, 5].map((n) => {
+    const estantes = estantesActuales().map((n) => {
       const id = `EST${n}`;
       const cajas = G.cajas.filter((x) => x.estante === id).sort((a, b) => a.numero - b.numero);
       const totalCajas = cajas.reduce((a, x) => a + (c[x.id] ? c[x.id].u : 0), 0);
       const info = c[id];
-      return `<div class="estante">
-        <div class="fila entre"><b>Estante ${n}</b><span class="chico tenue num">${(info ? info.u : 0) + totalCajas} u.</span></div>
-        ${celda(id, 'suelto', info)}
-        ${cajas.length ? `<div class="cajas">${cajas.map((x) => `<button type="button" class="caja-btn${st.sel === x.id ? ' sel' : ''}${st.hallados.has(x.id) ? ' hallado' : ''}" data-ubic="${x.id}"><span class="fila" style="gap:6px;flex-wrap:nowrap"><span class="muestra" style="background:${x.colorExcel}"></span><b class="corta">${esc(x.nombre)}</b></span><span class="tenue num">${c[x.id] ? c[x.id].u : 0} u.</span></button>`).join('')}</div>` : ''}
+      const nuevo = G.ubic(id, 'MIS').nueva;
+      return `<div class="estante${nuevo ? ' nuevo' : ''}">
+        <div class="fila entre"><b>Estante ${n}${nuevo ? ' <span class="badge b-acento">nuevo</span>' : ''}</b><span class="chico tenue num">${(info ? info.u : 0) + totalCajas} u.</span></div>
+        ${celda(id, 'suelto', info, def.has(id))}
+        ${cajas.length ? `<div class="cajas">${cajas.map((x) => `<button type="button" class="caja-btn${st.sel === x.id ? ' sel' : ''}${st.hallados.has(x.id) ? ' hallado' : ''}${st.recien.has(x.id) ? ' recien' : ''}" data-ubic="${x.id}"><span class="fila" style="gap:6px;flex-wrap:nowrap"><span class="muestra" style="background:${x.colorExcel}"></span><b class="corta">${esc(x.nombre)}</b></span><span class="tenue num">${c[x.id] ? c[x.id].u + ' u.' : x.nueva ? 'libre' : '0 u.'}</span></button>`).join('')}</div>` : ''}
       </div>`;
     }).join('');
 
@@ -101,26 +155,95 @@
   }
 
   function mapaMiami(c) {
-    const racks = [1, 2, 3, 4, 5, 6].map((r) => `<div class="rack">${['D', 'C', 'B', 'A'].map((n) => celda(`R${r}${n}`, n, c[`R${r}${n}`])).join('')}<div class="rack-nombre">${r}</div></div>`).join('');
-    return `<div class="zona-titulo">Racks (número = rack, letra = nivel)</div><div class="racks" style="grid-template-columns:repeat(auto-fit,minmax(64px,1fr))">${racks}</div>
+    const racks = [1, 2, 3, 4, 5, 6].map((r) => `<div class="rack">${['D', 'C', 'B', 'A'].map((n) => celda(`R${r}${n}`, n, c[`R${r}${n}`], false)).join('')}<div class="rack-nombre">${r}</div></div>`).join('');
+    return `<div class="zona-titulo">Racks (número = rack, letra = nivel)</div><div class="racks" style="grid-auto-columns:minmax(64px,1fr)">${racks}</div>
       <div class="separador"></div><div class="zona-titulo">Otras zonas</div><div class="zonas">${zona('RECEP', 'Recepción', c)}</div>
       <div class="alerta info" style="margin-top:14px">${icono('info')}<span><b>Etapa 2.</b> El depósito de Miami se suma en la etapa 2. Esta distribución es de ejemplo: la real se define en el relevamiento del warehouse.</span></div>`;
+  }
+
+  /* ---------- etiqueta de ubicación (para pegar en el estante; XP-365B) ---------- */
+  function etiquetaUbicacion(id) {
+    const u = G.ubic(id, 'MIS');
+    const corto = id.replace(/^EST(\d+)-C(\d+)$/, 'E$1·C$2').replace(/^EST(\d+)$/, 'EST $1');
+    return `<div class="etq-ubic" role="img" aria-label="Etiqueta de ubicación ${esc(id)}"><div class="u-in">
+      <div class="u-cab"><span>GROW</span><span>UBICACIÓN</span></div>
+      <div class="u-cod">${esc(corto)}</div>
+      <div class="u-cb">${G.codigoBarras('UBI-' + id, 30)}</div>
+      <div class="u-nom">${esc(u.nombre)}</div>
+    </div></div>`;
+  }
+
+  function panel(c) {
+    const info = c[st.sel];
+    const u = G.ubic(st.sel, st.dep);
+    const valor = info ? info.prods.reduce((a, x) => a + (G.precios(x.p).arg || 0) * x.cant, 0) : 0;
+    const libre = !info && definidas().has(st.sel) && st.dep === 'MIS';
+    const cuerpo = info
+      ? info.prods.sort((a, b) => b.cant - a.cant).map(({ p, cant }) => `
+        <a class="lista-item" href="${G.href('03-ficha-producto.html', { id: p.id })}">
+          <span class="pin ${st.dep === 'MIA' ? 'us' : ''}">${cant}</span>
+          <div style="min-width:0"><div class="mono fuerte corta">${esc(p.codigo)}</div><div class="chico tenue corta">${esc(p.descripcion)}</div></div>
+          ${icono('chevron')}
+        </a>`).join('')
+      : libre
+        ? `<div class="vacio-estado" style="padding:18px 8px">${icono('box')}<div><b>Ubicación libre</b><br>Todavía no tiene productos.</div>
+            <a class="btn btn-oscuro" id="mover-aca" href="${G.href('04-movimiento.html', { tipo: 'transferencia', dest: st.sel })}">${icono('arrows')}Mover productos acá</a></div>`
+        : `<div class="vacio-estado">${icono('box')}Elegí una ubicación del mapa</div>`;
+    const conEtiqueta = st.dep === 'MIS' && (info || libre);
+    $('panel-ubic').innerHTML = `<div class="card-cab"><div><div class="card-titulo">${icono('pin')}${esc(u.nombre)}</div><div class="card-sub">${G.depo(st.dep).nombre}${info ? ` · ${info.prods.length} producto(s) · ${info.u} u. · ${fmt.usd(valor)}` : libre ? ' · libre' : ''}</div></div></div>
+      <div class="card-cuerpo">${cuerpo}
+        ${conEtiqueta ? `<details class="desplegable" style="border-top:1px solid var(--linea);margin-top:8px" ${libre ? 'open' : ''}>
+          <summary class="lista-item"><span class="mov-ic mov-transferencia">${icono('tag')}</span><div><b>Etiqueta de ubicación</b><div class="chico tenue">Para pegar en el estante · XP-365B</div></div>${icono('chevron', 'chev')}</summary>
+          <div class="pila" style="gap:10px;padding-bottom:12px"><div class="etq-fondo" style="padding:14px">${etiquetaUbicacion(st.sel)}</div>
+          <button class="btn btn-chico" type="button" data-imprimir-ubic="${esc(st.sel)}">${icono('printer')}Imprimir etiqueta</button></div>
+        </details>` : ''}
+      </div>`;
+  }
+
+  /* ---------- editor ---------- */
+  function renderEditor() {
+    $('editor').hidden = !st.editar || st.dep !== 'MIS';
+    $('btn-editar').classList.toggle('btn-oscuro', st.editar);
+    $('btn-editar-txt').textContent = st.editar ? 'Listo' : 'Editar depósito';
+    $('btn-editar').hidden = st.dep !== 'MIS';
+    if ($('editor').hidden) return;
+    if (!$('e-nombre').value) $('e-nombre').placeholder = proximaLetra();
+    const nombre = ($('e-nombre').value || proximaLetra()).toUpperCase();
+    const n = Math.min(15, Math.max(1, parseInt($('e-niveles').value, 10) || 1));
+    $('e-previa').textContent = `Crea ${n} ubicaciones: ${nombre}0${n > 1 ? ` a ${nombre}${n - 1}` : ''}`;
+    $('e-estante-txt').textContent = `Crear Estante ${proximoEstante()}`;
+    const selPrev = $('e-estante').value;
+    $('e-estante').innerHTML = estantesActuales().map((x) => `<option value="${x}">Estante ${x}</option>`).join('');
+    $('e-estante').value = selPrev && [...$('e-estante').options].some((o) => o.value === selPrev) ? selPrev : '4';
+    $('e-caja-txt').textContent = `Crear Caja Nº${proximaCaja()}`;
+    $('e-colores').innerHTML = COLORES_CAJA.map((col) => `<label title="#${col}"><input type="radio" name="color-caja" value="${col}" ${col === st.color ? 'checked' : ''}><span class="muestra-color" style="background:#${col}"></span></label>`).join('');
+    const creadas = G.nuevas();
+    $('e-creadas').innerHTML = creadas.length ? `<div class="panel"><b class="chico">Agregado en esta demo</b>${creadas.map((spec) => {
+      const [t, a, b] = spec.split(':');
+      const txt = t === 'R' ? `Estantería ${a} (${b} niveles)` : t === 'E' ? `Estante ${a}` : `Caja Nº${b} en el Estante ${a}`;
+      return `<div class="fila entre chico" style="padding:6px 0;border-bottom:1px solid var(--linea)"><span>${esc(txt)}</span><button class="btn btn-chico btn-fantasma" type="button" data-quitar="${esc(spec)}">${icono('x')}Dar de baja</button></div>`;
+    }).join('')}</div>` : '';
+  }
+
+  function avisar(html, tipo) { $('e-aviso').innerHTML = html ? `<div class="alerta ${tipo || 'ok'}">${icono(tipo === 'error' ? 'alert' : 'check')}<div style="min-width:0">${html}</div></div>` : ''; }
+
+  function trasCrear(creadas, titulo) {
+    st.recien = new Set(creadas.map((u) => u.id));
+    st.sel = creadas[0].id;
+    avisar(`<b>${esc(titulo)}</b> · ${creadas.length} ubicación(es) nueva(s), libres para usar.
+      <div class="etiquetas-ubic" style="margin-top:10px">${creadas.slice(0, 6).map((u) => etiquetaUbicacion(u.id)).join('')}</div>
+      <div class="fila" style="margin-top:10px"><button class="btn btn-chico btn-oscuro" type="button" data-imprimir-lote="${creadas.length}">${icono('printer')}Imprimir ${creadas.length} etiqueta(s) de ubicación</button>
+      <a class="btn btn-chico" href="${G.href('04-movimiento.html', { tipo: 'transferencia', dest: creadas[0].id })}">${icono('arrows')}Mover productos a ${esc(creadas[0].id)}</a></div>`);
+    G.toast(`Agregado: ${esc(titulo)}`, 'check');
+    render();
   }
 
   function render() {
     $('deps').innerHTML = ui.depositos(st.dep, false);
     const c = contenido(st.dep);
     $('mapa').innerHTML = st.dep === 'MIA' ? mapaMiami(c) : mapaMisiones(c);
-    const info = c[st.sel];
-    const u = G.ubic(st.sel, st.dep);
-    const valor = info ? info.prods.reduce((a, x) => a + (G.precios(x.p).arg || 0) * x.cant, 0) : 0;
-    $('panel-ubic').innerHTML = `<div class="card-cab"><div><div class="card-titulo">${icono('pin')}${esc(u.nombre)}</div><div class="card-sub">${G.depo(st.dep).nombre}${info ? ` · ${info.prods.length} producto(s) · ${info.u} u. · ${fmt.usd(valor)}` : ''}</div></div></div>
-      <div class="card-cuerpo">${info ? info.prods.sort((a, b) => b.cant - a.cant).map(({ p, cant }) => `
-        <a class="lista-item" href="${G.href('03-ficha-producto.html', { id: p.id })}">
-          <span class="pin ${st.dep === 'MIA' ? 'us' : ''}">${cant}</span>
-          <div style="min-width:0"><div class="mono fuerte corta">${esc(p.codigo)}</div><div class="chico tenue corta">${esc(p.descripcion)}</div></div>
-          ${icono('chevron')}
-        </a>`).join('') : `<div class="vacio-estado">${icono('box')}Elegí una ubicación del mapa</div>`}</div>`;
+    panel(c);
+    renderEditor();
   }
 
   function buscar() {
@@ -139,12 +262,45 @@
   document.getElementById('pagina').addEventListener('click', (e) => {
     const d = e.target.closest('[data-seg="dep"]');
     if (d) { st.dep = d.dataset.v; st.sel = st.dep === 'MIA' ? 'R1A' : 'G7'; buscar(); return; }
+    const q = e.target.closest('[data-quitar]');
+    if (q) {
+      try { G.quitarEstructura(q.dataset.quitar); st.sel = 'G7'; st.recien = new Set(); avisar('Dado de baja.', 'ok'); render(); }
+      catch (ex) { avisar(esc(ex.message), 'error'); }
+      return;
+    }
+    const imp = e.target.closest('[data-imprimir-lote], [data-imprimir-ubic]');
+    if (imp) { G.toast(`${imp.dataset.imprimirLote || 1} etiqueta(s) de ubicación enviadas a la XP-365B`, 'printer'); return; }
     const u = e.target.closest('[data-ubic]');
     if (u && !u.disabled) {
       st.sel = u.dataset.ubic; render();
       if (innerWidth < 1180) $('panel-ubic').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
+  $('btn-editar').addEventListener('click', () => { st.editar = !st.editar; if (!st.editar) avisar(''); render(); if (st.editar) $('editor').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  $('e-nombre').addEventListener('input', () => { $('e-nombre').value = $('e-nombre').value.toUpperCase().replace(/[^A-Z]/g, ''); renderEditor(); });
+  $('e-niveles').addEventListener('input', renderEditor);
+  $('e-colores').addEventListener('change', (e) => { if (e.target.name === 'color-caja') st.color = e.target.value; });
+
+  $('e-crear-rack').addEventListener('click', () => {
+    const nombre = ($('e-nombre').value || proximaLetra()).toUpperCase();
+    const n = parseInt($('e-niveles').value, 10);
+    if (!/^[A-Z]{1,3}$/.test(nombre)) { avisar('El nombre tiene que ser de 1 a 3 letras (ej. M).', 'error'); return; }
+    if (racksActuales()[nombre]) { avisar(`Ya existe la estantería ${esc(nombre)}. Elegí otro nombre.`, 'error'); return; }
+    if (!(n >= 1 && n <= 15)) { avisar('Los niveles van de 1 a 15.', 'error'); return; }
+    const creadas = G.agregarEstructura(`R:${nombre}:${n}`);
+    $('e-nombre').value = '';
+    trasCrear(creadas, `Estantería ${nombre}`);
+  });
+  $('e-crear-estante').addEventListener('click', () => {
+    const n = proximoEstante();
+    trasCrear(G.agregarEstructura(`E:${n}`), `Estante ${n}`);
+  });
+  $('e-crear-caja').addEventListener('click', () => {
+    const est = $('e-estante').value;
+    const n = proximaCaja();
+    trasCrear(G.agregarEstructura(`C:${est}:${n}:${st.color}`), `Caja Nº${n}`);
+  });
+
   $('q').addEventListener('input', G.demorar(buscar, 160));
   render();
 })();

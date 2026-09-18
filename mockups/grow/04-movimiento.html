@@ -105,7 +105,12 @@
     if ([...$('ubic').options].some((o) => o.value === ubicPrev)) $('ubic').value = ubicPrev;
     $('dest-caja').hidden = st.tipo !== 'transferencia';
     $('dest').innerHTML = G.ubicaciones(st.dep).filter((u) => u.id !== $('ubic').value && u.id !== 'SIN' && u.id !== 'EST?').map((u) => `<option value="${esc(u.id)}">${esc(u.nombre)}</option>`).join('');
-    if (st.tipo === 'transferencia' && [...$('dest').options].some((o) => o.value === 'MOST')) $('dest').value = 'MOST';
+    // destino: el que llega desde el mapa (ej. una estantería nueva) o el mostrador
+    const destPedido = G.qs('dest');
+    if (st.tipo === 'transferencia') {
+      if (destPedido && [...$('dest').options].some((o) => o.value === destPedido)) $('dest').value = destPedido;
+      else if ([...$('dest').options].some((o) => o.value === 'MOST')) $('dest').value = 'MOST';
+    }
     $('ubic-etq').textContent = st.tipo === 'transferencia' ? 'Desde' : 'Ubicación';
     $('cant-etq').textContent = st.tipo === 'ajuste' ? 'Cantidad contada' : 'Cantidad';
     $('motivo').innerHTML = MOTIVOS[st.tipo].map((m) => `<option>${m}</option>`).join('');
@@ -191,6 +196,7 @@
       <a class="btn btn-oscuro" id="ir-ficha" href="${G.href('03-ficha-producto.html', Object.assign({ id: p.id }, urlMov))}">${icono('file')}Ver la ficha actualizada</a>
       <a class="btn" href="${G.href('01-panel.html', urlMov)}">${icono('dashboard')}Ver en el panel</a>
       ${st.tipo === 'ingreso' ? `<a class="btn btn-acento" href="${G.href('06-etiquetas-producto.html', Object.assign({ ids: p.id }, urlMov))}">${icono('tag')}Imprimir ${st.cant} etiqueta(s)</a>` : ''}
+      <a class="btn" id="ir-mapa" href="${G.href('05-mapa-deposito.html', Object.assign({ dep: st.dep, ubic: st.tipo === 'transferencia' ? $('dest').value : c.ubic }, urlMov))}">${icono('map')}Ver en el mapa</a>
       <a class="btn btn-fantasma" href="${location.pathname.split('/').pop()}">Registrar otro</a>`;
     G.toast('Movimiento guardado');
   });
