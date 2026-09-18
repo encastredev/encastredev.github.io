@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>10 · App · Buscar y escanear · GROW Stock</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c1b'/%3E%3Crect x='20' y='26' width='24' height='12' fill='%23ffe827'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="telefono" data-pantalla="10-app-buscar.html" data-app-titulo="Buscar">
+<main id="pagina" style="display:contents">
+  <button class="btn btn-acento btn-grande btn-bloque" type="button" id="escanear" style="min-height:64px;font-size:17px"><i data-i="scan"></i><span id="escanear-txt">Escanear código</span></button>
+  <label class="buscador"><span class="sr">Buscar</span><i data-i="search"></i><input class="input" id="q" type="search" placeholder="Código, referencia o máquina…" autocomplete="off" style="height:44px"></label>
+  <div id="resultados"></div>
+  <div id="ficha"></div>
+  <section class="card" id="recientes-caja">
+    <div class="card-cab"><div class="card-titulo"><i data-i="history"></i>Últimos escaneos</div></div>
+    <div class="card-cuerpo" id="recientes"></div>
+  </section>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, icono, ui } = G;
+  const $ = (id) => document.getElementById(id);
+  // productos que "lee" el lector simulado, siempre en el mismo orden
+  const rotacion = G.productos.filter((p) => G.stock(p.id, 'MIS') >= 2 && p.refs.length && /^[A-Z0-9-]+$/i.test(p.codigo)).slice(0, 12).map((p) => p.id);
+  let giro = 0;
+  const recientes = rotacion.slice(3, 6);
+  let actual = null;
+  let soloMisiones = true;
+
+  function renderRecientes() {
+    $('recientes').innerHTML = recientes.slice(0, 5).map((id) => {
+      const p = G.producto(id);
+      return `<button type="button" class="lista-item" data-ver="${id}" style="width:100%;border:0;border-bottom:1px solid var(--linea);background:none;text-align:left;cursor:pointer">
+        <span class="pin">${G.stock(id, 'MIS')}</span><div style="min-width:0"><div class="mono fuerte corta">${esc(p.codigo)}</div><div class="chico tenue corta">${esc(p.descripcion)}</div></div>${icono('chevron')}</button>`;
+    }).join('');
+  }
+
+  function renderFicha() {
+    if (!actual) { $('ficha').innerHTML = ''; return; }
+    const p = G.producto(actual.id);
+    const deps = soloMisiones ? ['MIS'] : ['MIS', 'MIA'];
+    const items = deps.flatMap((d) => G.stockItems(p.id, d).map((s) => Object.assign({ d }, s)));
+    const principal = items.filter((s) => s.cant > 0).sort((a, b) => b.cant - a.cant)[0];
+    const pr = G.precios(p);
+    $('ficha').innerHTML = `<section class="card nuevo" id="ficha-card">
+      <div class="card-cuerpo pila" style="gap:12px">
+        <div class="fila entre" style="align-items:flex-start;flex-wrap:nowrap">
+          <div style="min-width:0"><div class="mono fuerte" style="font-size:22px;overflow-wrap:anywhere" id="ficha-codigo">${esc(p.codigo)}</div><div class="tinta-2">${esc(p.descripcion)}</div>
+            ${actual.via && actual.via !== 'código' ? `<div class="coincide">${icono('link', 'i-sm')}por ${actual.via}: <mark>${esc(actual.match)}</mark></div>` : ''}</div>
+          <div style="text-align:right;flex:none"><div class="num" style="font-size:34px;font-weight:700;line-height:1" id="ficha-stock">${G.stock(p.id, soloMisiones ? 'MIS' : 'ALL')}</div><div class="chico tenue">unidades</div></div>
+        </div>
+        ${principal ? `<div class="panel panel-oscuro fila" style="flex-wrap:nowrap;gap:12px">
+          <span class="pin grande">${esc(principal.ubic === 'SIN' ? '?' : principal.ubic.replace(/^EST(\d)-C(\d)$/, 'C$2').slice(0, 4))}</span>
+          <div style="min-width:0"><div class="chico" style="color:var(--grafito-tenue)">Andá a</div><b style="font-size:16px">${esc(G.ubic(principal.ubic, principal.d).nombre)}</b><div class="chico" style="color:var(--grafito-tinta)">${G.depo(principal.d).nombre} · ${principal.cant} u.</div></div>
+        </div>` : `<div class="alerta aviso">${icono('alert')}<span>No hay stock en ${soloMisiones ? 'Misiones' : 'ningún depósito'}.</span></div>`}
+        ${items.length > 1 ? `<div>${items.filter((s) => s !== principal).map((s) => `<div class="fila entre chico" style="padding:4px 0;flex-wrap:nowrap"><span class="corta">${G.depo(s.d).corto} · ${esc(G.ubic(s.ubic, s.d).nombre)}</span><b class="num">${s.cant} u.</b></div>`).join('')}</div>` : ''}
+        <label class="interruptor chico"><input type="checkbox" id="t-solo" ${soloMisiones ? 'checked' : ''}> Solo depósito Misiones</label>
+        ${soloMisiones ? '' : `<div class="chico tinta-2">${ui.etapa2('Miami: etapa 2')} El stock de Miami se ve desde la etapa 2.</div>`}
+        <div class="fila">${ui.estado(p, 'MIS')} ${ui.etiqueta(p)} <span class="badge b-borde">Venta ${fmt.usd(pr.venta)}</span></div>
+        <details class="desplegable" style="border-top:1px solid var(--linea)">
+          <summary class="lista-item"><span class="mov-ic mov-transferencia">${icono('link')}</span><div><b>Referencias y máquinas</b><div class="chico tenue">${p.refs.length} ref. · ${p.compat.length} familia(s)</div></div>${icono('chevron', 'chev')}</summary>
+          <div class="pila" style="gap:8px;padding-bottom:10px">
+            <div class="chips">${p.refs.map((r) => `<span class="chip mono">${esc(r)}</span>`).join('') || '<span class="tenue chico">Sin referencias</span>'}</div>
+            <div class="chico tinta-2" style="overflow-wrap:anywhere">${esc(p.compat.slice(0, 2).join(' · ')).slice(0, 220)}${p.compat.join('').length > 220 ? '…' : ''}</div>
+          </div>
+        </details>
+        <div class="fila">
+          ${principal && principal.d === 'MIS' ? `<a class="btn btn-chico btn-oscuro" href="${G.href('12-app-conteo.html', { ubic: principal.ubic })}">${icono('check')}Contar ${esc(principal.ubic)}</a>` : ''}
+          <a class="btn btn-chico" href="${G.href('06-etiquetas-producto.html', { ids: p.id })}">${icono('tag')}Reimprimir etiqueta</a>
+        </div>
+      </div></section>`;
+    $('recientes-caja').hidden = false;
+  }
+
+  function mostrar(id, via, match) {
+    actual = { id, via, match };
+    const i = recientes.indexOf(id);
+    if (i >= 0) recientes.splice(i, 1);
+    recientes.unshift(id);
+    $('resultados').innerHTML = '';
+    renderFicha();
+    renderRecientes();
+  }
+
+  $('escanear').addEventListener('click', () => {
+    $('escanear').disabled = true;
+    $('escanear-txt').textContent = 'Leyendo…';
+    setTimeout(() => {
+      const id = rotacion[giro++ % rotacion.length];
+      $('escanear').disabled = false;
+      $('escanear-txt').textContent = 'Escanear otro';
+      $('q').value = '';
+      mostrar(id, 'código', G.producto(id).codigo);
+      G.toast(`Leído: <span class="mono">${esc(G.producto(id).codigo)}</span>`, 'scan');
+    }, 450);
+  });
+
+  $('q').addEventListener('input', G.demorar(() => {
+    const q = $('q').value.trim();
+    if (q.length < 2) { $('resultados').innerHTML = ''; return; }
+    const res = G.buscar(q).slice(0, 6);
+    $('resultados').innerHTML = `<section class="card"><div class="card-cuerpo" style="padding-top:4px;padding-bottom:4px">${res.map((r) => `
+      <button type="button" class="lista-item" data-ver="${r.p.id}" data-via="${esc(r.via)}" data-match="${esc(r.match)}" style="width:100%;border:0;border-bottom:1px solid var(--linea);background:none;text-align:left;cursor:pointer">
+        <span class="pin">${G.stock(r.p.id, 'MIS')}</span><div style="min-width:0"><div class="mono fuerte corta">${G.resaltar(r.p.codigo, q)}</div><div class="chico tenue corta">${esc(r.p.descripcion)} · por ${esc(r.via)}</div></div>${icono('chevron')}</button>`).join('') || '<div class="vacio-estado">Sin resultados</div>'}</div></section>`;
+  }, 150));
+
+  document.getElementById('pagina').addEventListener('click', (e) => {
+    const v = e.target.closest('[data-ver]');
+    if (v) mostrar(v.dataset.ver, v.dataset.via, v.dataset.match);
+  });
+  document.getElementById('pagina').addEventListener('change', (e) => {
+    if (e.target.id === 't-solo') { soloMisiones = e.target.checked; renderFicha(); }
+  });
+
+  renderRecientes();
+})();
+</script>
+</body>
+</html>

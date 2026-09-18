@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>06 · Etiquetas de producto · GROW Stock</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c1b'/%3E%3Crect x='20' y='26' width='24' height='12' fill='%23ffe827'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="escritorio" data-pantalla="06-etiquetas-producto.html">
+<main id="pagina">
+  <div class="cabecera">
+    <div>
+      <div class="antetitulo"><i data-i="tag" class="i-sm"></i> Etiquetas</div>
+      <h1 class="titulo">Etiquetas de producto</h1>
+      <p class="bajada">Part N con su sufijo, descripción y unidades por empaque. Las partes alternativas van sobre el rollo pre-impreso; las originales y obsoletas, en rollo blanco con el título impreso. Se cargan desde el sistema o a mano.</p>
+    </div>
+    <div class="impresora">
+      <i data-i="printer"></i>
+      <div><b>Xprinter XP-H500B</b><small>Transferencia térmica · USB · etiqueta 100×70 mm*</small></div>
+      <span class="led" title="Conectada"></span>
+    </div>
+  </div>
+
+  <div class="dos-col" id="vista-cola">
+    <div class="pila">
+      <section class="card">
+        <div class="card-cab">
+          <div><div class="card-titulo"><i data-i="layers"></i>Cola de impresión</div><div class="card-sub" id="cola-sub"></div></div>
+          <div class="fila" style="flex:1 1 300px;justify-content:flex-end">
+            <label class="buscador" style="flex:1 1 200px;max-width:280px"><span class="sr">Agregar producto</span><i data-i="plus"></i><input class="input input-chico" id="q" placeholder="Agregar por código o escaneo…" autocomplete="off"></label>
+            <button class="btn btn-chico" type="button" id="btn-manual"><i data-i="file"></i>Etiqueta manual</button>
+          </div>
+        </div>
+        <div class="card-cuerpo">
+          <div id="sugerencias"></div>
+
+          <div class="panel" id="form-manual" hidden style="margin-bottom:12px">
+            <div class="fila entre" style="margin-bottom:10px"><b>Etiqueta manual</b><span class="chico tenue">Para lo que todavía no está cargado en el sistema</span></div>
+            <div class="form-grilla" style="gap:10px">
+              <label class="campo"><span>Part N (con sufijo)</span><input class="input mono" id="m-pn" placeholder="Ej. 1779953.KO" autocomplete="off"></label>
+              <label class="campo"><span>Descripción</span><input class="input" id="m-desc" placeholder="Ej. ALTERNADOR" autocomplete="off"></label>
+              <label class="campo"><span>Tipo de parte</span><select class="select" id="m-tipo"><option value="alternativa">Alternativa (rollo pre-impreso)</option><option value="genuina">Original (rollo blanco)</option><option value="obsoleta">Obsoleta (rollo blanco)</option></select></label>
+              <label class="campo"><span>Unidades por empaque</span><input class="input" id="m-qty" type="number" min="1" max="999" value="1"></label>
+              <label class="campo"><span>Copias</span><input class="input" id="m-copias" type="number" min="1" max="999" value="1"></label>
+              <div class="campo"><span>&nbsp;</span><button class="btn btn-oscuro" type="button" id="m-agregar"><i data-i="plus"></i>Agregar a la cola</button></div>
+            </div>
+            <div class="chico tenue" style="margin-top:8px" id="m-aviso">La vista previa muestra la etiqueta mientras escribís.</div>
+          </div>
+
+          <div id="cola"></div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-cuerpo">
+          <div class="grilla" id="totales"></div>
+          <div id="tandas" style="margin-top:10px"></div>
+          <div class="chico tenue" style="margin-top:10px">* Medidas del rollo a confirmar con GROW. El largo incluye 3 mm de separación entre etiquetas.</div>
+        </div>
+      </section>
+    </div>
+
+    <div class="pila">
+      <section class="card">
+        <div class="card-cab"><div><div class="card-titulo"><i data-i="eye"></i>Vista previa</div><div class="card-sub" id="prev-sub"></div></div></div>
+        <div class="card-cuerpo pila" style="gap:12px">
+          <div class="etq-fondo" id="preview"></div>
+          <label class="interruptor chico"><input type="checkbox" id="t-solo"> Ver solo lo que imprime la impresora</label>
+          <label class="interruptor chico"><input type="checkbox" id="t-codigo" checked> Código de barras del Part N en el espacio libre</label>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-cab"><div><div class="card-titulo"><i data-i="adjust"></i>Calibración de alineación</div><div class="card-sub">Si el texto no cae justo en el pre-impreso, se corrige una vez y queda guardado.</div></div></div>
+        <div class="card-cuerpo pila" style="gap:10px">
+          <label class="campo"><span>Horizontal: <b id="v-dx">0,0 mm</b></span><input class="rango" type="range" id="dx" min="-4" max="4" step="0.5" value="0"></label>
+          <label class="campo"><span>Vertical: <b id="v-dy">0,0 mm</b></span><input class="rango" type="range" id="dy" min="-4" max="4" step="0.5" value="0"></label>
+          <div class="fila entre">
+            <label class="interruptor chico"><input type="checkbox" id="t-guia"> Mostrar grilla</label>
+            <button class="btn btn-chico btn-fantasma" type="button" id="reset-cal">Volver a cero</button>
+          </div>
+        </div>
+      </section>
+      <button class="btn btn-oscuro btn-grande btn-bloque" type="button" id="imprimir"><i data-i="printer"></i><span id="imprimir-txt">Imprimir</span></button>
+      <div class="panel" id="progreso-caja" hidden><div class="fila entre chico" style="margin-bottom:6px"><span id="progreso-txt">Enviando…</span><b id="progreso-n"></b></div><div class="progreso"><span id="progreso"></span></div></div>
+    </div>
+  </div>
+
+  <section class="card" id="vista-exito" hidden>
+    <div class="exito">
+      <div class="exito-ic"><i data-i="check"></i></div>
+      <h2 id="exito-titulo"></h2>
+      <p class="tinta-2" id="exito-texto"></p>
+      <div class="fila" style="justify-content:center;margin-top:8px" id="exito-acciones"></div>
+    </div>
+  </section>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, icono, ui, TIPOS_PARTE } = G;
+  const $ = (id) => document.getElementById(id);
+  const LARGO_MM = 70, SEPARACION_MM = 3, VELOCIDAD_MM_S = 127;
+  let manuales = 0;
+
+  function itemProducto(pid) {
+    const p = G.producto(pid);
+    return { id: pid, pid, copias: Math.max(1, Math.min(20, G.stock(pid, 'ALL'))), qty: p.empaque || 1, tipo: p.tipoParte, sufijo: G.sufijoDefecto(p) };
+  }
+
+  // cola inicial: lo que viene por URL, lo recién recibido o un ejemplo de cada tipo de etiqueta
+  let ids = (G.qs('ids') || '').split(',').filter((id) => G.producto(id));
+  if (!ids.length && G.qs('recibido')) {
+    const t = G.estado().transitos.find((x) => x.envio === G.qs('recibido'));
+    if (t) ids = t.items.map((i) => i.pid);
+  }
+  if (!ids.length) {
+    const bolsa = G.productos.find((p) => p.empaque >= 10 && G.stock(p.id) > 0);
+    const original = G.productos.find((p) => p.tipoParte === 'genuina' && G.stock(p.id) > 0 && G.sufijoProveedor(p));
+    const obsoleta = G.productos.find((p) => p.tipoParte === 'obsoleta' && G.stock(p.id) > 0);
+    ids = [bolsa, original, obsoleta].filter(Boolean).map((p) => p.id);
+  }
+  const cola = ids.map(itemProducto);
+  let activo = cola.length ? cola[0].id : null;
+
+  const datosItem = (it) => (it.manual
+    ? { partN: it.partN, descripcion: it.descripcion, cant: it.qty, tipo: it.tipo }
+    : { partN: G.partN(G.producto(it.pid), it.sufijo), descripcion: G.producto(it.pid).descripcion, cant: it.qty, tipo: it.tipo });
+
+  function borrador() {
+    return { partN: $('m-pn').value.trim().toUpperCase(), descripcion: $('m-desc').value.trim(), cant: Math.max(1, parseInt($('m-qty').value, 10) || 1), tipo: $('m-tipo').value };
+  }
+
+  function renderCola() {
+    $('cola').innerHTML = cola.map((it) => {
+      const d = datosItem(it);
+      const p = it.manual ? null : G.producto(it.pid);
+      const t = TIPOS_PARTE[it.tipo];
+      const prov = p ? G.sufijoProveedor(p) : null;
+      const sel = it.id === activo;
+      return `<div class="lista-item" data-activar="${it.id}" style="cursor:pointer;align-items:start;${sel ? 'background:var(--acento-suave);border-radius:8px;padding-left:8px;padding-right:8px' : ''}">
+        <span class="pin">${p ? G.stock(p.id, 'ALL') : icono('file', 'i-sm')}</span>
+        <div class="pila" style="min-width:0;gap:6px">
+          <div><div class="mono fuerte corta" data-pn="${it.id}">${esc(d.partN || '—')}</div>
+            <div class="chico tenue corta">${esc(d.descripcion)} · ${it.manual ? 'carga manual' : G.etiquetado(p.id) ? 'ya etiquetado' : 'pendiente'}${p && p.empaque ? ` · bolsas de ${p.empaque}` : ''}</div></div>
+          <div class="fila chico">
+            <span class="fila" style="flex-wrap:nowrap;gap:6px"><span>Copias</span><span class="stepper"><button type="button" data-cop="${it.id}" data-d="-1" aria-label="Menos copias">−</button><input type="number" min="1" max="999" value="${it.copias}" data-copias="${it.id}" aria-label="Copias"><button type="button" data-cop="${it.id}" data-d="1" aria-label="Más copias">+</button></span></span>
+            <span class="fila" style="flex-wrap:nowrap;gap:6px"><span>Unid. por empaque</span><span class="stepper"><button type="button" data-qty="${it.id}" data-d="-1" aria-label="Menos unidades">−</button><input type="number" min="1" max="999" value="${it.qty}" data-qtyin="${it.id}" aria-label="Unidades por empaque"><button type="button" data-qty="${it.id}" data-d="1" aria-label="Más unidades">+</button></span></span>
+          </div>
+          <div class="fila chico">
+            ${p ? `<label class="fila" style="flex-wrap:nowrap;gap:6px"><span>Sufijo</span><select class="select input-chico" data-sufijo="${it.id}" style="width:auto">
+              ${prov ? `<option value="PROV" ${it.sufijo === 'PROV' ? 'selected' : ''}>.${esc(prov)} (proveedor)</option>` : ''}
+              <option value="GEN" ${it.sufijo === 'GEN' ? 'selected' : ''}>.GEN (genuino)</option>
+              <option value="ALT" ${it.sufijo === 'ALT' ? 'selected' : ''}>.ALT (alternativo)</option>
+              <option value="" ${it.sufijo === '' ? 'selected' : ''}>Sin sufijo</option></select></label>` : ''}
+            <label class="fila" style="flex-wrap:nowrap;gap:6px"><span>Tipo</span><select class="select input-chico" data-tipo="${it.id}" style="width:auto">
+              ${Object.entries(TIPOS_PARTE).map(([k, v]) => `<option value="${k}" ${it.tipo === k ? 'selected' : ''}>${v.nombre}</option>`).join('')}</select></label>
+            <span class="badge ${t.rollo === 'pre' ? 'b-acento' : 'b-borde'}">${t.rollo === 'pre' ? 'Rollo pre-impreso' : 'Rollo blanco'}</span>
+          </div>
+        </div>
+        <button class="btn btn-icono btn-fantasma" type="button" data-quitar="${it.id}" aria-label="Quitar de la cola">${icono('x')}</button>
+      </div>`;
+    }).join('') || `<div class="vacio-estado">${icono('tag')}La cola está vacía. Agregá productos con el buscador o cargá una etiqueta manual.</div>`;
+    renderTotales();
+  }
+
+  function renderTotales() {
+    const pre = cola.filter((it) => TIPOS_PARTE[it.tipo].rollo === 'pre').reduce((a, it) => a + it.copias, 0);
+    const blanco = cola.filter((it) => TIPOS_PARTE[it.tipo].rollo !== 'pre').reduce((a, it) => a + it.copias, 0);
+    const etiquetas = pre + blanco;
+    const metros = (etiquetas * (LARGO_MM + SEPARACION_MM)) / 1000;
+    const segundos = Math.ceil((etiquetas * (LARGO_MM + SEPARACION_MM)) / VELOCIDAD_MM_S);
+    $('cola-sub').textContent = `${cola.length} ítem(s)`;
+    $('totales').innerHTML = `
+      <div class="kpi" style="padding:0"><span class="kpi-etq">${icono('tag')}Etiquetas</span><span class="kpi-valor num" id="tot-etq">${fmt.int(etiquetas)}</span><span class="kpi-pie"><span id="tot-pre">${pre}</span> pre-impresas · <span id="tot-blanco">${blanco}</span> en blanco</span></div>
+      <div class="kpi" style="padding:0"><span class="kpi-etq">${icono('layers')}Rollo y ribbon</span><span class="kpi-valor num" id="tot-m">${fmt.dec(metros)} m</span></div>
+      <div class="kpi" style="padding:0"><span class="kpi-etq">${icono('clock')}Tiempo estimado</span><span class="kpi-valor num">${segundos < 60 ? segundos + ' s' : Math.ceil(segundos / 60) + ' min'}</span></div>`;
+    $('tandas').innerHTML = pre && blanco
+      ? `<div class="alerta info">${icono('info')}<span>Se imprime en 2 tandas: primero ${pre} sobre el rollo pre-impreso y después ${blanco} sobre el rollo blanco. El sistema avisa cuándo cambiar el rollo.</span></div>` : '';
+    $('imprimir-txt').textContent = `Imprimir ${fmt.int(etiquetas)} etiqueta(s)`;
+    $('imprimir').disabled = !etiquetas;
+  }
+
+  function renderPreview() {
+    const dx = +$('dx').value, dy = +$('dy').value;
+    $('v-dx').textContent = `${dx > 0 ? '+' : ''}${fmt.dec(dx).replace(',00', ',0')} mm`;
+    $('v-dy').textContent = `${dy > 0 ? '+' : ''}${fmt.dec(dy).replace(',00', ',0')} mm`;
+    const opciones = { soloImpresion: $('t-solo').checked, codigo: $('t-codigo').checked, dx, dy, guia: $('t-guia').checked };
+    let datos = null, sub = '';
+    if (!$('form-manual').hidden) {
+      datos = borrador();
+      sub = 'Borrador de etiqueta manual';
+    } else {
+      const it = cola.find((x) => x.id === activo);
+      if (it) { datos = datosItem(it); sub = `${datos.partN} · ${it.copias} copia(s) · ${TIPOS_PARTE[it.tipo].titulo.toLowerCase()}`; }
+    }
+    $('preview').innerHTML = datos ? G.etiqueta(datos, opciones) : `<div class="vacio-estado">${icono('eye')}Sin etiqueta para mostrar</div>`;
+    $('prev-sub').textContent = sub;
+  }
+
+  const todo = () => { renderCola(); renderPreview(); };
+  const buscarItem = (id) => cola.find((x) => x.id === id);
+
+  $('cola').addEventListener('click', (e) => {
+    const cop = e.target.closest('[data-cop]');
+    if (cop) { const it = buscarItem(cop.dataset.cop); it.copias = Math.max(1, it.copias + (+cop.dataset.d)); activo = it.id; todo(); return; }
+    const q = e.target.closest('[data-qty]');
+    if (q) { const it = buscarItem(q.dataset.qty); it.qty = Math.min(999, Math.max(1, it.qty + (+q.dataset.d))); activo = it.id; todo(); return; }
+    const quitar = e.target.closest('[data-quitar]');
+    if (quitar) { cola.splice(cola.findIndex((x) => x.id === quitar.dataset.quitar), 1); if (activo === quitar.dataset.quitar) activo = cola[0] ? cola[0].id : null; todo(); return; }
+    if (e.target.closest('input, select, .stepper')) return;
+    const act = e.target.closest('[data-activar]');
+    if (act) { activo = act.dataset.activar; $('form-manual').hidden = true; todo(); }
+  });
+  $('cola').addEventListener('input', (e) => {
+    const c = e.target.closest('[data-copias]');
+    if (c) { buscarItem(c.dataset.copias).copias = Math.max(1, parseInt(c.value, 10) || 1); renderTotales(); renderPreview(); }
+    const q = e.target.closest('[data-qtyin]');
+    if (q) { buscarItem(q.dataset.qtyin).qty = Math.min(999, Math.max(1, parseInt(q.value, 10) || 1)); renderPreview(); }
+  });
+  $('cola').addEventListener('change', (e) => {
+    const s = e.target.closest('[data-sufijo]');
+    if (s) { const it = buscarItem(s.dataset.sufijo); it.sufijo = s.value; activo = it.id; todo(); }
+    const t = e.target.closest('[data-tipo]');
+    if (t) { const it = buscarItem(t.dataset.tipo); it.tipo = t.value; activo = it.id; todo(); }
+  });
+
+  $('q').addEventListener('input', G.demorar(() => {
+    const q = $('q').value.trim();
+    if (!q) { $('sugerencias').innerHTML = ''; return; }
+    $('sugerencias').innerHTML = `<div class="panel" style="padding:4px 12px;margin-bottom:10px">${G.buscar(q).slice(0, 5).map((r) => `<button type="button" class="lista-item" data-agregar="${r.p.id}" style="width:100%;border:0;border-bottom:1px solid var(--linea);background:none;text-align:left;cursor:pointer"><span class="mono fuerte">${G.resaltar(r.p.codigo, q)}</span><span class="corta chico">${esc(r.p.descripcion)}</span>${icono('plus')}</button>`).join('') || '<div class="vacio-estado">Sin resultados</div>'}</div>`;
+  }, 120));
+  $('sugerencias').addEventListener('click', (e) => {
+    const a = e.target.closest('[data-agregar]');
+    if (!a) return;
+    if (!buscarItem(a.dataset.agregar)) cola.push(itemProducto(a.dataset.agregar));
+    activo = a.dataset.agregar;
+    $('q').value = ''; $('sugerencias').innerHTML = '';
+    $('form-manual').hidden = true;
+    todo();
+  });
+
+  // etiqueta manual
+  $('btn-manual').addEventListener('click', () => {
+    $('form-manual').hidden = !$('form-manual').hidden;
+    if (!$('form-manual').hidden) $('m-pn').focus();
+    renderPreview();
+  });
+  ['m-pn', 'm-desc', 'm-qty', 'm-tipo', 'm-copias'].forEach((id) => $(id).addEventListener('input', renderPreview));
+  $('m-agregar').addEventListener('click', () => {
+    const b = borrador();
+    if (!b.partN || !b.descripcion) { $('m-aviso').innerHTML = `<span style="color:var(--alerta-tinta)">${icono('alert', 'i-sm')} Completá el Part N y la descripción.</span>`; return; }
+    manuales++;
+    const it = { id: `M${manuales}`, manual: true, partN: b.partN, descripcion: b.descripcion, qty: b.cant, tipo: b.tipo, copias: Math.max(1, parseInt($('m-copias').value, 10) || 1) };
+    cola.push(it);
+    activo = it.id;
+    ['m-pn', 'm-desc'].forEach((id) => { $(id).value = ''; });
+    $('m-qty').value = 1; $('m-copias').value = 1;
+    $('m-aviso').textContent = 'La vista previa muestra la etiqueta mientras escribís.';
+    $('form-manual').hidden = true;
+    G.toast(`Etiqueta manual <span class="mono">${esc(it.partN)}</span> agregada`, 'tag');
+    todo();
+  });
+
+  ['t-solo', 't-codigo', 't-guia'].forEach((id) => $(id).addEventListener('change', renderPreview));
+  ['dx', 'dy'].forEach((id) => $(id).addEventListener('input', renderPreview));
+  $('reset-cal').addEventListener('click', () => { $('dx').value = 0; $('dy').value = 0; renderPreview(); });
+
+  $('imprimir').addEventListener('click', () => {
+    const total = cola.reduce((a, it) => a + it.copias, 0);
+    if (!total) return;
+    $('imprimir').disabled = true;
+    $('progreso-caja').hidden = false;
+    let n = 0;
+    const paso = Math.max(1, Math.ceil(total / 25));
+    const timer = setInterval(() => {
+      n = Math.min(total, n + paso);
+      $('progreso').style.width = `${(n / total) * 100}%`;
+      $('progreso-n').textContent = `${n} / ${total}`;
+      $('progreso-txt').textContent = 'Imprimiendo en XP-H500B…';
+      if (n >= total) {
+        clearInterval(timer);
+        const productos = cola.filter((it) => !it.manual).map((it) => it.pid);
+        const nManuales = cola.filter((it) => it.manual).length;
+        productos.forEach((id) => { G.estado().etiquetados[id] = true; });
+        const previos = (G.qs('etq') || '').split(',').filter(Boolean);
+        const etq = [...new Set(previos.concat(productos))].join(',');
+        $('vista-cola').hidden = true;
+        $('vista-exito').hidden = false;
+        $('exito-titulo').textContent = `${fmt.int(total)} etiqueta(s) impresas`;
+        $('exito-texto').innerHTML = `${productos.length} producto(s) quedaron marcados como etiquetados${nManuales ? ` y ${nManuales} etiqueta(s) manual(es)` : ''}.<br>Calibración usada: ${$('v-dx').textContent} horizontal, ${$('v-dy').textContent} vertical.`;
+        $('exito-acciones').innerHTML = `
+          <a class="btn btn-oscuro" href="${G.href('02-inventario.html', { etq })}">${icono('box')}Ver en el inventario</a>
+          ${productos.length ? `<a class="btn" href="${G.href('03-ficha-producto.html', { etq, id: productos[0] })}">${icono('file')}Ver la ficha</a>` : ''}
+          <a class="btn" href="${G.href('01-panel.html', { etq })}">${icono('dashboard')}Volver al panel</a>`;
+        G.toast('Etiquetas enviadas a la XP-H500B', 'printer');
+      }
+    }, 40);
+  });
+
+  todo();
+})();
+</script>
+</body>
+</html>

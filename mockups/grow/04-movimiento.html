@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>04 · Registrar movimiento · GROW Stock</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c1b'/%3E%3Crect x='20' y='26' width='24' height='12' fill='%23ffe827'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="escritorio" data-pantalla="04-movimiento.html">
+<main id="pagina">
+  <div class="cabecera">
+    <div>
+      <div class="antetitulo"><i data-i="arrows" class="i-sm"></i> Operación</div>
+      <h1 class="titulo">Registrar movimiento</h1>
+      <p class="bajada">Cada venta, ingreso, conteo o cambio de lugar queda registrado. Antes de confirmar ves cómo queda el stock.</p>
+    </div>
+  </div>
+
+  <div class="dos-col" id="vista-form">
+    <section class="card">
+      <div class="card-cuerpo pila">
+        <div class="campo">
+          <span>Producto</span>
+          <div id="elegido"></div>
+          <div id="buscar-caja">
+            <label class="buscador"><span class="sr">Buscar producto</span><i data-i="search"></i><input class="input" id="q" placeholder="Escaneá o escribí código, referencia o máquina…" autocomplete="off"></label>
+            <div id="sugerencias"></div>
+          </div>
+        </div>
+        <div class="campo"><span>Tipo de movimiento</span><div id="tipos"></div></div>
+        <div class="campo"><span>Depósito</span><div id="deps"></div></div>
+        <div class="form-grilla">
+          <label class="campo"><span id="ubic-etq">Ubicación</span><select class="select" id="ubic"></select></label>
+          <label class="campo" id="dest-caja"><span>Mover a</span><select class="select" id="dest"></select></label>
+          <div class="campo"><span id="cant-etq">Cantidad</span>
+            <span class="stepper"><button type="button" data-paso="-1" aria-label="Restar">−</button><input id="cant" type="number" min="0" value="2" aria-label="Cantidad"><button type="button" data-paso="1" aria-label="Sumar">+</button></span></div>
+          <label class="campo"><span>Motivo</span><select class="select" id="motivo"></select></label>
+          <label class="campo completo"><span>Comprobante / referencia</span><input class="input" id="ref" placeholder="Remito, factura o N° de importación"></label>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-live="polite">
+      <div class="card-cab"><div class="card-titulo"><i data-i="sparkle"></i>Cómo queda</div></div>
+      <div class="card-cuerpo pila" style="gap:12px">
+        <div id="resumen"></div>
+        <div id="aviso"></div>
+        <button class="btn btn-oscuro btn-grande btn-bloque" type="button" id="confirmar"><i data-i="check"></i>Confirmar movimiento</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="card" id="vista-exito" hidden>
+    <div class="exito">
+      <div class="exito-ic"><i data-i="check"></i></div>
+      <h2 id="exito-titulo">Movimiento registrado</h2>
+      <p class="tinta-2" id="exito-texto"></p>
+      <div class="fila" style="justify-content:center;margin-top:8px" id="exito-acciones"></div>
+    </div>
+  </section>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, icono, ui } = G;
+  const $ = (id) => document.getElementById(id);
+  const MOTIVOS = {
+    egreso: ['Venta mostrador', 'Envío a cliente', 'Uso en taller', 'Rotura / descarte'],
+    ingreso: ['Compra a proveedor', 'Devolución de cliente', 'Importación desde Miami'],
+    ajuste: ['Conteo físico', 'Corrección de carga'],
+    transferencia: ['Reordenamiento del depósito', 'Pasa a mostrador'],
+  };
+  const st = { pid: (G.producto(G.qs('id')) || G.producto('P0061')).id, tipo: G.qs('tipo', 'egreso'), dep: 'MIS', cant: 2 };
+
+  function elegirUbicInicial() {
+    const items = G.stockItems(st.pid, 'ALL').filter((s) => s.cant > 0);
+    const conDep = items.find((s) => s.dep === st.dep) || items[0];
+    if (conDep) st.dep = conDep.dep;
+  }
+  elegirUbicInicial();
+
+  function opcionesUbic(soloConStock) {
+    const items = G.stockItems(st.pid, st.dep);
+    const conStock = items.map((s) => `<option value="${esc(s.ubic)}">${esc(G.ubic(s.ubic, st.dep).nombre)} — hay ${s.cant}</option>`).join('');
+    if (soloConStock) return conStock || '<option value="">No hay stock en este depósito</option>';
+    const ya = new Set(items.map((s) => s.ubic));
+    const resto = G.ubicaciones(st.dep).filter((u) => !ya.has(u.id) && u.id !== 'SIN' && u.id !== 'EST?').map((u) => `<option value="${esc(u.id)}">${esc(u.nombre)}</option>`).join('');
+    return conStock + resto;
+  }
+
+  function renderForm() {
+    const p = G.producto(st.pid);
+    $('elegido').innerHTML = `<div class="panel fila entre" style="background:var(--acento-suave);border-color:var(--acento-borde)">
+      <div style="min-width:0"><div class="mono fuerte">${esc(p.codigo)}</div><div class="chico tinta-2 corta">${esc(p.descripcion)} · ${G.DEPOSITOS.map((d) => d.nombre + ' ' + G.stock(p.id, d.id)).join(' · ')}</div></div>
+      <button class="btn btn-chico" type="button" id="cambiar">Cambiar</button></div>`;
+    $('buscar-caja').hidden = true;
+    $('tipos').innerHTML = ui.segmentos('tipo', [{ v: 'egreso', t: 'Egreso', icono: 'out' }, { v: 'ingreso', t: 'Ingreso', icono: 'in' }, { v: 'ajuste', t: 'Ajuste', icono: 'adjust' }, { v: 'transferencia', t: 'Reubicación', icono: 'arrows' }], st.tipo);
+    $('deps').innerHTML = ui.depositos(st.dep, false);
+    const soloConStock = st.tipo === 'egreso' || st.tipo === 'transferencia';
+    const ubicPrev = $('ubic').value;
+    $('ubic').innerHTML = opcionesUbic(soloConStock);
+    if ([...$('ubic').options].some((o) => o.value === ubicPrev)) $('ubic').value = ubicPrev;
+    $('dest-caja').hidden = st.tipo !== 'transferencia';
+    $('dest').innerHTML = G.ubicaciones(st.dep).filter((u) => u.id !== $('ubic').value && u.id !== 'SIN' && u.id !== 'EST?').map((u) => `<option value="${esc(u.id)}">${esc(u.nombre)}</option>`).join('');
+    if (st.tipo === 'transferencia' && [...$('dest').options].some((o) => o.value === 'MOST')) $('dest').value = 'MOST';
+    $('ubic-etq').textContent = st.tipo === 'transferencia' ? 'Desde' : 'Ubicación';
+    $('cant-etq').textContent = st.tipo === 'ajuste' ? 'Cantidad contada' : 'Cantidad';
+    $('motivo').innerHTML = MOTIVOS[st.tipo].map((m) => `<option>${m}</option>`).join('');
+    if (st.tipo === 'ajuste') {
+      const s = G.stockItems(st.pid, st.dep).find((x) => x.ubic === $('ubic').value);
+      st.cant = s ? s.cant : 0;
+      $('cant').value = st.cant;
+    }
+    renderResumen();
+  }
+
+  function calcular() {
+    const p = G.producto(st.pid);
+    const ubic = $('ubic').value;
+    const s = G.stockItems(p.id, st.dep).find((x) => x.ubic === ubic);
+    const antesUbic = s ? s.cant : 0;
+    const antesTotal = G.stock(p.id, 'ALL');
+    let delta = 0, error = '';
+    if (!ubic) error = 'Este producto no tiene stock en el depósito elegido.';
+    else if (st.tipo === 'egreso') { delta = -st.cant; if (st.cant > antesUbic) error = `No alcanza: en esa ubicación hay ${antesUbic}.`; }
+    else if (st.tipo === 'ingreso') delta = st.cant;
+    else if (st.tipo === 'ajuste') delta = st.cant - antesUbic;
+    else if (st.tipo === 'transferencia') { delta = -st.cant; if (st.cant > antesUbic) error = `No alcanza: en esa ubicación hay ${antesUbic}.`; }
+    if (!error && st.tipo !== 'ajuste' && st.cant <= 0) error = 'La cantidad tiene que ser mayor a cero.';
+    const totalDelta = st.tipo === 'transferencia' ? 0 : delta;
+    const pr = G.precios(p);
+    return { p, ubic, antesUbic, despuesUbic: antesUbic + delta, antesTotal, despuesTotal: antesTotal + totalDelta, valor: pr.arg ? pr.arg * totalDelta : null, error };
+  }
+
+  function renderResumen() {
+    const c = calcular();
+    const fila = (t, a, d) => `<dt>${t}</dt><dd><span class="tenue">${a}</span> → <b style="font-size:17px">${d}</b></dd>`;
+    $('resumen').innerHTML = `<dl class="kv">
+      ${fila(esc(c.ubic ? G.ubic(c.ubic, st.dep).nombre : 'Ubicación'), c.antesUbic, c.error && st.tipo !== 'ajuste' ? '—' : c.despuesUbic)}
+      ${st.tipo === 'transferencia' ? fila(esc(G.ubic($('dest').value, st.dep).nombre), (G.stockItems(st.pid, st.dep).find((x) => x.ubic === $('dest').value) || { cant: 0 }).cant, (G.stockItems(st.pid, st.dep).find((x) => x.ubic === $('dest').value) || { cant: 0 }).cant + (c.error ? 0 : st.cant)) : ''}
+      ${fila('Stock total del producto', c.antesTotal, c.error ? '—' : c.despuesTotal)}
+      <dt class="total">Impacto al costo ARG</dt><dd class="total">${c.valor == null ? '<span class="tenue">sin costo</span>' : (c.valor >= 0 ? '+' : '−') + fmt.usd(Math.abs(c.valor)).replace('US$ ', 'US$ ')}</dd>
+      ${st.tipo === 'ingreso' ? `<dt>Etiquetas GROW a imprimir</dt><dd>${st.cant}</dd>` : ''}
+    </dl>`;
+    const bajo = !c.error && c.despuesTotal < G.minimo(c.p) && st.tipo !== 'ingreso';
+    $('aviso').innerHTML = c.error ? `<div class="alerta error">${icono('alert')}<span>${esc(c.error)}</span></div>`
+      : bajo ? `<div class="alerta aviso">${icono('alert')}<span>Después de este movimiento queda por debajo del mínimo (${G.minimo(c.p)}).</span></div>`
+      : `<div class="alerta ok">${icono('check')}<span>Todo listo para confirmar.</span></div>`;
+    $('confirmar').disabled = !!c.error;
+  }
+
+  function sugerir() {
+    const q = $('q').value.trim();
+    if (!q) { $('sugerencias').innerHTML = ''; return; }
+    const res = G.buscar(q).slice(0, 6);
+    $('sugerencias').innerHTML = `<div class="panel" style="padding:4px 12px;margin-top:6px">${res.map((r) => `<button type="button" class="lista-item" data-elegir="${r.p.id}" style="width:100%;border:0;border-bottom:1px solid var(--linea);background:none;text-align:left;cursor:pointer">
+      <span class="mono fuerte">${G.resaltar(r.p.codigo, q)}</span><span class="corta chico">${esc(r.p.descripcion)} <span class="tenue">· por ${r.via}</span></span><b class="num">${G.stock(r.p.id)}</b></button>`).join('') || '<div class="vacio-estado">Sin resultados</div>'}</div>`;
+  }
+
+  document.getElementById('pagina').addEventListener('click', (e) => {
+    const t = e.target.closest('[data-seg="tipo"]');
+    if (t) { st.tipo = t.dataset.v; if (st.tipo !== 'ajuste' && st.cant <= 0) { st.cant = 1; $('cant').value = 1; } renderForm(); return; }
+    const d = e.target.closest('[data-seg="dep"]');
+    if (d) { st.dep = d.dataset.v; renderForm(); return; }
+    const paso = e.target.closest('[data-paso]');
+    if (paso) { st.cant = Math.max(0, st.cant + (+paso.dataset.paso)); $('cant').value = st.cant; renderResumen(); return; }
+    if (e.target.closest('#cambiar')) { $('buscar-caja').hidden = false; $('elegido').innerHTML = ''; $('q').value = ''; $('q').focus(); return; }
+    const el = e.target.closest('[data-elegir]');
+    if (el) { st.pid = el.dataset.elegir; $('sugerencias').innerHTML = ''; elegirUbicInicial(); renderForm(); }
+  });
+  $('q').addEventListener('input', G.demorar(sugerir, 120));
+  $('cant').addEventListener('input', () => { st.cant = Math.max(0, parseInt($('cant').value, 10) || 0); renderResumen(); });
+  $('ubic').addEventListener('change', () => { if (st.tipo === 'ajuste') renderForm(); else { $('dest').innerHTML = G.ubicaciones(st.dep).filter((u) => u.id !== $('ubic').value && u.id !== 'SIN').map((u) => `<option value="${esc(u.id)}">${esc(u.nombre)}</option>`).join(''); renderResumen(); } });
+  $('dest').addEventListener('change', renderResumen);
+
+  $('confirmar').addEventListener('click', () => {
+    const c = calcular();
+    if (c.error) return;
+    const mov = { tipo: st.tipo, pid: st.pid, dep: st.dep, ubic: c.ubic, cant: st.cant, nueva: st.cant, destinoUbic: $('dest').value, ref: $('ref').value };
+    try { G.aplicarMovimiento(mov); } catch (ex) { $('aviso').innerHTML = `<div class="alerta error">${icono('alert')}<span>${esc(ex.message)}</span></div>`; return; }
+    const p = G.producto(st.pid);
+    const urlMov = { mov: st.tipo, mid: st.pid, mdep: st.dep, mubic: c.ubic, mcant: st.tipo === 'ajuste' ? '' : st.cant, mnueva: st.tipo === 'ajuste' ? st.cant : '', mdest: st.tipo === 'transferencia' ? $('dest').value : '', mref: $('ref').value };
+    $('vista-form').hidden = true;
+    $('vista-exito').hidden = false;
+    $('exito-titulo').textContent = { egreso: 'Egreso registrado', ingreso: 'Ingreso registrado', ajuste: 'Ajuste registrado', transferencia: 'Reubicación registrada' }[st.tipo];
+    $('exito-texto').innerHTML = `<b class="mono">${esc(p.codigo)}</b> · ${esc(p.descripcion)}<br>${esc(G.ubic(c.ubic, st.dep).nombre)}: ${c.antesUbic} → <b>${G.stockItems(p.id, st.dep).find((s) => s.ubic === c.ubic)?.cant ?? 0}</b> · stock total <b>${G.stock(p.id, 'ALL')}</b>`;
+    $('exito-acciones').innerHTML = `
+      <a class="btn btn-oscuro" id="ir-ficha" href="${G.href('03-ficha-producto.html', Object.assign({ id: p.id }, urlMov))}">${icono('file')}Ver la ficha actualizada</a>
+      <a class="btn" href="${G.href('01-panel.html', urlMov)}">${icono('dashboard')}Ver en el panel</a>
+      ${st.tipo === 'ingreso' ? `<a class="btn btn-acento" href="${G.href('06-etiquetas-producto.html', Object.assign({ ids: p.id }, urlMov))}">${icono('tag')}Imprimir ${st.cant} etiqueta(s)</a>` : ''}
+      <a class="btn btn-fantasma" href="${location.pathname.split('/').pop()}">Registrar otro</a>`;
+    G.toast('Movimiento guardado');
+  });
+
+  if (G.qs('id')) $('q').value = '';
+  renderForm();
+})();
+</script>
+</body>
+</html>

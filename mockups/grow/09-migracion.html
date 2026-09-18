@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>09 · Migración del Excel · GROW Stock</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c1b'/%3E%3Crect x='20' y='26' width='24' height='12' fill='%23ffe827'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="escritorio" data-pantalla="09-migracion.html">
+<main id="pagina">
+  <div class="cabecera">
+    <div>
+      <div class="antetitulo"><i data-i="sheet" class="i-sm"></i> Gestión</div>
+      <h1 class="titulo">Migración del Excel</h1>
+      <p class="bajada">Sus datos no se pierden: se ordenan. Esto es lo que encontramos en <span class="mono chico" id="archivo"></span> y cómo queda en el sistema.</p>
+    </div>
+  </div>
+
+  <div class="grilla" id="antes-despues" style="margin-bottom:16px"></div>
+
+  <section class="card" style="margin-bottom:16px">
+    <div class="card-cab">
+      <div><div class="card-titulo"><i data-i="eye"></i>Filas reales, antes y después</div><div class="card-sub">Una muestra de filas de la planilla con los problemas típicos</div></div>
+      <div id="modo"></div>
+    </div>
+    <div class="card-cuerpo" id="muestra"></div>
+  </section>
+
+  <div class="dos-col">
+    <section class="card">
+      <div class="card-cab"><div><div class="card-titulo"><i data-i="alert"></i>Qué detectamos</div><div class="card-sub">Tocá cada punto para ver ejemplos reales</div></div></div>
+      <div class="card-cuerpo" id="problemas" style="padding-top:4px"></div>
+    </section>
+    <section class="card">
+      <div class="card-cab"><div class="card-titulo"><i data-i="layers"></i>Cómo pasamos del Excel al sistema</div></div>
+      <div class="card-cuerpo" id="plan"></div>
+    </section>
+  </div>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, icono, ui } = G;
+  const $ = (id) => document.getElementById(id);
+  const r = G.resumen;
+  let modo = 'excel';
+  $('archivo').textContent = r.archivo;
+
+  $('antes-despues').innerHTML = [
+    ['Filas en el Excel', r.filasProducto, 'Productos únicos', r.productosUnicos, 'se unificaron los códigos repetidos'],
+    ['Formas de escribir ubicaciones', r.variantesUbicacion, 'Ubicaciones normalizadas', r.ubicacionesNormalizadas, `más ${r.cajas} cajas con nombre propio`],
+    ['Precios guardados como texto', r.preciosComoTexto, 'Precios como texto', 0, 'todos pasan a ser números'],
+    ['Productos sin categoría', r.productosUnicos, 'Categorizados automáticamente', r.categorizados, 'con las categorías de la web'],
+  ].map(([a, na, d, nd, pie]) => `<div class="card kpi">
+      <span class="kpi-etq">${esc(a)}</span><span class="kpi-valor num" style="color:var(--alerta-tinta)">${fmt.int(na)}</span>
+      <span class="kpi-etq" style="margin-top:6px">${icono('down', 'i-sm')} ${esc(d)}</span><span class="kpi-valor num" style="color:var(--ok-tinta)">${fmt.int(nd)}</span>
+      <span class="kpi-pie">${esc(pie)}</span></div>`).join('');
+
+  const COLS = ['CODIGO', 'CANTIDAD', 'UBICACIÓN', 'DESCRIPCIÓN', 'PROVEEDOR', 'PESO KG', 'COSTO EXTERIOR', 'COSTO ARG', 'PROVEEDOR', 'MARCA'];
+  function productoDeFila(fila) { return G.productos.find((p) => p.filas.includes(fila)); }
+
+  function renderMuestra() {
+    $('modo').innerHTML = ui.segmentos('modo', [{ v: 'excel', t: 'Excel original', icono: 'sheet' }, { v: 'sistema', t: 'Normalizado', icono: 'check' }], modo);
+    if (modo === 'excel') {
+      $('muestra').innerHTML = `<div class="pila" style="gap:8px">${G.datos.muestraExcel.map((m) => `
+        <div class="panel" style="padding:10px 12px;${m.color ? `border-left:6px solid ${m.color}` : ''}">
+          <div class="fila entre chico"><b>Fila ${m.fila}</b>${m.rojo ? `<span class="badge b-alerta">${icono('alert')}letra roja</span>` : m.color && m.color !== '#FFE699' ? `<span class="badge b-borde"><span class="muestra" style="background:${m.color}"></span> relleno de color</span>` : ''}</div>
+          <div class="grilla" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:4px 12px;margin-top:6px">
+            ${m.valores.map((v, i) => v.trim() ? `<div style="min-width:0"><div class="tenue" style="font-size:10.5px;letter-spacing:.06em">${COLS[i]}</div><div class="mono chico" style="overflow-wrap:anywhere;${m.rojo && i === 0 ? 'color:var(--alerta)' : ''}">${esc(v)}</div></div>` : '').join('')}
+          </div>
+        </div>`).join('')}</div>`;
+    } else {
+      $('muestra').innerHTML = `<div class="pila" style="gap:8px">${G.datos.muestraExcel.map((m) => {
+        const p = productoDeFila(m.fila);
+        if (!p) {
+          const caja = G.cajas.find((c) => c.filaExcel === m.fila);
+          return `<div class="panel" style="padding:10px 12px"><div class="fila entre chico"><b>Fila ${m.fila}</b><span class="badge b-ok">${icono('check')}Pasa a ser una ubicación</span></div><div style="margin-top:6px">${caja ? `<span class="muestra" style="background:${caja.colorExcel}"></span> <b>${esc(G.ubic(caja.id, 'MIS').nombre)}</b> — ya no depende del color de la fila.` : 'Fila de título'}</div></div>`;
+        }
+        const pr = G.precios(p);
+        const s = p.stock.find((x) => p.filas[p.stock.indexOf(x)] === m.fila) || p.stock[0];
+        return `<div class="panel" style="padding:10px 12px">
+          <div class="fila entre chico"><b>Fila ${m.fila}</b>${p.alertas.length ? `<span class="badge b-aviso">${icono('alert')}${p.alertas.length} a revisar</span>` : `<span class="badge b-ok">${icono('check')}Lista</span>`}</div>
+          <div class="grilla" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:4px 12px;margin-top:6px">
+            <div><div class="tenue" style="font-size:10.5px">CÓDIGO</div><a class="mono chico fuerte" href="${G.href('03-ficha-producto.html', { id: p.id })}">${esc(p.codigo)}</a></div>
+            <div><div class="tenue" style="font-size:10.5px">DESCRIPCIÓN</div><div class="chico">${esc(p.descripcion)}</div></div>
+            <div><div class="tenue" style="font-size:10.5px">CATEGORÍA</div><div class="chico">${esc(p.categoria)}</div></div>
+            <div><div class="tenue" style="font-size:10.5px">UBICACIÓN</div><div class="chico">${esc(G.ubic(s.ubic, 'MIS').nombre)}</div></div>
+            <div><div class="tenue" style="font-size:10.5px">CANTIDAD</div><div class="chico num">${s.cant}${s.nota ? ' · nota: ' + esc(s.nota) : ''}${s.aContar ? ' · a contar' : ''}</div></div>
+            <div><div class="tenue" style="font-size:10.5px">PRECIOS (FOB / ARG)</div><div class="chico num">${fmt.usd(pr.fob)} / ${fmt.usd(p.costoArg)}</div></div>
+          </div>
+          ${p.alertas.length ? `<div class="chico" style="margin-top:6px;color:var(--aviso-tinta)">${p.alertas.map(esc).join(' · ')}</div>` : ''}
+        </div>`;
+      }).join('')}</div>`;
+    }
+  }
+
+  const ejemplos = (tipo) => r.ejemplos.filter((e) => e.tipo === tipo);
+  const PROBLEMAS = [
+    { n: r.variantesUbicacion, t: 'Ubicaciones escritas de muchas formas', d: 'Mismo lugar con distintos nombres, espacios de más, errores de tipeo.', como: 'Se convierten a un código único por lugar (G7, Estante 4 › Caja Nº1, Mostrador) y se eligen de una lista.', tipos: ['Ubicación mal escrita', 'Descripción en la columna ubicación'] },
+    { n: r.codigosDuplicados, t: 'Códigos repetidos', d: `${r.filasDuplicadas} filas repiten un código que ya existe.`, como: 'Queda un solo producto con stock en cada ubicación donde aparecía.', tipos: ['Código repetido'] },
+    { n: r.productosEnCajas, t: 'Cajas identificadas por color', d: `Las ${r.cajas} cajas de los estantes 4 y 5 dependen del relleno de la fila.`, como: 'Cada caja es una ubicación con nombre y se imprime su etiqueta.', tipos: ['Código mal cargado'] },
+    { n: r.cantidadConTexto + r.cantidadVacia, t: 'Cantidades con texto o vacías', d: '“?”, “1 (CAJA)”, “12 (13)”, celdas vacías.', como: 'La cantidad es un número; el texto pasa a una nota y lo dudoso queda “a contar”.', tipos: ['Cantidad con texto'] },
+    { n: r.preciosComoTexto, t: 'Precios como texto y fórmulas sueltas', d: `${r.preciosVacios} celdas con “$” y nada más; ${r.formulas} fórmula aislada.`, como: 'Costo FOB, costo ARG y venta al público como números, con reglas de cálculo.', tipos: ['Fórmula suelta'] },
+    { n: r.proveedorEnDosColumnas, t: 'Proveedor en dos columnas', d: `${r.variantesProveedor} escrituras distintas (S.V., SV., SV…).`, como: 'Un proveedor por producto, elegido de una lista.', tipos: ['Proveedor con distinta escritura'] },
+    { n: r.marcaMalCargada + r.codigosConNotas + r.codigoEsCaja, t: 'Datos en la columna equivocada', d: 'Listas de máquinas en MARCA, notas dentro del código.', como: 'Cada dato va a su campo; lo que no se puede ubicar solo queda marcado para revisar.', tipos: ['Dato en la columna equivocada', 'Código con notas'] },
+    { n: r.pesosDudosos, t: 'Pesos en unidades mezcladas', d: 'La columna dice KG pero hay valores en gramos (217, 3900).', como: 'Se convierten a kg y quedan “a confirmar” para el cálculo de envíos.', tipos: ['Peso en otra unidad'] },
+  ];
+  $('problemas').innerHTML = PROBLEMAS.map((x) => `
+    <details class="desplegable">
+      <summary class="lista-item"><span class="pin">${fmt.int(x.n)}</span><div style="min-width:0"><b>${esc(x.t)}</b><div class="chico tenue">${esc(x.d)}</div></div>${icono('chevron', 'chev')}</summary>
+      <div class="desplegable-cuerpo pila" style="gap:8px">
+        <div class="alerta ok">${icono('check')}<span>${esc(x.como)}</span></div>
+        ${x.tipos.flatMap(ejemplos).map((e) => `<div class="grilla" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px">
+          <div class="panel chico" style="background:var(--alerta-suave);border-color:transparent"><div class="tenue" style="font-size:10.5px">FILA ${e.fila} · ANTES</div><span class="mono" style="overflow-wrap:anywhere">${esc(e.antes)}</span></div>
+          <div class="panel chico" style="background:var(--ok-suave);border-color:transparent"><div class="tenue" style="font-size:10.5px">DESPUÉS</div><b style="overflow-wrap:anywhere">${esc(e.despues)}</b></div>
+        </div>`).join('')}
+      </div>
+    </details>`).join('');
+
+  $('plan').innerHTML = [
+    ['Importación asistida', 'Cargamos el Excel tal como está. Nada se borra: cada producto recuerda de qué fila vino.'],
+    ['Revisión de alertas', `Resolvemos juntos las ${fmt.int(G.productos.filter((p) => p.alertas.length).length)} fichas marcadas (ubicaciones dudosas, cantidades a contar).`],
+    ['Conteo inicial con el celular', 'Se recorre el depósito por ubicación y se confirma el stock real.'],
+    ['Etiquetado', 'Se imprimen las etiquetas GROW de lo que no las tiene, con código de barras.'],
+    ['A operar', 'Desde ese día los movimientos se registran en el sistema; el Excel queda de respaldo.'],
+  ].map(([t, d], i) => `<div class="lista-item"><span class="pin grande" style="background:var(--grafito);color:var(--acento);border-color:var(--grafito)">${i + 1}</span><div><b>${t}</b><div class="chico tinta-2">${d}</div></div><span></span></div>`).join('');
+
+  document.getElementById('pagina').addEventListener('click', (e) => {
+    const m = e.target.closest('[data-seg="modo"]');
+    if (m) { modo = m.dataset.v; renderMuestra(); }
+  });
+  renderMuestra();
+})();
+</script>
+</body>
+</html>

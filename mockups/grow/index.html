@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>GROW Stock · Boceto del sistema</title>
+  <meta name="description" content="Boceto navegable del sistema de stock, ubicaciones, etiquetas y precios para GROW Partes & Máquinas.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c1b'/%3E%3Crect x='20' y='26' width='24' height='12' fill='%23ffe827'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="portada" data-pantalla="index.html">
+<main id="pagina">
+  <section class="hero">
+    <div class="hero-in">
+      <div class="antetitulo">Propuesta para GROW · Etapa 1: sanear el stock</div>
+      <h1>Del Excel de <em id="h-filas">1.290 filas</em> a un sistema que sabe dónde está cada repuesto, cuánto vale y cómo se etiqueta.</h1>
+      <p>Este boceto usa los productos reales de su planilla: códigos, ubicaciones, referencias cruzadas y máquinas compatibles. Los costos están alterados y los movimientos son simulados. Se puede recorrer desde la notebook y desde el celular.</p>
+      <div class="fila">
+        <a class="btn btn-acento btn-grande" data-href="09-migracion.html">Ver qué encontramos en el Excel <i data-i="next"></i></a>
+        <a class="btn btn-grande" style="background:transparent;color:#fff;border-color:#4a4a47" data-href="10-app-buscar.html"><i data-i="phone"></i> Ver la app del depósito</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <h2>Lo que duele hoy</h2>
+    <p>Analizamos la planilla <span class="mono chico" id="archivo"></span> fila por fila. Esto es lo que hace que el trabajo se vuelva gigante:</p>
+    <div class="grilla" id="dolores"></div>
+  </section>
+
+  <section class="seccion">
+    <h2>Etapa 1: sanear el stock</h2>
+    <p>Primero, ordenar lo que ya tienen: que cada repuesto tenga un código único, una ubicación clara, su etiqueta GROW y sus precios. Se usa desde la notebook en el mostrador y desde el celular en el depósito.</p>
+    <div class="grilla">
+      <div class="card dolor"><i data-i="search"></i><strong>Encontrar cualquier repuesto</strong><span class="tinta-2 chico">Por código GROW, por número de otra marca o por modelo de máquina (ej. “320D”).</span></div>
+      <div class="card dolor"><i data-i="map"></i><strong>Ubicaciones ordenadas</strong><span class="tinta-2 chico">Estanterías, estantes, cajas y mostrador con un solo formato, y un mapa del depósito.</span></div>
+      <div class="card dolor"><i data-i="check"></i><strong>Conteo con el celular</strong><span class="tinta-2 chico">Se recorre el depósito ubicación por ubicación y el sistema marca las diferencias.</span></div>
+      <div class="card dolor"><i data-i="tag"></i><strong>Etiquetas GROW sin tipear</strong><span class="tinta-2 chico">La XP-H500B imprime Part N con sufijo (proveedor, GEN o ALT), descripción y unidades por empaque, desde el sistema o a mano.</span></div>
+      <div class="card dolor"><i data-i="dollar"></i><strong>Los 3 precios, siempre al día</strong><span class="tinta-2 chico">Costo FOB, costo nacionalizado en Argentina y venta al público, con reglas y tipo de cambio.</span></div>
+      <div class="card dolor"><i data-i="history"></i><strong>Historial de todo</strong><span class="tinta-2 chico">Cada ingreso, venta, ajuste y transferencia queda registrado con usuario y fecha.</span></div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <h2>Recorrido sugerido para la demo</h2>
+    <p>Un flujo completo de punta a punta: lo que se carga en una pantalla aparece en la siguiente.</p>
+    <div class="pasos-demo">
+      <a class="card paso-demo" data-href="09-migracion.html"><strong>Ver qué tiene el Excel</strong><span class="tinta-2 chico">Filas reales, antes y después de ordenarlas.</span></a>
+      <a class="card paso-demo" data-href="02-inventario.html" data-q="320D"><strong>Buscar como en el mostrador</strong><span class="tinta-2 chico">Inventario → buscar “320D” y abrir una fila.</span></a>
+      <a class="card paso-demo" data-href="12-app-conteo.html"><strong>Contar una ubicación con el celular</strong><span class="tinta-2 chico">Cargar lo contado, ver la diferencia y confirmar el ajuste.</span></a>
+      <a class="card paso-demo" data-href="06-etiquetas-producto.html"><strong>Etiquetar con el rollo GROW</strong><span class="tinta-2 chico">Calibrar la XP-H500B e imprimir.</span></a>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <h2>Índice de pantallas</h2>
+    <p>Cada pantalla hace algo real: filtros, cálculos en vivo, confirmaciones y resultados que viajan a otras pantallas.</p>
+    <div class="grilla" id="indice"></div>
+  </section>
+
+  <section class="seccion">
+    <h2>Cómo crecemos</h2>
+    <p>Con el stock saneado, cada etapa se suma sobre la misma base de datos.</p>
+    <div class="grilla">
+      <div class="card dolor" style="border-color:var(--tinta)"><span class="badge b-acento" style="justify-self:start">Etapa 1 · hoy</span><strong>Sanear el stock</strong><span class="tinta-2 chico">Inventario, ubicaciones, conteo, etiquetas GROW, los 3 precios y la migración del Excel.</span></div>
+      <div class="card dolor"><span class="badge b-neutro" style="justify-self:start">Etapa 2</span><strong>Multi-depósito con Miami</strong><span class="tinta-2 chico">Stock del warehouse de GROW GLB, despachos con la XP-365B y envíos directos al cliente. Ya se puede ver un adelanto en las pantallas 07 y 11; en el resto, lo de Miami aparece marcado con <span class="badge b-etapa2">Etapa 2</span>.</span></div>
+      <div class="card dolor"><span class="badge b-neutro" style="justify-self:start">Etapa 3</span><strong>Vender en cualquier lado</strong><span class="tinta-2 chico">Ventas y cotizaciones desde Argentina y Miami, etiquetas que salen solas al emitir la factura o el remito, y distribución mayorista a importadores y otras casas de repuestos.</span></div>
+      <div class="card dolor"><span class="badge b-neutro" style="justify-self:start">En paralelo</span><strong>Web GROW GLB nueva</strong><span class="tinta-2 chico">Que muestre lo que realmente hacen: maquinaria usada con pocas horas, repuestos aftermarket y originales, con el catálogo conectado al stock.</span></div>
+    </div>
+  </section>
+
+  <p class="pie-portada">Boceto de presentación. Productos, ubicaciones, referencias y máquinas compatibles tomados del Excel de GROW; costos alterados con un factor fijo; movimientos, stock y distribución del depósito de Miami y envíos simulados. Al recargar vuelve al estado inicial.</p>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const r = G.resumen;
+  document.getElementById('h-filas').textContent = G.fmt.int(r.filasProducto) + ' filas';
+  document.getElementById('archivo').textContent = r.archivo;
+
+  const dolores = [
+    [r.variantesUbicacion, 'formas distintas de escribir las ubicaciones', '“MOSTRADOR”, “MOSTRADO”, “ESTANTE”, “COLUMNA 2”, “-”…'],
+    [r.codigosDuplicados, 'códigos repetidos', `${r.filasDuplicadas} filas duplican productos que ya existen.`],
+    [r.preciosComoTexto, 'precios cargados como texto', `Con “$” adentro y ${r.preciosVacios} celdas que solo dicen “$”.`],
+    [r.productosEnCajas, 'productos que dependen del color de la celda', `Las ${r.cajas} cajas de los estantes 4 y 5 solo se distinguen pintando filas.`],
+    [r.multiplicadoresDistintos, 'factores distintos de FOB a costo ARG', 'x7, x2,5, x2,2… sin una regla escrita.'],
+    [r.sinCosto, 'productos sin ningún costo', 'No se puede saber cuánto vale el stock.'],
+    [r.proveedorEnDosColumnas, 'productos con el proveedor en dos columnas', `${r.variantesProveedor} escrituras para ${r.proveedoresNormalizados} proveedores.`],
+    [2, 'impresoras de etiquetas sin integrar', 'Hoy se tipea a mano lo que va en cada etiqueta.'],
+  ];
+  document.getElementById('dolores').innerHTML = dolores.map(([n, t, d]) => `
+    <div class="card dolor"><div class="cifra num">${G.fmt.int(n)}</div><strong>${G.esc(t)}</strong><span class="tenue chico">${G.esc(d)}</span></div>`).join('');
+
+  document.getElementById('indice').innerHTML = G.SCREENS.slice(1).map((s) => `
+    <a class="card pantalla-card" href="${G.href(s.archivo)}">
+      <div class="fila entre"><span class="fila" style="gap:6px"><span class="num-p">${s.n}</span><span class="badge ${s.etapa === 1 ? 'b-oscuro' : 'b-borde'}">Etapa ${s.etapa}</span></span><span class="badge ${s.disp === 'celular' ? 'b-acento' : 'b-neutro'}">${G.icono(s.disp === 'celular' ? 'phone' : 'laptop')}${s.disp === 'celular' ? 'Celular' : 'Notebook'}</span></div>
+      <div><strong>${G.esc(s.titulo)}</strong><div class="tinta-2 chico" style="margin:4px 0 8px">${G.esc(s.resumen)}</div>
+      <ul>${s.probar.map((t) => `<li>${G.esc(t)}</li>`).join('')}</ul></div>
+      <span class="chico tenue">${G.esc(s.rol)}</span>
+    </a>`).join('');
+
+  document.querySelectorAll('[data-href]').forEach((a) => { a.href = G.href(a.dataset.href, a.dataset.q ? { q: a.dataset.q } : null); });
+})();
+</script>
+</body>
+</html>

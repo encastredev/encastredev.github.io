@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>07 · Despacho y bultos · GROW Stock</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c1b'/%3E%3Crect x='20' y='26' width='24' height='12' fill='%23ffe827'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="escritorio" data-pantalla="07-despacho.html">
+<main id="pagina">
+  <div class="cabecera">
+    <div>
+      <div class="antetitulo"><i data-i="truck" class="i-sm"></i> Etiquetas</div>
+      <h1 class="titulo">Despacho y bultos</h1>
+      <p class="bajada">Armás el envío, el sistema descuenta el stock del origen y cada bulto sale con su etiqueta de despacho en blanco y negro.</p>
+    </div>
+    <div class="impresora">
+      <i data-i="bluetooth"></i>
+      <div><b>Xprinter XP-365B</b><small>Térmica directa · Bluetooth · etiqueta blanca 80×50 mm*</small></div>
+      <span class="led" title="Conectada"></span>
+    </div>
+  </div>
+
+  <div class="dos-col" id="vista-form">
+    <div class="pila">
+      <section class="card">
+        <div class="card-cab"><div class="card-titulo"><i data-i="pin"></i>Destino</div><span class="badge b-oscuro mono" id="n-envio"></span></div>
+        <div class="card-cuerpo pila" style="gap:12px">
+          <div id="tipo"></div>
+          <div class="form-grilla">
+            <div class="campo"><span>Sale de</span><div id="origen"></div></div>
+            <label class="campo" id="caja-destino"><span>Llega a</span><input class="input" id="destino" readonly></label>
+            <label class="campo" id="caja-cliente" hidden><span>Cliente</span><input class="input" id="cliente" value="Constructora del Litoral S.A."></label>
+            <label class="campo" id="caja-dir" hidden><span>Dirección</span><input class="input" id="direccion" value="Av. Uruguay 4150, Posadas, Misiones"></label>
+            <label class="campo"><span>Transporte</span><select class="select" id="transporte"></select></label>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-cab">
+          <div><div class="card-titulo"><i data-i="box"></i>Qué se envía</div><div class="card-sub" id="items-sub"></div></div>
+          <label class="buscador" style="flex:1 1 220px;max-width:320px"><span class="sr">Agregar producto</span><i data-i="plus"></i><input class="input input-chico" id="q" placeholder="Agregar producto…" autocomplete="off"></label>
+        </div>
+        <div class="card-cuerpo"><div id="sugerencias"></div><div id="items"></div></div>
+      </section>
+    </div>
+
+    <div class="pila">
+      <section class="card">
+        <div class="card-cab"><div class="card-titulo"><i data-i="weight"></i>Bultos</div>
+          <span class="stepper"><button type="button" data-bultos="-1" aria-label="Menos bultos">−</button><input id="bultos" type="number" min="1" max="20" value="2" aria-label="Cantidad de bultos"><button type="button" data-bultos="1" aria-label="Más bultos">+</button></span>
+        </div>
+        <div class="card-cuerpo"><dl class="kv" id="resumen"></dl></div>
+      </section>
+      <section class="card">
+        <div class="card-cab"><div class="card-titulo"><i data-i="tag"></i>Etiqueta de despacho</div>
+          <div class="fila"><button class="btn btn-icono btn-chico" type="button" data-ver="-1" aria-label="Bulto anterior"><i data-i="back"></i></button><b class="chico num" id="ver-txt"></b><button class="btn btn-icono btn-chico" type="button" data-ver="1" aria-label="Bulto siguiente"><i data-i="next"></i></button></div>
+        </div>
+        <div class="card-cuerpo"><div class="etq-fondo" id="preview"></div><div class="chico tenue" style="margin-top:8px">* Medida a confirmar. Blanco y negro, sin rollo pre-impreso.</div></div>
+      </section>
+      <div id="aviso"></div>
+      <button class="btn btn-oscuro btn-grande btn-bloque" type="button" id="confirmar"><i data-i="truck"></i><span id="confirmar-txt">Despachar</span></button>
+    </div>
+  </div>
+
+  <section class="card" id="vista-exito" hidden>
+    <div class="exito">
+      <div class="exito-ic"><i data-i="truck"></i></div>
+      <h2 id="exito-titulo"></h2>
+      <p class="tinta-2" id="exito-texto"></p>
+      <div class="fila" style="justify-content:center;margin-top:8px" id="exito-acciones"></div>
+    </div>
+  </section>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, icono, ui } = G;
+  const $ = (id) => document.getElementById(id);
+  const PESO_DEFECTO = 0.8;
+  const numeroEnvio = 'ENV-' + String(43 + G.estado().transitos.filter((t) => /^ENV-00(4[3-9]|[5-9]\d)$/.test(t.envio)).length).padStart(4, '0');
+  const st = { tipo: 'deposito', origen: 'MIA', bultos: 2, ver: 1, items: [] };
+
+  function sugeridos() {
+    return G.productos.filter((p) => G.stock(p.id, st.origen) >= 3).sort((a, b) => G.stock(b.id, st.origen) - G.stock(a.id, st.origen)).slice(0, 2)
+      .map((p) => ({ pid: p.id, cant: 2 }));
+  }
+  st.items = sugeridos();
+
+  const pesoU = (p) => (p.pesoKg && p.pesoKg > 0 ? p.pesoKg : PESO_DEFECTO);
+  function calculo() {
+    const unidades = st.items.reduce((a, i) => a + i.cant, 0);
+    const peso = st.items.reduce((a, i) => a + i.cant * pesoU(G.producto(i.pid)), 0);
+    const estimados = st.items.filter((i) => !(G.producto(i.pid).pesoKg > 0)).length;
+    const errores = st.items.filter((i) => i.cant > G.stock(i.pid, st.origen)).map((i) => G.producto(i.pid).codigo);
+    return { unidades, peso, estimados, errores, porBulto: st.bultos ? peso / st.bultos : 0 };
+  }
+
+  function datosEtiqueta() {
+    const dep = G.depo(st.origen === 'MIA' ? 'MIS' : 'MIA');
+    return st.tipo === 'cliente'
+      ? { nombre: $('cliente').value || 'Cliente', direccion: $('direccion').value, transporte: $('transporte').value }
+      : { nombre: `GROW ${dep.nombre}`, direccion: dep.id === 'MIS' ? 'Depósito Posadas · Misiones, Argentina' : 'Warehouse Miami · Florida, USA', transporte: $('transporte').value };
+  }
+
+  function render() {
+    $('n-envio').textContent = numeroEnvio;
+    $('tipo').innerHTML = ui.segmentos('tipo', [{ v: 'deposito', t: 'A otro depósito', icono: 'truck' }, { v: 'cliente', t: 'A un cliente', icono: 'users' }], st.tipo);
+    $('origen').innerHTML = ui.depositos(st.origen, false);
+    const destino = G.depo(st.origen === 'MIA' ? 'MIS' : 'MIA');
+    $('destino').value = `GROW ${destino.nombre} (${destino.pais})`;
+    $('caja-destino').hidden = st.tipo === 'cliente';
+    $('caja-cliente').hidden = $('caja-dir').hidden = st.tipo !== 'cliente';
+    const opciones = st.tipo === 'cliente' ? ['Expreso Misiones', 'Retira el cliente', 'Correo Argentino'] : st.origen === 'MIA' ? ['Aéreo · Miami → Posadas', 'Marítimo consolidado'] : ['Aéreo · Posadas → Miami'];
+    const prev = $('transporte').value;
+    $('transporte').innerHTML = opciones.map((o) => `<option>${o}</option>`).join('');
+    if (opciones.includes(prev)) $('transporte').value = prev;
+    renderItems();
+  }
+
+  function renderItems() {
+    $('items').innerHTML = st.items.map((i) => {
+      const p = G.producto(i.pid);
+      const disp = G.stock(p.id, st.origen);
+      return `<div class="lista-item">
+        <span class="pin ${st.origen === 'MIA' ? 'us' : ''}">${disp}</span>
+        <div style="min-width:0"><div class="mono fuerte corta">${esc(p.codigo)}</div><div class="chico tenue corta">${esc(p.descripcion)} · ${p.pesoKg > 0 ? fmt.kg(p.pesoKg) : 'peso estimado'} c/u</div>
+          ${i.cant > disp ? `<div class="chico" style="color:var(--alerta-tinta)">${icono('alert', 'i-sm')} Solo hay ${disp} en ${G.depo(st.origen).nombre}</div>` : ''}</div>
+        <div class="fila" style="flex-wrap:nowrap">
+          <span class="stepper"><button type="button" data-item="${p.id}" data-d="-1" aria-label="Menos">−</button><input type="number" min="1" value="${i.cant}" data-cantin="${p.id}" aria-label="Cantidad"><button type="button" data-item="${p.id}" data-d="1" aria-label="Más">+</button></span>
+          <button class="btn btn-icono btn-fantasma" type="button" data-quitar="${p.id}" aria-label="Quitar">${icono('x')}</button>
+        </div>
+      </div>`;
+    }).join('') || `<div class="vacio-estado">${icono('box')}Agregá productos para armar el envío</div>`;
+    renderResumen();
+  }
+
+  function renderResumen() {
+    const c = calculo();
+    if (st.ver > st.bultos) st.ver = st.bultos;
+    $('items-sub').textContent = `${st.items.length} producto(s) · ${c.unidades} unidades`;
+    $('resumen').innerHTML = `
+      <dt>Unidades</dt><dd id="r-unidades">${c.unidades}</dd>
+      <dt>Peso total${c.estimados ? ` <span class="badge b-aviso">${c.estimados} estimado(s)</span>` : ''}</dt><dd id="r-peso">${fmt.kg(c.peso)}</dd>
+      <dt>Peso por bulto</dt><dd>${fmt.kg(c.porBulto)}</dd>
+      <dt class="total">Etiquetas a imprimir</dt><dd class="total" id="r-etq">${st.bultos}</dd>`;
+    $('ver-txt').textContent = `Bulto ${st.ver} de ${st.bultos}`;
+    $('preview').innerHTML = G.etiquetaDespacho(Object.assign({ envio: numeroEnvio, bulto: st.ver, total: st.bultos, peso: c.porBulto }, datosEtiqueta()));
+    const error = !st.items.length ? 'Agregá al menos un producto.' : c.errores.length ? `No alcanza el stock de ${c.errores.join(', ')} en ${G.depo(st.origen).nombre}.` : '';
+    $('aviso').innerHTML = error ? `<div class="alerta error">${icono('alert')}<span>${esc(error)}</span></div>` : '';
+    $('confirmar').disabled = !!error;
+    $('confirmar-txt').textContent = `Despachar e imprimir ${st.bultos} etiqueta(s)`;
+  }
+
+  document.getElementById('pagina').addEventListener('click', (e) => {
+    const t = e.target.closest('[data-seg="tipo"]');
+    if (t) { st.tipo = t.dataset.v; render(); return; }
+    const d = e.target.closest('[data-seg="dep"]');
+    if (d) { st.origen = d.dataset.v; st.items = sugeridos(); render(); return; }
+    const b = e.target.closest('[data-bultos]');
+    if (b) { st.bultos = Math.min(20, Math.max(1, st.bultos + (+b.dataset.bultos))); $('bultos').value = st.bultos; renderResumen(); return; }
+    const v = e.target.closest('[data-ver]');
+    if (v) { st.ver = ((st.ver - 1 + (+v.dataset.ver) + st.bultos) % st.bultos) + 1; renderResumen(); return; }
+    const it = e.target.closest('[data-item]');
+    if (it) { const i = st.items.find((x) => x.pid === it.dataset.item); i.cant = Math.max(1, i.cant + (+it.dataset.d)); renderItems(); return; }
+    const q = e.target.closest('[data-quitar]');
+    if (q) { st.items = st.items.filter((x) => x.pid !== q.dataset.quitar); renderItems(); return; }
+    const a = e.target.closest('[data-agregar]');
+    if (a) { if (!st.items.some((x) => x.pid === a.dataset.agregar)) st.items.push({ pid: a.dataset.agregar, cant: 1 }); $('q').value = ''; $('sugerencias').innerHTML = ''; renderItems(); }
+  });
+  $('items').addEventListener('input', (e) => {
+    const c = e.target.closest('[data-cantin]');
+    if (c) { st.items.find((x) => x.pid === c.dataset.cantin).cant = Math.max(1, parseInt(c.value, 10) || 1); renderResumen(); }
+  });
+  $('bultos').addEventListener('input', () => { st.bultos = Math.min(20, Math.max(1, parseInt($('bultos').value, 10) || 1)); renderResumen(); });
+  ['cliente', 'direccion'].forEach((id) => $(id).addEventListener('input', renderResumen));
+  $('transporte').addEventListener('change', renderResumen);
+  $('q').addEventListener('input', G.demorar(() => {
+    const q = $('q').value.trim();
+    if (!q) { $('sugerencias').innerHTML = ''; return; }
+    const res = G.buscar(q).filter((r) => G.stock(r.p.id, st.origen) > 0).slice(0, 5);
+    $('sugerencias').innerHTML = `<div class="panel" style="padding:4px 12px;margin-bottom:10px">${res.map((r) => `<button type="button" class="lista-item" data-agregar="${r.p.id}" style="width:100%;border:0;border-bottom:1px solid var(--linea);background:none;text-align:left;cursor:pointer"><span class="mono fuerte">${G.resaltar(r.p.codigo, q)}</span><span class="corta chico">${esc(r.p.descripcion)} · hay ${G.stock(r.p.id, st.origen)}</span>${icono('plus')}</button>`).join('') || `<div class="vacio-estado">Sin stock en ${G.depo(st.origen).nombre} para esa búsqueda</div>`}</div>`;
+  }, 120));
+
+  $('confirmar').addEventListener('click', () => {
+    const c = calculo();
+    if (c.errores.length || !st.items.length) return;
+    const destino = st.origen === 'MIA' ? 'MIS' : 'MIA';
+    const params = { envio: numeroEnvio, eitems: st.items.map((i) => `${i.pid}:${i.cant}`).join(','), eorigen: st.origen, edestino: destino, ebultos: st.bultos, ecliente: st.tipo === 'cliente' ? $('cliente').value : '' };
+    $('vista-form').hidden = true;
+    $('vista-exito').hidden = false;
+    $('exito-titulo').textContent = `${numeroEnvio} despachado`;
+    $('exito-texto').innerHTML = `${c.unidades} unidades en ${st.bultos} bulto(s) · ${fmt.kg(c.peso)}<br>${st.bultos} etiqueta(s) enviadas a la XP-365B. ${st.tipo === 'cliente' ? 'Destino: ' + esc($('cliente').value) : 'Queda <b>en tránsito</b> hasta que ' + G.depo(destino).nombre + ' lo reciba.'}`;
+    $('exito-acciones').innerHTML = (st.tipo === 'cliente' ? '' : `<a class="btn btn-acento" id="ir-recepcion" href="${G.href('11-app-recepcion.html', Object.assign({ sel: numeroEnvio }, params))}">${icono('phone')}Recibirlo con el celular</a>`)
+      + `<a class="btn btn-oscuro" href="${G.href('01-panel.html', params)}">${icono('dashboard')}Ver en el panel</a>
+         <a class="btn btn-fantasma" href="${location.pathname.split('/').pop()}">Armar otro</a>`;
+    G.toast(`Etiquetas de ${numeroEnvio} enviadas a la XP-365B`, 'printer');
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

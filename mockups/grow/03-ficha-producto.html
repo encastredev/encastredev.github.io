@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>03 · Ficha de producto · GROW Stock</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c1b'/%3E%3Crect x='20' y='26' width='24' height='12' fill='%23ffe827'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="escritorio" data-pantalla="03-ficha-producto.html">
+<main id="pagina">
+  <div class="antetitulo" id="miga"></div>
+
+  <section class="card" style="margin-bottom:16px">
+    <div class="card-cuerpo" style="padding:20px 22px">
+      <div class="fila entre" style="align-items:flex-start;gap:18px">
+        <div style="min-width:0;flex:1 1 320px">
+          <div class="mono" id="codigo" style="font-size:30px;font-weight:700;line-height:1.1;overflow-wrap:anywhere"></div>
+          <div id="descripcion" style="font-size:18px;margin-top:4px"></div>
+          <div class="chips" id="insignias" style="margin-top:12px"></div>
+          <div class="fila" id="acciones" style="margin-top:16px"></div>
+        </div>
+        <div style="text-align:right;flex:0 0 auto">
+          <div class="chico tenue">Stock total</div>
+          <div class="num" id="total" style="font-size:46px;font-weight:700;line-height:1"></div>
+          <div class="chico tenue" id="total-sub"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="dos-col">
+    <div class="pila">
+      <section class="card">
+        <div class="card-cab"><div class="card-titulo"><i data-i="pin"></i>Dónde está</div></div>
+        <div class="card-cuerpo"><div class="dos-col parejo" id="ubicaciones"></div><div id="transito"></div></div>
+      </section>
+      <section class="card">
+        <div class="card-cab">
+          <div><div class="card-titulo"><i data-i="wrench"></i>Máquinas compatibles</div><div class="card-sub" id="compat-sub"></div></div>
+          <label class="buscador" style="width:200px;max-width:100%"><span class="sr">Filtrar modelo</span><i data-i="search"></i><input class="input input-chico" id="compat-q" placeholder="Filtrar modelo (ej. 320)"></label>
+        </div>
+        <div class="card-cuerpo" id="compat" style="max-height:300px;overflow:auto"></div>
+      </section>
+      <section class="card">
+        <div class="card-cab"><div><div class="card-titulo"><i data-i="link"></i>Referencias cruzadas</div><div class="card-sub">Números de otras marcas para este mismo repuesto. Tocá uno para buscarlo.</div></div></div>
+        <div class="card-cuerpo"><div class="chips" id="refs"></div></div>
+      </section>
+      <section class="card">
+        <div class="card-cab"><div class="card-titulo"><i data-i="history"></i>Historial</div></div>
+        <div class="card-cuerpo" id="historial"></div>
+      </section>
+    </div>
+
+    <div class="pila">
+      <section class="card">
+        <div class="card-cab"><div class="card-titulo"><i data-i="dollar"></i>Precios</div><div id="moneda"></div></div>
+        <div class="card-cuerpo" id="precios"></div>
+      </section>
+      <section class="card">
+        <div class="card-cab"><div><div class="card-titulo"><i data-i="tag"></i>Etiqueta GROW</div><div class="card-sub" id="etq-sub"></div></div></div>
+        <div class="card-cuerpo pila" style="gap:12px">
+          <div class="etq-fondo" id="etiqueta"></div>
+          <div class="fila entre">
+            <label class="fila chico"><span>Unidades por empaque</span>
+              <span class="stepper"><button type="button" data-paso="-1" aria-label="Restar">−</button><input id="qty" type="number" min="1" max="999" value="1" aria-label="Unidades por empaque"><button type="button" data-paso="1" aria-label="Sumar">+</button></span></label>
+            <label class="interruptor chico"><input type="checkbox" id="solo-imp"> Ver solo lo que imprime</label>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <details class="desplegable" style="padding:0 18px">
+          <summary class="lista-item"><span class="mov-ic mov-ajuste"><i data-i="sheet"></i></span><div><b>Origen en el Excel</b><div class="chico tenue" id="origen-sub"></div></div><i data-i="chevron" class="chev"></i></summary>
+          <div class="desplegable-cuerpo" id="origen"></div>
+        </details>
+      </section>
+    </div>
+  </div>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, icono, ui } = G;
+  const $ = (id) => document.getElementById(id);
+  const p = G.producto(G.qs('id', 'P0061')) || G.producto('P0061');
+  let moneda = 'USD';
+  let qty = p.empaque || 1;
+  const cfg = G.estado().config;
+
+  $('miga').innerHTML = `<a href="${G.href('02-inventario.html')}">${icono('back', 'i-sm')} Inventario</a> / ${esc(p.categoria)}${p.subcategoria ? ' / ' + esc(p.subcategoria) : ''}`;
+  $('codigo').textContent = p.codigo;
+  $('descripcion').textContent = p.descripcion;
+  document.title = `${p.codigo} · Ficha · GROW Stock`;
+
+  function renderStock() {
+    $('insignias').innerHTML = [
+      `<span class="badge b-borde">${esc(p.categoria)}</span>`,
+      p.marca ? `<span class="badge b-oscuro">${esc(p.marca)}</span>` : '',
+      ...p.proveedores.map((x) => `<span class="badge b-neutro" title="Código de proveedor del Excel">Proveedor ${esc(x)}</span>`),
+      ui.tipoParte(p), ui.estado(p, 'ALL'), ui.etiqueta(p),
+    ].join('');
+    const primera = G.stockItems(p.id, 'ALL').find((s) => s.cant > 0) || G.stockItems(p.id, 'ALL')[0];
+    $('acciones').innerHTML = `
+      <a class="btn btn-oscuro" href="${G.href('04-movimiento.html', { id: p.id })}">${icono('arrows')}Registrar movimiento</a>
+      <a class="btn btn-acento" href="${G.href('06-etiquetas-producto.html', { ids: p.id })}">${icono('printer')}Etiquetar</a>
+      ${primera ? `<a class="btn" href="${G.href('05-mapa-deposito.html', { dep: primera.dep, ubic: primera.ubic })}">${icono('map')}Ver en el mapa</a>` : ''}`;
+    $('total').textContent = G.stock(p.id, 'ALL');
+    $('total-sub').textContent = G.DEPOSITOS.map((d) => `${d.nombre} ${G.stock(p.id, d.id)}`).join(' · ') + ` · mínimo ${G.minimo(p)}`;
+
+    $('ubicaciones').innerHTML = G.DEPOSITOS.map((d) => {
+      const items = G.stockItems(p.id, d.id);
+      return `<div><div class="fila entre" style="margin-bottom:4px"><b>${d.nombre} ${d.id === 'MIA' ? ui.etapa2() : ''}</b><b class="num" style="font-size:18px">${G.stock(p.id, d.id)}</b></div>
+        ${items.length ? items.map((s) => `<a class="lista-item" href="${G.href('05-mapa-deposito.html', { dep: d.id, ubic: s.ubic })}">
+          <span class="pin ${d.id === 'MIA' ? 'us' : ''}">${esc((s.ubic === 'SIN' ? '?' : s.ubic).replace(/^EST(\d)-C(\d)$/, 'C$2').replace('CAJA-VOLVO', 'CV').replace('BAJO-', '↓').slice(0, 4))}</span>
+          <div style="min-width:0"><div class="fuerte corta">${esc(G.ubic(s.ubic, d.id).nombre)}</div><div class="chico tenue">${s.nota ? 'Nota: ' + esc(s.nota) : 'Ver en el mapa'}</div></div>
+          <b class="num">${s.cant} u.</b></a>`).join('') : '<div class="chico tenue" style="padding:8px 0">Sin stock en este depósito</div>'}
+      </div>`;
+    }).join('');
+    const tr = G.estado().transitos.filter((t) => t.estado === 'transito' && t.items.some((i) => i.pid === p.id));
+    $('transito').innerHTML = tr.map((t) => `<div class="alerta info" style="margin-top:12px">${icono('truck')}<span>${ui.etapa2()} <b>${t.items.find((i) => i.pid === p.id).cant} u. en tránsito</b> · envío ${esc(t.envio)} · ${G.depo(t.origen).nombre} → ${G.depo(t.destino).nombre} · ${fmt.hace(t.fecha)}</span></div>`).join('');
+
+    const movs = G.estado().movimientos.filter((m) => m.pid === p.id).slice(0, 8);
+    $('historial').innerHTML = movs.map((m) => `<div class="lista-item${m.nuevo ? ' nuevo' : ''}">
+      ${ui.movIcono(m)}
+      <div style="min-width:0"><div class="fuerte">${ui.movTipo(m)} · ${esc(m.motivo)}</div><div class="chico tenue">${G.depo(m.dep).nombre} · ${esc(G.ubic(m.ubic, m.dep).nombre)}${m.ref ? ' · ' + esc(m.ref) : ''} · ${esc(m.usuario)} · ${fmt.fechaHora(m.fecha)}</div></div>
+      ${ui.cant(m.cant)}</div>`).join('') || '<div class="vacio-estado">Todavía no hay movimientos de este producto.</div>';
+  }
+
+  function renderPrecios() {
+    $('moneda').innerHTML = ui.segmentos('moneda', [{ v: 'USD', t: 'USD' }, { v: 'ARS', t: 'Pesos' }], moneda);
+    const pr = G.precios(p);
+    const m = (v) => (v == null ? '<span class="tenue">sin dato</span>' : moneda === 'USD' ? fmt.usd(v) : fmt.ars(v * cfg.tipoCambio));
+    $('precios').innerHTML = `<dl class="kv">
+        <dt>Costo FOB <span class="badge b-info">venta en USA</span></dt><dd>${m(pr.fob)}</dd>
+        <dt>Costo ARG <span class="badge b-neutro">nacionalizado</span>${pr.argEstimado ? `<div class="chico tenue">estimado: FOB ${fmt.mult(cfg.factorNac)}</div>` : ''}</dt><dd>${m(pr.arg)}</dd>
+        ${pr.factorReal ? `<dt>Factor FOB → ARG en el Excel</dt><dd>${fmt.mult(pr.factorReal)}</dd>` : ''}
+        <dt>Margen ${esc(p.categoria)}</dt><dd>${pr.margen}%</dd>
+        <dt class="total"><b>Venta público ARG</b></dt><dd class="total" style="font-size:19px">${m(pr.venta)}</dd>
+      </dl>
+      <div class="chico tenue" style="margin-top:10px">Tipo de cambio ${fmt.int(cfg.tipoCambio)} · <a href="${G.href('08-precios.html')}">editar reglas</a></div>`;
+  }
+
+  function renderEtiqueta() {
+    $('etiqueta').innerHTML = G.etiquetaProducto(p, { cant: qty, soloImpresion: $('solo-imp').checked });
+    const t = G.TIPOS_PARTE[p.tipoParte];
+    $('etq-sub').textContent = `Part N ${G.partN(p)} · ${t.rollo === 'pre' ? 'rollo pre-impreso' : 'rollo blanco con título impreso'} · XP-H500B`;
+  }
+
+  function renderCompat() {
+    const f = G.norm($('compat-q').value);
+    $('compat-sub').textContent = p.compat.length ? `${p.compat.length} familia(s) de modelos en el Excel` : 'Sin datos en el Excel';
+    const grupos = p.compat.map((g) => {
+      const modelos = g.split(' ').reduce((acc, tok) => {
+        if (acc.length && /^(L|LN|LU|LL|N|U|S|FM|RR|GC|XE|LRR|LCR|CR|SR|XL|XR|LGP|MH|SA|II|III|OEM|HVG|VG|UHD|LXE|LH|LNH|NA|ES|AWD|XHP|FS|IL|LRE|LRC|F2)$/.test(tok)) acc[acc.length - 1] += ' ' + tok;
+        else acc.push(tok);
+        return acc;
+      }, []);
+      const vis = f ? modelos.filter((x) => G.norm(x).includes(f)) : modelos;
+      return vis.length ? `<div class="chips" style="padding:8px 0;border-bottom:1px dashed var(--linea)">${vis.map((x) => `<span class="badge b-borde mono">${G.resaltar(x, $('compat-q').value)}</span>`).join('')}</div>` : '';
+    }).join('');
+    $('compat').innerHTML = p.compat.length ? (grupos || '<div class="vacio-estado">Ningún modelo coincide</div>') : '<div class="vacio-estado">Se pueden cargar a medida que se venden, y quedan disponibles para buscar.</div>';
+  }
+
+  $('refs').innerHTML = p.refs.map((r) => `<a class="chip mono" href="${G.href('02-inventario.html', { q: r })}">${esc(r)}</a>`).join('') || '<span class="tenue">Sin referencias cargadas en el Excel.</span>';
+  $('origen-sub').textContent = `Fila${p.filas.length > 1 ? 's' : ''} ${p.filas.join(', ')} · ${p.alertas.length} cosa(s) a revisar`;
+  $('origen').innerHTML = `<dl class="kv chico">
+      <dt>Código tal cual en el Excel</dt><dd class="mono">${esc(p.codigoExcel)}</dd>
+      <dt>Tipo de parte</dt><dd>${esc(G.TIPOS_PARTE[p.tipoParte].nombre)} <span class="badge b-aviso">a confirmar</span></dd>
+      <dt>Empaque</dt><dd>${p.empaque ? `bolsas de ${p.empaque} u.` : 'por unidad'}</dd>
+      <dt>Peso</dt><dd>${p.pesoKg != null ? fmt.kg(p.pesoKg) : '—'}${p.pesoDudoso ? ' <span class="badge b-aviso">a confirmar</span>' : ''}</dd>
+      <dt>Otras descripciones</dt><dd>${p.variantesDesc.length ? p.variantesDesc.map(esc).join(' · ') : '—'}</dd>
+    </dl>
+    <div class="pila" style="gap:6px;margin-top:10px">${p.alertas.map((a) => `<div class="alerta aviso">${icono('alert')}<span>${esc(a)}</span></div>`).join('') || `<div class="alerta ok">${icono('check')}<span>Sin observaciones</span></div>`}</div>`;
+
+  document.getElementById('pagina').addEventListener('click', (e) => {
+    const seg = e.target.closest('[data-seg="moneda"]');
+    if (seg) { moneda = seg.dataset.v; renderPrecios(); }
+    const paso = e.target.closest('[data-paso]');
+    if (paso) { qty = Math.min(999, Math.max(1, qty + (+paso.dataset.paso))); $('qty').value = qty; renderEtiqueta(); }
+  });
+  $('qty').addEventListener('input', () => { qty = Math.min(999, Math.max(1, parseInt($('qty').value, 10) || 1)); renderEtiqueta(); });
+  $('solo-imp').addEventListener('change', renderEtiqueta);
+  $('compat-q').addEventListener('input', renderCompat);
+
+  $('qty').value = qty;
+  renderStock(); renderPrecios(); renderEtiqueta(); renderCompat();
+})();
+</script>
+</body>
+</html>
