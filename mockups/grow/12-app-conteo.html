@@ -64,10 +64,11 @@
         : dif === 0 ? `<span class="badge b-ok">${icono('check')}Coincide</span>`
         : `<span class="badge ${dif < 0 ? 'b-alerta' : 'b-aviso'}">${icono('alert')}${dif > 0 ? '+' : ''}${dif}</span>`;
       return `<div class="pila" style="gap:8px;padding:10px 0;border-bottom:1px solid var(--linea)">
-        <div class="fila entre" style="flex-wrap:nowrap"><div style="min-width:0"><div class="mono fuerte corta">${esc(p.codigo)}</div><div class="chico tenue corta">${esc(p.descripcion)}${ciego ? '' : ` · sistema: <b>${it.sistema}</b>`}</div></div>${badge}</div>
+        <div class="fila entre" style="flex-wrap:nowrap"><div class="fila" style="flex-wrap:nowrap;min-width:0">${G.fotoHTML(p, 'foto-mini')}<div style="min-width:0"><div class="mono fuerte corta">${esc(p.codigo)}</div><div class="chico tenue corta">${esc(p.descripcion)}${ciego ? '' : ` · sistema: <b>${it.sistema}</b>`}</div></div></div>${badge}</div>
         <div class="fila" style="flex-wrap:nowrap">
           <span class="stepper"><button type="button" data-c="${it.pid}" data-d="-1" aria-label="Restar">−</button><input type="number" min="0" value="${it.contado == null ? '' : it.contado}" placeholder="—" data-cin="${it.pid}" aria-label="Contado"><button type="button" data-c="${it.pid}" data-d="1" aria-label="Sumar">+</button></span>
           ${ciego ? '' : `<button type="button" class="btn btn-chico btn-fantasma" data-igual="${it.pid}">= sistema</button>`}
+          <label class="btn btn-chico con-archivo" title="Sacar foto">${icono('camera')}${G.fotos(it.pid).length ? 'Otra' : 'Foto'}<input type="file" accept="image/*" capture="environment" data-foto="${it.pid}" aria-label="Sacar foto de ${esc(p.codigo)}"></label>
         </div>
       </div>`;
     }).join('');
@@ -81,7 +82,9 @@
     const delta = difs.reduce((a, i) => a + (i.contado - i.sistema), 0);
     const valor = difs.reduce((a, i) => a + (i.contado - i.sistema) * (G.precios(G.producto(i.pid)).arg || 0), 0);
     $('progreso-txt').textContent = `${contados.length}/${items.length}`;
+    const conFoto = items.filter((i) => G.fotos(i.pid).length).length;
     $('resumen').innerHTML = `<dt>Contados</dt><dd id="r-contados">${contados.length} de ${items.length}</dd>
+      <dt>Con foto</dt><dd id="r-fotos">${conFoto} de ${items.length}</dd>
       ${ciego ? '<dt>Diferencias</dt><dd class="tenue">se ven al confirmar</dd>' : `<dt>Con diferencia</dt><dd id="r-difs">${difs.length}</dd>
       <dt>Unidades de diferencia</dt><dd>${delta > 0 ? '+' : ''}${delta}</dd>
       <dt class="total">Valor al costo ARG</dt><dd class="total" id="r-valor">${valor < 0 ? '−' : valor > 0 ? '+' : ''}${fmt.usd(Math.abs(valor))}</dd>`}`;
@@ -99,7 +102,16 @@
     const i = e.target.closest('[data-cin]');
     if (i) { const it = items.find((x) => x.pid === i.dataset.cin); it.contado = i.value === '' ? null : Math.max(0, parseInt(i.value, 10) || 0); resumen(); }
   });
-  $('items').addEventListener('change', (e) => { if (e.target.closest('[data-cin]')) render(); });
+  $('items').addEventListener('change', async (e) => {
+    if (e.target.closest('[data-cin]')) { render(); return; }
+    const campo = e.target.closest('[data-foto]');
+    if (!campo || !campo.files || !campo.files[0]) return;
+    try {
+      G.agregarFoto(campo.dataset.foto, await G.reducirImagen(campo.files[0], 320, 0.72));
+      render();
+      G.toast('Foto guardada', 'camera');
+    } catch (ex) { G.toast(esc(ex.message), 'alert'); }
+  });
   $('ubic').addEventListener('change', () => { ubic = $('ubic').value; cargar(); });
   $('ciego').addEventListener('change', render);
 
@@ -107,14 +119,19 @@
     const difs = items.filter((i) => i.contado !== i.sistema);
     const delta = difs.reduce((a, i) => a + (i.contado - i.sistema), 0);
     const params = difs.length ? { ajustes: difs.map((i) => `${i.pid}:${ubic}:${i.contado}`).join(',') } : {};
+    // la foto viaja a las otras pantallas (una sola, en el #hash de la URL)
+    const fotografiados = items.filter((i) => G.fotos(i.pid).length);
+    if (fotografiados.length) params.foto = `${fotografiados[0].pid}~${G.fotos(fotografiados[0].pid)[0]}`;
+    const idFicha = (fotografiados[0] || difs[0] || {}).pid;
     $('vista-conteo').hidden = true;
     $('vista-exito').hidden = false;
     $('e-titulo').textContent = `Conteo de ${ubic} guardado`;
     $('e-texto').innerHTML = difs.length
       ? `${difs.length} ajuste(s) registrados (${delta > 0 ? '+' : ''}${delta} u.).<br>${difs.map((i) => `<span class="mono">${esc(G.producto(i.pid).codigo)}</span>: ${i.sistema} → <b>${i.contado}</b>`).join('<br>')}`
       : 'Todo coincidía con el sistema. No hizo falta ajustar nada.';
+    if (fotografiados.length) $('e-texto').innerHTML += `<br>${fotografiados.length} producto(s) con foto nueva.`;
     $('e-acciones').innerHTML = `
-      ${difs.length ? `<a class="btn btn-oscuro btn-bloque" id="ir-ficha" href="${G.href('03-ficha-producto.html', Object.assign({ id: difs[0].pid }, params))}">${icono('file')}Ver el ajuste en la ficha</a>` : ''}
+      ${idFicha ? `<a class="btn btn-oscuro btn-bloque" id="ir-ficha" href="${G.href('03-ficha-producto.html', Object.assign({ id: idFicha }, params))}">${icono('file')}${fotografiados.length ? 'Ver la foto en la ficha' : 'Ver el ajuste en la ficha'}</a>` : ''}
       <a class="btn btn-bloque" href="${G.href('01-panel.html', params)}">${icono('dashboard')}Ver en el panel</a>
       <a class="btn btn-bloque btn-fantasma" href="${G.href('05-mapa-deposito.html', Object.assign({ ubic }, params))}">${icono('map')}Ver la ubicación en el mapa</a>`;
     G.toast('Conteo guardado');
