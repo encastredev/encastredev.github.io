@@ -14,7 +14,7 @@ const SCREENS = [
     probar: ['Buscar P959052 (referencia cruzada) o 320D (máquina)', 'Abrir una fila para ver ubicaciones y precios', 'Seleccionar productos y mandarlos a imprimir etiquetas'] },
   { archivo: '03-ficha-producto.html', etapa: 1, n: '03', titulo: 'Ficha de producto', disp: 'notebook', rol: 'Mostrador',
     resumen: 'Todo sobre un repuesto: dónde está, cuánto hay, sus 3 precios y sus equivalencias.',
-    probar: ['Filtrar máquinas compatibles', 'Ver los precios en USD o en pesos', 'Ver la etiqueta tal como sale en el rollo GROW'] },
+    probar: ['Agregar una foto del producto', 'Filtrar máquinas compatibles', 'Ver los precios en USD o en pesos', 'Ver la etiqueta tal como sale en el rollo GROW'] },
   { archivo: '04-movimiento.html', etapa: 1, n: '04', titulo: 'Registrar movimiento', disp: 'notebook', rol: 'Mostrador / Depósito',
     resumen: 'Ingresos, egresos, ajustes y transferencias con el resultado calculado en vivo.',
     probar: ['Cambiar la cantidad y ver el stock resultante', 'Confirmar un egreso', 'Ir a la ficha y ver el stock descontado'] },
@@ -35,13 +35,13 @@ const SCREENS = [
     probar: ['Alternar “Excel original / Normalizado”', 'Desplegar cada problema con sus ejemplos reales'] },
   { archivo: '10-app-buscar.html', etapa: 1, n: '10', titulo: 'App · Buscar y escanear', disp: 'celular', rol: 'Depósito',
     resumen: 'Con el celular: escaneás el código y sabés dónde está y cuánto hay.',
-    probar: ['Tocar “Escanear” para simular el lector', 'Buscar por referencia o máquina', 'Ver el camino a la ubicación'] },
+    probar: ['Tocar “Escanear” para simular el lector', 'Sacar la foto si el producto no tiene', 'Buscar por referencia o máquina'] },
   { archivo: '11-app-recepcion.html', etapa: 2, n: '11', titulo: 'App · Recepción', disp: 'celular', rol: 'Depósito',
     resumen: 'Adelanto de la etapa 2: recibir un envío de Miami contando bulto por bulto y ubicando la mercadería.',
     probar: ['Elegir un envío en tránsito', 'Contar con + / − y ver las diferencias', 'Confirmar y ver el panel actualizado'] },
   { archivo: '12-app-conteo.html', etapa: 1, n: '12', titulo: 'App · Conteo', disp: 'celular', rol: 'Depósito',
-    resumen: 'Conteo por ubicación, con modo ciego y diferencias en vivo.',
-    probar: ['Activar el conteo ciego', 'Contar y ver las diferencias en unidades y en dólares', 'Confirmar el ajuste'] },
+    resumen: 'Conteo por ubicación, con modo ciego, diferencias en vivo y la foto de cada producto.',
+    probar: ['Sacar la foto de un producto mientras contás', 'Contar y ver las diferencias en unidades y en dólares', 'Confirmar y ver la foto en la ficha'] },
 ];
 
 const MENU = [
@@ -115,6 +115,7 @@ window.G = (function () {
     layers: '<path d="m12 3 9 5-9 5-9-5Z"/><path d="m3 13 9 5 9-5"/>',
     sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
     weight: '<path d="M6 8h12l2 12H4Z"/><circle cx="12" cy="5" r="2"/>',
+    camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4Z"/><circle cx="12" cy="13" r="3.5"/>',
   };
   const icono = (nombre, cls) => `<span class="i${cls ? ' ' + cls : ''}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONOS[nombre] || ICONOS.info}</svg></span>`;
   function hidratar(raiz) {
@@ -176,6 +177,8 @@ window.G = (function () {
   const params = new URLSearchParams(location.search);
   const CLAVES_FLUJO = ['envio', 'eitems', 'eorigen', 'edestino', 'ebultos', 'ecliente', 'recibido', 'ritems', 'mov', 'mid', 'mdep', 'mubic', 'mcant', 'mnueva', 'mdest', 'mref', 'etq', 'ajustes'];
   const qs = (k, def) => (params.has(k) ? params.get(k) : def);
+  // La foto sacada con el celular viaja en el #hash: no llega al servidor, así que su largo no molesta
+  const FOTO_FLUJO = new URLSearchParams(location.hash.slice(1)).get('foto') || '';
   function paramsFlujo() {
     const p = new URLSearchParams();
     CLAVES_FLUJO.forEach((k) => { if (params.has(k)) p.set(k, params.get(k)); });
@@ -184,9 +187,13 @@ window.G = (function () {
   /** Link a otra pantalla conservando el flujo de la demo (+ parámetros propios) */
   function href(archivo, extra) {
     const p = paramsFlujo();
-    Object.entries(extra || {}).forEach(([k, v]) => { if (v == null || v === '') p.delete(k); else p.set(k, v); });
+    let foto = FOTO_FLUJO;
+    Object.entries(extra || {}).forEach(([k, v]) => {
+      if (k === 'foto') { foto = v || ''; return; }
+      if (v == null || v === '') p.delete(k); else p.set(k, v);
+    });
     const s = p.toString();
-    return archivo + (s ? '?' + s : '');
+    return archivo + (s ? '?' + s : '') + (foto ? '#foto=' + encodeURIComponent(foto) : '');
   }
 
   /* ---------------- datos y estado en memoria ---------------- */
@@ -254,7 +261,7 @@ window.G = (function () {
     });
 
     movimientos.sort((a, b) => b.fecha.localeCompare(a.fecha));
-    E = { stock, etiquetados, movimientos, transitos, config: JSON.parse(JSON.stringify(CONFIG)), eventos: [], seq: 1 };
+    E = { stock, etiquetados, movimientos, transitos, fotos: {}, config: JSON.parse(JSON.stringify(CONFIG)), eventos: [], seq: 1 };
     aplicarFlujo();
     return E;
   }
@@ -330,6 +337,16 @@ window.G = (function () {
         } catch (ex) { /* se ignora */ }
       });
       if (n) E.eventos.push({ desde: '12 · Conteo (celular)', icono: 'check', texto: `Conteo de <b>${esc(ubic(ubicConteo, 'MIS').nombre)}</b>: ${n} ajuste(s), ${delta > 0 ? '+' : ''}${delta} u. en total` });
+    }
+    // 10 / 12 · foto sacada con el celular: "P0061~data:image/jpeg;base64,..."
+    if (FOTO_FLUJO) {
+      const corte = FOTO_FLUJO.indexOf('~');
+      const pid = FOTO_FLUJO.slice(0, corte);
+      const url = FOTO_FLUJO.slice(corte + 1);
+      if (porId.has(pid) && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(url)) {
+        E.fotos[pid] = [url];
+        E.eventos.push({ desde: 'App del depósito (celular)', icono: 'camera', texto: `<img class="foto foto-evento" src="${url}" alt=""> Foto de <b>${esc(porId.get(pid).codigo)}</b> sacada con el celular` });
+      }
     }
     // 06 · etiquetas
     if (params.get('etq')) {
@@ -466,8 +483,45 @@ window.G = (function () {
     return productos.find((p) => p._c === c) || productos.find((p) => p._r.includes(c)) || null;
   }
 
+  /* ---------------- fotos (en memoria: la demo no guarda nada) ---------------- */
+  function fotos(pid) { return estado().fotos[pid] || []; }
+  function agregarFoto(pid, url) { const e = estado(); (e.fotos[pid] = e.fotos[pid] || []).push(url); }
+  /** Lee una imagen elegida o sacada con la cámara y la achica en el navegador (lado mayor = max px) */
+  function reducirImagen(fuente, max, calidad) {
+    return new Promise((ok, mal) => {
+      const cargar = (src) => {
+        const img = new Image();
+        img.onerror = () => mal(new Error('El archivo no es una imagen'));
+        img.onload = () => {
+          const k = Math.min(1, max / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.width * k));
+          c.height = Math.max(1, Math.round(img.height * k));
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, c.width, c.height);
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          ok(c.toDataURL('image/jpeg', calidad || 0.82));
+        };
+        img.src = src;
+      };
+      if (typeof fuente === 'string') { cargar(fuente); return; }
+      const lector = new FileReader();
+      lector.onerror = () => mal(new Error('No se pudo leer la imagen'));
+      lector.onload = () => cargar(lector.result);
+      lector.readAsDataURL(fuente);
+    });
+  }
+  /** Foto principal del producto o, si no tiene, un marcador "sin foto" */
+  function fotoHTML(p, clase) {
+    const f = fotos(p.id)[0];
+    return f
+      ? `<img class="foto ${clase || ''}" src="${f}" alt="Foto de ${esc(p.codigo)}">`
+      : `<span class="foto sin-foto ${clase || ''}" title="Sin foto todavía">${icono('camera')}</span>`;
+  }
+
   function kpis(dep) {
-    let conStock = 0, unidades = 0, valor = 0, sin = 0, bajo = 0, pendientes = 0, registrados = 0;
+    let conStock = 0, unidades = 0, valor = 0, sin = 0, bajo = 0, pendientes = 0, registrados = 0, sinFoto = 0;
     for (const p of productos) {
       if (!presente(p, dep)) continue;
       registrados++;
@@ -479,9 +533,10 @@ window.G = (function () {
       if (est === 'sin') sin++;
       if (est === 'bajo') bajo++;
       if (n > 0 && !etiquetado(p.id)) pendientes++;
+      if (n > 0 && !fotos(p.id).length) sinFoto++;
     }
     const tr = estado().transitos.filter((t) => t.estado === 'transito' && (dep === 'ALL' || t.origen === dep || t.destino === dep));
-    return { conStock, unidades, valor, sin, bajo, pendientes, registrados, transitos: tr.length, transitoU: tr.reduce((a, t) => a + t.items.reduce((b, i) => b + i.cant, 0), 0) };
+    return { conStock, unidades, valor, sin, bajo, pendientes, registrados, sinFoto, transitos: tr.length, transitoU: tr.reduce((a, t) => a + t.items.reduce((b, i) => b + i.cant, 0), 0) };
   }
 
   /* ---------------- Code128-B ---------------- */
@@ -748,7 +803,7 @@ window.G = (function () {
     icono, hidratar, esc, fmt, norm, compacto, resaltar, azar, hash, demorar,
     params, qs, href, paramsFlujo,
     estado, producto: (id) => porId.get(id), porCodigo, depo, ubicaciones, ubic, stockItems, stock, presente, minimo, estadoStock, etiquetado, enTransito,
-    precios, aplicarMovimiento, buscar, kpis,
+    precios, aplicarMovimiento, buscar, kpis, fotos, agregarFoto, reducirImagen, fotoHTML,
     codigoBarras, code128Valores, TIPOS_PARTE, sufijoProveedor, sufijoDefecto, partN, etiqueta, etiquetaProducto, etiquetaDespacho,
     ui, tooltip, toast, pantalla,
   };

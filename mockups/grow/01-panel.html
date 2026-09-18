@@ -72,6 +72,7 @@
       { ic: 'alert', etq: 'Bajo mínimo', valor: fmt.int(k.bajo), pie: '<span class="badge b-aviso">' + icono('alert') + 'Revisar</span>', link: ['02-inventario.html', { estado: 'bajo' }], id: 'k-bajo' },
       { ic: 'tag', etq: 'Sin etiqueta GROW', valor: fmt.int(k.pendientes), pie: 'productos con stock', link: ['06-etiquetas-producto.html', {}], id: 'k-etq' },
       { ic: 'truck', etq: 'Unidades en tránsito', valor: fmt.int(k.transitoU), pie: `${k.transitos} envío(s) Miami ↔ Misiones · ${ui.etapa2()}`, link: ['11-app-recepcion.html', {}], id: 'k-tr' },
+      { ic: 'camera', etq: 'Sin foto', valor: fmt.int(k.sinFoto), pie: 'productos con stock · se cargan en el conteo', link: ['02-inventario.html', { sinfoto: 1 }], id: 'k-foto' },
     ];
     document.getElementById('kpis').innerHTML = tiles.map((t) => {
       const tag = t.link ? 'a' : 'div';

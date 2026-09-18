@@ -15,6 +15,7 @@
   <section class="card" style="margin-bottom:16px">
     <div class="card-cuerpo" style="padding:20px 22px">
       <div class="fila entre" style="align-items:flex-start;gap:18px">
+        <div class="foto-hero" id="foto-hero"></div>
         <div style="min-width:0;flex:1 1 320px">
           <div class="mono" id="codigo" style="font-size:30px;font-weight:700;line-height:1.1;overflow-wrap:anywhere"></div>
           <div id="descripcion" style="font-size:18px;margin-top:4px"></div>
@@ -54,6 +55,13 @@
     </div>
 
     <div class="pila">
+      <section class="card">
+        <div class="card-cab"><div><div class="card-titulo"><i data-i="camera"></i>Fotos</div><div class="card-sub">Para reconocer la pieza en el depósito · hasta 3</div></div><span class="chico tenue" id="fotos-n"></span></div>
+        <div class="card-cuerpo pila" style="gap:10px">
+          <div class="galeria" id="galeria"></div>
+          <div class="chico tenue">En el sistema la foto queda guardada en la ficha. En este boceto se ve hasta recargar la página.</div>
+        </div>
+      </section>
       <section class="card">
         <div class="card-cab"><div class="card-titulo"><i data-i="dollar"></i>Precios</div><div id="moneda"></div></div>
         <div class="card-cuerpo" id="precios"></div>
@@ -184,8 +192,25 @@
   $('solo-imp').addEventListener('change', renderEtiqueta);
   $('compat-q').addEventListener('input', renderCompat);
 
+  function renderFotos() {
+    const lista = G.fotos(p.id);
+    $('foto-hero').innerHTML = G.fotoHTML(p, 'foto-hero');
+    $('fotos-n').textContent = lista.length ? `${lista.length} de 3` : 'sin fotos';
+    $('galeria').innerHTML = lista.map((f, i) => `<img class="foto" src="${f}" alt="Foto ${i + 1} de ${esc(p.codigo)}">`).join('')
+      + (lista.length < 3 ? `<label class="subir-foto">${icono('camera')}<span>${lista.length ? 'Agregar otra' : 'Agregar foto'}</span><input type="file" id="f-foto" accept="image/*"></label>` : '');
+  }
+  $('galeria').addEventListener('change', async (e) => {
+    const archivo = e.target.files && e.target.files[0];
+    if (!archivo) return;
+    try {
+      G.agregarFoto(p.id, await G.reducirImagen(archivo, 900, 0.82));
+      renderFotos();
+      G.toast('Foto agregada a la ficha', 'camera');
+    } catch (ex) { G.toast(esc(ex.message), 'alert'); }
+  });
+
   $('qty').value = qty;
-  renderStock(); renderPrecios(); renderEtiqueta(); renderCompat();
+  renderStock(); renderPrecios(); renderEtiqueta(); renderCompat(); renderFotos();
 })();
 </script>
 </body>

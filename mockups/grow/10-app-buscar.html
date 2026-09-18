@@ -47,8 +47,12 @@
     const items = deps.flatMap((d) => G.stockItems(p.id, d).map((s) => Object.assign({ d }, s)));
     const principal = items.filter((s) => s.cant > 0).sort((a, b) => b.cant - a.cant)[0];
     const pr = G.precios(p);
+    const foto = G.fotos(p.id)[0];
+    const conFoto = foto ? { foto: `${p.id}~${foto}` } : {};
     $('ficha').innerHTML = `<section class="card nuevo" id="ficha-card">
       <div class="card-cuerpo pila" style="gap:12px">
+        ${foto ? `<img class="foto foto-ancha" id="ficha-foto" src="${foto}" alt="Foto de ${esc(p.codigo)}">`
+          : `<label class="subir-foto foto-ancha">${icono('camera')}<span>Sacar foto del producto</span><span class="tenue" style="font-weight:400">Todavía no tiene: ayuda a reconocerlo</span><input type="file" accept="image/*" capture="environment" data-foto-app="${p.id}"></label>`}
         <div class="fila entre" style="align-items:flex-start;flex-wrap:nowrap">
           <div style="min-width:0"><div class="mono fuerte" style="font-size:22px;overflow-wrap:anywhere" id="ficha-codigo">${esc(p.codigo)}</div><div class="tinta-2">${esc(p.descripcion)}</div>
             ${actual.via && actual.via !== 'código' ? `<div class="coincide">${icono('link', 'i-sm')}por ${actual.via}: <mark>${esc(actual.match)}</mark></div>` : ''}</div>
@@ -70,8 +74,8 @@
           </div>
         </details>
         <div class="fila">
-          ${principal && principal.d === 'MIS' ? `<a class="btn btn-chico btn-oscuro" href="${G.href('12-app-conteo.html', { ubic: principal.ubic })}">${icono('check')}Contar ${esc(principal.ubic)}</a>` : ''}
-          <a class="btn btn-chico" href="${G.href('06-etiquetas-producto.html', { ids: p.id })}">${icono('tag')}Reimprimir etiqueta</a>
+          ${principal && principal.d === 'MIS' ? `<a class="btn btn-chico btn-oscuro" href="${G.href('12-app-conteo.html', Object.assign({ ubic: principal.ubic }, conFoto))}">${icono('check')}Contar ${esc(principal.ubic)}</a>` : ''}
+          <a class="btn btn-chico" href="${G.href('06-etiquetas-producto.html', Object.assign({ ids: p.id }, conFoto))}">${icono('tag')}Reimprimir etiqueta</a>
         </div>
       </div></section>`;
     $('recientes-caja').hidden = false;
@@ -115,6 +119,15 @@
   });
   document.getElementById('pagina').addEventListener('change', (e) => {
     if (e.target.id === 't-solo') { soloMisiones = e.target.checked; renderFicha(); }
+  });
+  document.getElementById('pagina').addEventListener('change', async (e) => {
+    const campo = e.target.closest('[data-foto-app]');
+    if (!campo || !campo.files || !campo.files[0]) return;
+    try {
+      G.agregarFoto(campo.dataset.fotoApp, await G.reducirImagen(campo.files[0], 320, 0.72));
+      renderFicha();
+      G.toast('Foto guardada en la ficha', 'camera');
+    } catch (ex) { G.toast(esc(ex.message), 'alert'); }
   });
 
   renderRecientes();

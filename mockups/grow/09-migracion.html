@@ -123,7 +123,7 @@
   $('plan').innerHTML = [
     ['Importación asistida', 'Cargamos el Excel tal como está. Nada se borra: cada producto recuerda de qué fila vino.'],
     ['Revisión de alertas', `Resolvemos juntos las ${fmt.int(G.productos.filter((p) => p.alertas.length).length)} fichas marcadas (ubicaciones dudosas, cantidades a contar).`],
-    ['Conteo inicial con el celular', 'Se recorre el depósito por ubicación y se confirma el stock real.'],
+    ['Conteo inicial con el celular', 'Se recorre el depósito por ubicación, se confirma el stock real y se saca la foto de cada producto.'],
     ['Etiquetado', 'Se imprimen las etiquetas GROW de lo que no las tiene, con código de barras.'],
     ['A operar', 'Desde ese día los movimientos se registran en el sistema; el Excel queda de respaldo.'],
   ].map(([t, d], i) => `<div class="lista-item"><span class="pin grande" style="background:var(--grafito);color:var(--acento);border-color:var(--grafito)">${i + 1}</span><div><b>${t}</b><div class="chico tinta-2">${d}</div></div><span></span></div>`).join('');

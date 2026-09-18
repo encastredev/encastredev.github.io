@@ -33,6 +33,7 @@
         <option value="">Cualquier stock</option><option value="ok">Stock OK</option><option value="bajo">Bajo mínimo</option><option value="sin">Sin stock</option><option value="contar">A contar</option>
       </select>
       <label class="interruptor chico"><input type="checkbox" id="f-pend"> Sin etiqueta</label>
+      <label class="interruptor chico"><input type="checkbox" id="f-sinfoto"> Sin foto</label>
     </div>
     <div class="resultados">
       <span id="res-txt"></span>
@@ -67,7 +68,7 @@
 <script>
 (function () {
   const { fmt, esc, icono, ui } = G;
-  const st = { q: G.qs('q', ''), dep: G.qs('dep', 'ALL'), cat: G.qs('cat', ''), estado: G.qs('estado', ''), pend: G.qs('pend') === '1', limite: 25 };
+  const st = { q: G.qs('q', ''), dep: G.qs('dep', 'ALL'), cat: G.qs('cat', ''), estado: G.qs('estado', ''), pend: G.qs('pend') === '1', sinfoto: G.qs('sinfoto') === '1', limite: 25 };
   const abiertos = new Set();
   const seleccion = new Set();
 
@@ -83,6 +84,7 @@
       if (st.cat && p.categoria !== st.cat) return false;
       if (st.estado && G.estadoStock(p, st.dep) !== st.estado) return false;
       if (st.pend && (G.etiquetado(p.id) || G.stock(p.id) <= 0)) return false;
+      if (st.sinfoto && G.fotos(p.id).length) return false;
       return true;
     });
     if (!st.q.trim()) filas.sort((a, b) => G.stock(b.p.id, st.dep) - G.stock(a.p.id, st.dep) || a.p.codigo.localeCompare(b.p.codigo));
@@ -99,6 +101,10 @@
       </div>
       <div class="panel"><div class="fuerte chico" style="margin-bottom:6px">${icono('dollar', 'i-sm')} Precios</div>
         <dl class="kv chico"><dt>Costo FOB</dt><dd>${fmt.usd(pr.fob)}</dd><dt>Costo ARG${pr.argEstimado ? ' (est.)' : ''}</dt><dd>${fmt.usd(pr.arg)}</dd><dt>Venta público</dt><dd>${fmt.usd(pr.venta)}</dd></dl>
+      </div>
+      <div class="panel"><div class="fuerte chico" style="margin-bottom:6px">${icono('camera', 'i-sm')} Foto</div>
+        <div class="fila" style="flex-wrap:nowrap;align-items:flex-start"><div style="width:72px;flex:none">${G.fotoHTML(p)}</div>
+        <div class="chico tinta-2">${G.fotos(p.id).length ? `${G.fotos(p.id).length} foto(s) cargada(s).` : 'Todavía no tiene foto. Se saca en el conteo o desde la ficha.'}</div></div>
       </div>
       <div class="panel"><div class="fuerte chico" style="margin-bottom:6px">${icono('link', 'i-sm')} Referencias cruzadas</div>
         <div class="chips">${p.refs.slice(0, 6).map((r) => `<button type="button" class="chip mono" data-prueba="${esc(r)}">${esc(r)}</button>`).join('') || '<span class="tenue chico">Sin referencias en el Excel</span>'}</div>
@@ -150,6 +156,8 @@
   $('f-cat').addEventListener('change', (e) => { st.cat = e.target.value; aplicar(); });
   $('f-estado').addEventListener('change', (e) => { st.estado = e.target.value; aplicar(); });
   $('f-pend').addEventListener('change', (e) => { st.pend = e.target.checked; aplicar(); });
+  $('f-sinfoto').checked = st.sinfoto;
+  $('f-sinfoto').addEventListener('change', (e) => { st.sinfoto = e.target.checked; aplicar(); });
   $('mas').addEventListener('click', () => { st.limite += 25; render(); });
   $('sel-limpiar').addEventListener('click', () => { seleccion.clear(); render(); });
 
