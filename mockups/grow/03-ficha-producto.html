@@ -132,7 +132,8 @@
     const movs = G.estado().movimientos.filter((m) => m.pid === p.id).slice(0, 8);
     $('historial').innerHTML = movs.map((m) => `<div class="lista-item${m.nuevo ? ' nuevo' : ''}">
       ${ui.movIcono(m)}
-      <div style="min-width:0"><div class="fuerte">${ui.movTipo(m)} · ${esc(m.motivo)}</div><div class="chico tenue">${G.depo(m.dep).nombre} · ${esc(G.ubic(m.ubic, m.dep).nombre)}${m.ref ? ' · ' + esc(m.ref) : ''} · ${esc(m.usuario)} · ${fmt.fechaHora(m.fecha)}</div></div>
+      <div style="min-width:0"><div class="fuerte">${ui.movTipo(m)} · ${esc(m.motivo)}</div><div class="chico tenue">${G.depo(m.dep).nombre} · ${esc(G.ubic(m.ubic, m.dep).nombre)}${m.ref ? ' · ' + esc(m.ref) : ''} · ${esc(m.usuario)} · ${fmt.fechaHora(m.fecha)}</div>
+        ${m.factor || m.doc || m.salida ? `<div class="chico">${m.factor ? `<span class="badge b-neutro">factor ${fmt.mult(m.factor)}</span> ` : ''}${m.doc ? `<span class="badge b-borde">${icono('sheet', 'i-sm')}${esc(m.doc)}</span> ` : ''}${m.salida ? `<span class="badge b-borde">salió el ${esc(m.salida.split('-').reverse().join('/'))}</span>` : ''}</div>` : ''}</div>
       ${ui.cant(m.cant)}</div>`).join('') || '<div class="vacio-estado">Todavía no hay movimientos de este producto.</div>';
   }
 
@@ -140,15 +141,35 @@
     $('moneda').innerHTML = ui.segmentos('moneda', [{ v: 'USD', t: 'USD' }, { v: 'ARS', t: 'Pesos' }], moneda);
     const pr = G.precios(p);
     const m = (v) => (v == null ? '<span class="tenue">sin dato</span>' : moneda === 'USD' ? fmt.usd(v) : fmt.ars(v * cfg.tipoCambio));
+    // el factor de nacionalización es de este producto: se carga en cada ingreso de mercadería
+    const origen = {
+      ingreso: `cargado en el ingreso${pr.factorFecha ? ' del ' + fmt.fecha(pr.factorFecha) : ''}${pr.factorRef ? ' · ' + esc(pr.factorRef) : ''}`,
+      excel: 'sale del Excel: costo FOB y costo ARG cargados',
+      defecto: 'por defecto, todavía no tiene el suyo',
+    }[pr.factorOrigen];
     $('precios').innerHTML = `<dl class="kv">
         <dt>Costo FOB <span class="badge b-info">venta en USA</span></dt><dd>${m(pr.fob)}</dd>
-        <dt>Costo ARG <span class="badge b-neutro">nacionalizado</span>${pr.argEstimado ? `<div class="chico tenue">estimado: FOB ${fmt.mult(cfg.factorNac)}</div>` : ''}</dt><dd>${m(pr.arg)}</dd>
-        ${pr.factorReal ? `<dt>Factor FOB → ARG en el Excel</dt><dd>${fmt.mult(pr.factorReal)}</dd>` : ''}
-        <dt>Margen ${esc(p.categoria)}</dt><dd>${pr.margen}%</dd>
-        <dt class="total"><b>Venta público ARG</b></dt><dd class="total" style="font-size:19px">${m(pr.venta)}</dd>
+        <dt>Factor de importación<div class="chico tenue">${origen}</div></dt>
+        <dd><span class="fila" style="flex-wrap:nowrap;justify-content:flex-end;gap:4px"><b>×</b><input class="input input-chico num" id="factor" type="number" min="1" max="20" step="0.1" value="${pr.factor}" style="width:76px" aria-label="Factor de importación"></span></dd>
+        <dt>Costo ARG <span class="badge b-neutro">nacionalizado</span>${pr.argEstimado ? '<div class="chico tenue">estimado</div>' : ''}</dt><dd id="pr-arg">${m(pr.arg)}</dd>
+        <dt class="total"><b>${esc(G.LISTAS[0].nombre)}</b><div class="chico tenue">margen ${pr.margen}% · ${esc(p.categoria)}</div></dt><dd class="total" id="pr-venta" style="font-size:19px">${m(pr.venta)}</dd>
+        <dt>${esc(G.LISTAS[1].nombre)}<div class="chico tenue">margen ${pr.margenDist}%</div></dt><dd id="pr-dist" style="font-size:17px;font-weight:700">${m(pr.ventaDist)}</dd>
       </dl>
       <div class="chico tenue" style="margin-top:10px">Tipo de cambio ${fmt.int(cfg.tipoCambio)} · <a href="${G.href('08-precios.html')}">editar reglas</a></div>`;
   }
+  // cambiar el factor recalcula en vivo, sin redibujar el campo que se está tipeando
+  $('precios').addEventListener('input', (e) => {
+    if (e.target.id !== 'factor') return;
+    const f = Math.min(20, Math.max(1, parseFloat(e.target.value) || 0));
+    if (!f) return;
+    G.estado().factores[p.id] = { factor: Math.round(f * 100) / 100, fob: G.precios(p).fob, fecha: new Date().toISOString(), ref: 'editado en la ficha' };
+    const pr = G.precios(p);
+    const m = (v) => (v == null ? '<span class="tenue">sin dato</span>' : moneda === 'USD' ? fmt.usd(v) : fmt.ars(v * cfg.tipoCambio));
+    $('pr-arg').innerHTML = m(pr.arg);
+    $('pr-venta').innerHTML = m(pr.venta);
+    $('pr-dist').innerHTML = m(pr.ventaDist);
+  });
+  $('precios').addEventListener('change', (e) => { if (e.target.id === 'factor') renderPrecios(); });
 
   function renderEtiqueta() {
     $('etiqueta').innerHTML = G.etiquetaProducto(p, { cant: qty, soloImpresion: $('solo-imp').checked });

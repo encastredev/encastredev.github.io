@@ -63,7 +63,7 @@
   document.getElementById('migra').innerHTML = `Detectamos <b>${fmt.int(r.codigosDuplicados)}</b> códigos repetidos, <b>${fmt.int(r.variantesUbicacion)}</b> formas de escribir ubicaciones y <b>${fmt.int(r.preciosComoTexto)}</b> precios como texto. Ya están normalizados. ${icono('chevron', 'i-sm')}`;
 
   function render(animar) {
-    document.getElementById('sel-dep').innerHTML = ui.depositos(dep, true);
+    document.getElementById('sel-dep').innerHTML = ui.depositos(dep, true, true);
     const k = G.kpis(dep);
     const tiles = [
       { cls: 'destacado', ic: 'dollar', etq: 'Valor del stock (costo ARG)', valor: fmt.usdCorto(k.valor), pie: `${fmt.int(k.unidades)} unidades`, id: 'k-valor' },

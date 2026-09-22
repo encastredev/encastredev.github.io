@@ -37,7 +37,25 @@
           <div class="campo"><span id="cant-etq">Cantidad</span>
             <span class="stepper"><button type="button" data-paso="-1" aria-label="Restar">−</button><input id="cant" type="number" min="0" value="2" aria-label="Cantidad"><button type="button" data-paso="1" aria-label="Sumar">+</button></span></div>
           <label class="campo"><span>Motivo</span><select class="select" id="motivo"></select></label>
-          <label class="campo completo"><span>Comprobante / referencia</span><input class="input" id="ref" placeholder="Remito, factura o N° de importación"></label>
+          <label class="campo completo"><span id="ref-etq">Comprobante / referencia</span><input class="input" id="ref" placeholder="Remito, factura o N° de importación"></label>
+        </div>
+
+        <div class="panel pila" id="imp-caja" style="gap:12px" hidden>
+          <div>
+            <b>Costo de esta importación</b>
+            <div class="chico tinta-2">El factor para nacionalizar cambia en cada envío (flete, volumen, aduana), así que se carga por producto. Queda guardado como el costo de este repuesto.</div>
+          </div>
+          <div class="form-grilla" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+            <label class="campo"><span>Costo FOB unitario (USD)</span><input class="input" id="fob" type="number" min="0" step="0.5"></label>
+            <label class="campo"><span>Factor (×)</span><input class="input" id="factor" type="number" min="1" max="20" step="0.1"></label>
+            <div class="campo"><span>Costo ARG resultante</span><div class="input num" id="arg-res" style="display:flex;align-items:center;background:var(--superficie-2)"></div></div>
+          </div>
+          <div class="form-grilla" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">
+            <div class="campo"><span>Documento del despacho</span>
+              <span class="fila" style="flex-wrap:nowrap"><label class="btn btn-chico"><i data-i="sheet"></i>Adjuntar<input type="file" id="doc" accept="image/*,.pdf" hidden></label><span class="chico tenue corta" id="doc-nombre">Ninguno</span></span>
+            </div>
+            <label class="campo"><span>Salió del origen el</span><input class="input" id="salida" type="date"></label>
+          </div>
         </div>
       </div>
     </section>
@@ -113,6 +131,15 @@
     }
     $('ubic-etq').textContent = st.tipo === 'transferencia' ? 'Desde' : 'Ubicación';
     $('cant-etq').textContent = st.tipo === 'ajuste' ? 'Cantidad contada' : 'Cantidad';
+    // el ingreso de mercadería es el momento en que se define el costo de cada ítem
+    $('imp-caja').hidden = st.tipo !== 'ingreso';
+    $('ref-etq').textContent = st.tipo === 'ingreso' ? 'N° de referencia o tracking' : 'Comprobante / referencia';
+    $('ref').placeholder = st.tipo === 'ingreso' ? 'Ej. IMP-2026-042 o el N° de guía' : 'Remito, factura o N° de importación';
+    if (st.tipo === 'ingreso' && !$('fob').value) {
+      const pr = G.precios(p);
+      $('fob').value = pr.fob || '';
+      $('factor').value = pr.factor;
+    }
     $('motivo').innerHTML = MOTIVOS[st.tipo].map((m) => `<option>${m}</option>`).join('');
     if (st.tipo === 'ajuste') {
       const s = G.stockItems(st.pid, st.dep).find((x) => x.ubic === $('ubic').value);
@@ -140,14 +167,25 @@
     return { p, ubic, antesUbic, despuesUbic: antesUbic + delta, antesTotal, despuesTotal: antesTotal + totalDelta, valor: pr.arg ? pr.arg * totalDelta : null, error };
   }
 
+  /** Costo ARG que queda para el producto con lo cargado en este ingreso */
+  function costoImportacion() {
+    const fob = Math.max(0, parseFloat($('fob').value) || 0);
+    const factor = Math.max(0, parseFloat($('factor').value) || 0);
+    return { fob, factor, arg: fob && factor ? Math.round(fob * factor * 100) / 100 : null };
+  }
+
   function renderResumen() {
     const c = calcular();
     const fila = (t, a, d) => `<dt>${t}</dt><dd><span class="tenue">${a}</span> → <b style="font-size:17px">${d}</b></dd>`;
+    const imp = costoImportacion();
+    if (st.tipo === 'ingreso') $('arg-res').textContent = imp.arg ? fmt.usd(imp.arg) : '—';
     $('resumen').innerHTML = `<dl class="kv">
       ${fila(esc(c.ubic ? G.ubic(c.ubic, st.dep).nombre : 'Ubicación'), c.antesUbic, c.error && st.tipo !== 'ajuste' ? '—' : c.despuesUbic)}
       ${st.tipo === 'transferencia' ? fila(esc(G.ubic($('dest').value, st.dep).nombre), (G.stockItems(st.pid, st.dep).find((x) => x.ubic === $('dest').value) || { cant: 0 }).cant, (G.stockItems(st.pid, st.dep).find((x) => x.ubic === $('dest').value) || { cant: 0 }).cant + (c.error ? 0 : st.cant)) : ''}
       ${fila('Stock total del producto', c.antesTotal, c.error ? '—' : c.despuesTotal)}
       <dt class="total">Impacto al costo ARG</dt><dd class="total">${c.valor == null ? '<span class="tenue">sin costo</span>' : (c.valor >= 0 ? '+' : '−') + fmt.usd(Math.abs(c.valor)).replace('US$ ', 'US$ ')}</dd>
+      ${st.tipo === 'ingreso' && imp.arg ? `<dt>Costo ARG del producto</dt><dd><span class="tenue">${fmt.usd(G.precios(c.p).arg)}</span> → <b>${fmt.usd(imp.arg)}</b></dd>
+        <dt>Venta público / distribuidor</dt><dd>${fmt.usd(imp.arg * (1 + G.precios(c.p).margen / 100))} · ${fmt.usd(imp.arg * (1 + G.precios(c.p).margenDist / 100))}</dd>` : ''}
       ${st.tipo === 'ingreso' ? `<dt>Etiquetas GROW a imprimir</dt><dd>${st.cant}</dd>` : ''}
     </dl>`;
     const bajo = !c.error && c.despuesTotal < G.minimo(c.p) && st.tipo !== 'ingreso';
@@ -174,8 +212,11 @@
     if (paso) { st.cant = Math.max(0, st.cant + (+paso.dataset.paso)); $('cant').value = st.cant; renderResumen(); return; }
     if (e.target.closest('#cambiar')) { $('buscar-caja').hidden = false; $('elegido').innerHTML = ''; $('q').value = ''; $('q').focus(); return; }
     const el = e.target.closest('[data-elegir]');
-    if (el) { st.pid = el.dataset.elegir; $('sugerencias').innerHTML = ''; elegirUbicInicial(); renderForm(); }
+    if (el) { st.pid = el.dataset.elegir; $('sugerencias').innerHTML = ''; $('fob').value = ''; $('factor').value = ''; elegirUbicInicial(); renderForm(); }
   });
+  $('fob').addEventListener('input', renderResumen);
+  $('factor').addEventListener('input', renderResumen);
+  $('doc').addEventListener('change', () => { const f = $('doc').files[0]; $('doc-nombre').textContent = f ? f.name : 'Ninguno'; });
   $('q').addEventListener('input', G.demorar(sugerir, 120));
   $('cant').addEventListener('input', () => { st.cant = Math.max(0, parseInt($('cant').value, 10) || 0); renderResumen(); });
   $('ubic').addEventListener('change', () => { if (st.tipo === 'ajuste') renderForm(); else { $('dest').innerHTML = G.ubicaciones(st.dep).filter((u) => u.id !== $('ubic').value && u.id !== 'SIN').map((u) => `<option value="${esc(u.id)}">${esc(u.nombre)}</option>`).join(''); renderResumen(); } });
@@ -184,10 +225,14 @@
   $('confirmar').addEventListener('click', () => {
     const c = calcular();
     if (c.error) return;
-    const mov = { tipo: st.tipo, pid: st.pid, dep: st.dep, ubic: c.ubic, cant: st.cant, nueva: st.cant, destinoUbic: $('dest').value, ref: $('ref').value };
+    const esIngreso = st.tipo === 'ingreso';
+    const imp = costoImportacion();
+    const doc = esIngreso && $('doc').files[0] ? $('doc').files[0].name : '';
+    const salida = esIngreso ? $('salida').value : '';
+    const mov = { tipo: st.tipo, pid: st.pid, dep: st.dep, ubic: c.ubic, cant: st.cant, nueva: st.cant, destinoUbic: $('dest').value, ref: $('ref').value, fob: esIngreso ? imp.fob : '', factor: esIngreso ? imp.factor : '', doc, salida };
     try { G.aplicarMovimiento(mov); } catch (ex) { $('aviso').innerHTML = `<div class="alerta error">${icono('alert')}<span>${esc(ex.message)}</span></div>`; return; }
     const p = G.producto(st.pid);
-    const urlMov = { mov: st.tipo, mid: st.pid, mdep: st.dep, mubic: c.ubic, mcant: st.tipo === 'ajuste' ? '' : st.cant, mnueva: st.tipo === 'ajuste' ? st.cant : '', mdest: st.tipo === 'transferencia' ? $('dest').value : '', mref: $('ref').value };
+    const urlMov = { mov: st.tipo, mid: st.pid, mdep: st.dep, mubic: c.ubic, mcant: st.tipo === 'ajuste' ? '' : st.cant, mnueva: st.tipo === 'ajuste' ? st.cant : '', mdest: st.tipo === 'transferencia' ? $('dest').value : '', mref: $('ref').value, mfob: esIngreso && imp.arg ? imp.fob : '', mfac: esIngreso && imp.arg ? imp.factor : '', mdoc: doc, msal: salida };
     $('vista-form').hidden = true;
     $('vista-exito').hidden = false;
     $('exito-titulo').textContent = { egreso: 'Egreso registrado', ingreso: 'Ingreso registrado', ajuste: 'Ajuste registrado', transferencia: 'Reubicación registrada' }[st.tipo];

@@ -11,16 +11,16 @@ const SCREENS = [
     probar: ['Cambiar entre Todos / Misiones / Miami y ver cómo cambian los indicadores', 'Desplegar un envío en tránsito', 'Pasar el mouse por las barras de categorías'] },
   { archivo: '02-inventario.html', etapa: 1, n: '02', titulo: 'Inventario', disp: 'notebook', rol: 'Mostrador',
     resumen: 'Buscador universal: código GROW, referencia de otra marca o modelo de máquina.',
-    probar: ['Buscar P959052 (referencia cruzada) o 320D (máquina)', 'Abrir una fila para ver ubicaciones y precios', 'Seleccionar productos y mandarlos a imprimir etiquetas'] },
+    probar: ['Buscar P959052 (referencia cruzada) o 320D (máquina)', 'Cambiar la lista de precios: público o distribuidor', 'Filtrar por categoría y tocar “Exportar a Excel”'] },
   { archivo: '03-ficha-producto.html', etapa: 1, n: '03', titulo: 'Ficha de producto', disp: 'notebook', rol: 'Mostrador',
     resumen: 'Todo sobre un repuesto: dónde está, cuánto hay, sus 3 precios y sus equivalencias.',
-    probar: ['Agregar una foto del producto', 'Filtrar máquinas compatibles', 'Ver los precios en USD o en pesos', 'Ver la etiqueta tal como sale en el rollo GROW'] },
+    probar: ['Cambiar el factor de importación y ver cómo se recalculan los dos precios', 'Agregar una foto del producto', 'Ver la etiqueta tal como sale en el rollo GROW'] },
   { archivo: '04-movimiento.html', etapa: 1, n: '04', titulo: 'Registrar movimiento', disp: 'notebook', rol: 'Mostrador / Depósito',
     resumen: 'Ingresos, egresos, ajustes y transferencias con el resultado calculado en vivo.',
-    probar: ['Cambiar la cantidad y ver el stock resultante', 'Confirmar un egreso', 'Ir a la ficha y ver el stock descontado'] },
+    probar: ['Cambiar la cantidad y ver el stock resultante', 'Elegir “Ingreso” y cargar el costo FOB, el factor y el documento del despacho', 'Confirmar y ver la ficha con el costo nuevo'] },
   { archivo: '05-mapa-deposito.html', etapa: 1, n: '05', titulo: 'Mapa del depósito', disp: 'notebook', rol: 'Depósito',
     resumen: 'Las estanterías, estantes, cajas y el mostrador, con lo que hay en cada lugar.',
-    probar: ['Buscar un producto y ver dónde se ilumina', 'Tocar “Editar depósito” y agregar una estantería, un estante o una caja', 'Mover productos a la estantería nueva y verla en el mapa'] },
+    probar: ['Buscar un producto y ver dónde se ilumina', 'Tocar “Editar depósito” y agregar una estantería, un estante o una caja', 'Exportar a Excel lo que hay en una ubicación para salir a controlarla'] },
   { archivo: '06-etiquetas-producto.html', etapa: 1, n: '06', titulo: 'Etiquetas de producto', disp: 'notebook', rol: 'Depósito',
     resumen: 'Etiquetas de la Xprinter XP-H500B: Part N con sufijo, descripción y unidades por empaque, desde el sistema o a mano.',
     probar: ['Cambiar el sufijo del Part N (proveedor, .GEN o .ALT) y el tipo de parte', 'Cargar una etiqueta manual', 'Activar “ver solo lo que imprime” y calibrar en mm'] },
@@ -28,14 +28,14 @@ const SCREENS = [
     resumen: 'Adelanto de la etapa 2: envíos desde el warehouse de Miami o directo al cliente, con etiquetas de bulto en la XP-365B.',
     probar: ['Sumar productos y bultos: el peso y las etiquetas se recalculan', 'Recorrer las etiquetas “Bulto 1 de N”', 'Confirmar y recibir el envío desde el celular'] },
   { archivo: '08-precios.html', etapa: 1, n: '08', titulo: 'Costos y precios', disp: 'notebook', rol: 'Administración',
-    resumen: 'Costo FOB, costo nacionalizado y venta al público, con reglas editables.',
-    probar: ['Cambiar el tipo de cambio o un margen', 'Filtrar los factores FOB→ARG inconsistentes', 'Probar el simulador de precio'] },
+    resumen: 'Costo FOB, costo nacionalizado y las dos listas de venta, con reglas editables.',
+    probar: ['Cambiar un margen de la lista público o de la de distribuidor', 'Ver qué productos todavía no tienen su factor propio', 'Probar el simulador con un factor de importación distinto'] },
   { archivo: '09-migracion.html', etapa: 1, n: '09', titulo: 'Migración del Excel', disp: 'notebook', rol: 'Administración',
     resumen: 'Qué encontramos en el Excel actual y cómo queda ordenado en el sistema.',
     probar: ['Alternar “Excel original / Normalizado”', 'Desplegar cada problema con sus ejemplos reales'] },
   { archivo: '10-app-buscar.html', etapa: 1, n: '10', titulo: 'App · Buscar y escanear', disp: 'celular', rol: 'Depósito',
     resumen: 'Con el celular: escaneás el código y sabés dónde está y cuánto hay.',
-    probar: ['Tocar “Escanear” para simular el lector', 'Sacar la foto si el producto no tiene', 'Buscar por referencia o máquina'] },
+    probar: ['Tocar “Escanear” para simular el lector', 'Ver si la pieza es nuestra y de cuándo es la etiqueta', 'Sacar la foto si el producto no tiene'] },
   { archivo: '11-app-recepcion.html', etapa: 2, n: '11', titulo: 'App · Recepción', disp: 'celular', rol: 'Depósito',
     resumen: 'Adelanto de la etapa 2: recibir un envío de Miami contando bulto por bulto y ubicando la mercadería.',
     probar: ['Elegir un envío en tránsito', 'Contar con + / − y ver las diferencias', 'Confirmar y ver el panel actualizado'] },
@@ -146,6 +146,7 @@ window.G = (function () {
       return d === 1 ? 'ayer' : `hace ${d} días`;
     },
     fechaHora: (iso) => new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+    fecha: (iso) => new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
   };
   const norm = (s) => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
   const compacto = (s) => norm(s).replace(/[\s.\-_/]/g, '');
@@ -175,7 +176,7 @@ window.G = (function () {
 
   /* ---------------- URL y flujo entre pantallas ---------------- */
   const params = new URLSearchParams(location.search);
-  const CLAVES_FLUJO = ['envio', 'eitems', 'eorigen', 'edestino', 'ebultos', 'ecliente', 'recibido', 'ritems', 'mov', 'mid', 'mdep', 'mubic', 'mcant', 'mnueva', 'mdest', 'mref', 'etq', 'ajustes', 'nuevas'];
+  const CLAVES_FLUJO = ['envio', 'eitems', 'eorigen', 'edestino', 'ebultos', 'ecliente', 'recibido', 'ritems', 'mov', 'mid', 'mdep', 'mubic', 'mcant', 'mnueva', 'mdest', 'mref', 'mfob', 'mfac', 'mdoc', 'msal', 'etq', 'ajustes', 'nuevas'];
   const qs = (k, def) => (params.has(k) ? params.get(k) : def);
   // La foto sacada con el celular viaja en el #hash: no llega al servidor, así que su largo no molesta
   const FOTO_FLUJO = new URLSearchParams(location.hash.slice(1)).get('foto') || '';
@@ -212,11 +213,21 @@ window.G = (function () {
   const ubicMia = new Map(UBIC_MIAMI.map((u) => [u.id, u]));
   const CONFIG = {
     tipoCambio: 1450,
+    // Factor FOB → ARG por defecto. Solo se usa cuando el producto no tiene el suyo:
+    // según Walter el costo de nacionalizar va de x2 a x10 y se define en cada importación.
     factorNac: 2.2,
     margenes: { 'Filtros': 45, 'Sellos y Juntas': 60, 'Sistema Eléctrico': 50, 'Componentes de Motor': 45, 'Sistema de Enfriamiento': 45, 'Piezas Hidráulicas': 45, 'Sistemas de Inyección': 50, 'Unidad de Fuerza': 40, 'Accesorios': 60, 'Rodaje': 40, 'Otros Productos': 50 },
+    margenesDist: { 'Filtros': 30, 'Sellos y Juntas': 40, 'Sistema Eléctrico': 35, 'Componentes de Motor': 30, 'Sistema de Enfriamiento': 30, 'Piezas Hidráulicas': 30, 'Sistemas de Inyección': 35, 'Unidad de Fuerza': 28, 'Accesorios': 40, 'Rodaje': 28, 'Otros Productos': 35 },
     minimo: { 'Filtros': 2 },
     minimoDef: 1,
   };
+  /* Dos listas de precios (pedido de Walter: consumidor final y distribuidor) */
+  const LISTAS = [
+    { id: 'publico', nombre: 'Venta público ARG', corto: 'Público', campo: 'margenes' },
+    { id: 'distribuidor', nombre: 'Venta distribuidor', corto: 'Distribuidor', campo: 'margenesDist' },
+  ];
+  /* Depósitos de proveedor (China): no son stock propio, es lo que tiene el proveedor. Etapa 2 */
+  const DEP_PROVEEDOR = [{ id: 'CHN1', nombre: 'China 1', pais: 'Proveedor', corto: 'CN' }];
 
   /* ---------------- estructura del depósito creada en la demo ----------------
      Formato (viaja en ?nuevas=): R:M:5 = estantería M con 5 niveles · E:6 = estante 6 · C:4:7:FF9900 = caja Nº7 en el estante 4 */
@@ -274,8 +285,9 @@ window.G = (function () {
       if (rnd() < 0.28) stock[p.id].push({ dep: 'MIA', ubic: UBIC_MIAMI[Math.floor(rnd() * 24)].id, cant: 2 + Math.floor(rnd() * (p.categoria === 'Filtros' ? 16 : 6)) });
     });
 
+    // etiquetados: guardamos la fecha para poder responder "¿esta pieza es nuestra y de cuándo?"
     const etiquetados = {};
-    productos.forEach((p) => { if ((hash(p.codigo) % 100) < 64) etiquetados[p.id] = true; });
+    productos.forEach((p) => { if ((hash(p.codigo) % 100) < 64) etiquetados[p.id] = new Date(ahora - ((hash(p.codigo) % 400) + 10) * DIA).toISOString(); });
 
     const conStock = productos.filter((p) => stock[p.id].some((s) => s.cant > 0));
     const usuarios = ['Mostrador', 'Depósito', 'Administración'];
@@ -306,7 +318,7 @@ window.G = (function () {
     });
 
     movimientos.sort((a, b) => b.fecha.localeCompare(a.fecha));
-    E = { stock, etiquetados, movimientos, transitos, fotos: {}, config: JSON.parse(JSON.stringify(CONFIG)), eventos: [], seq: 1 };
+    E = { stock, etiquetados, movimientos, transitos, fotos: {}, factores: {}, config: JSON.parse(JSON.stringify(CONFIG)), eventos: [], seq: 1 };
     NUEVAS.forEach(crearEstructura);
     aplicarFlujo();
     return E;
@@ -366,7 +378,7 @@ window.G = (function () {
     const p = porId.get(params.get('mid'));
     if (mov && p) {
       try {
-        const r = aplicarMovimiento({ tipo: mov, pid: p.id, dep: params.get('mdep') || 'MIS', ubic: params.get('mubic'), cant: params.get('mcant'), nueva: params.get('mnueva'), destinoUbic: params.get('mdest'), ref: params.get('mref') || '' }, true);
+        const r = aplicarMovimiento({ tipo: mov, pid: p.id, dep: params.get('mdep') || 'MIS', ubic: params.get('mubic'), cant: params.get('mcant'), nueva: params.get('mnueva'), destinoUbic: params.get('mdest'), ref: params.get('mref') || '', fob: params.get('mfob'), factor: params.get('mfac'), doc: params.get('mdoc') || '', salida: params.get('msal') || '' }, true);
         const txt = { ingreso: `Ingreso de ${r.cant} u.`, egreso: `Egreso de ${Math.abs(r.cant)} u.`, ajuste: `Ajuste por conteo (${r.cant > 0 ? '+' : ''}${r.cant} u.)`, transferencia: `Reubicación de ${Math.abs(r.cant)} u.` }[mov];
         E.eventos.push({ desde: mov === 'ajuste' ? '12 · Conteo (celular)' : '04 · Movimiento', icono: 'arrows', texto: `${txt} de <b>${esc(p.codigo)}</b> · ${esc(p.descripcion)}`, pid: p.id });
       } catch (ex) { /* parámetros inválidos: se ignoran */ }
@@ -397,7 +409,7 @@ window.G = (function () {
     // 06 · etiquetas
     if (params.get('etq')) {
       const ids = params.get('etq').split(',').filter((id) => porId.has(id));
-      ids.forEach((id) => { E.etiquetados[id] = true; });
+      ids.forEach((id) => { E.etiquetados[id] = new Date().toISOString(); });
       if (ids.length) E.eventos.push({ desde: '06 · Etiquetas', icono: 'tag', texto: `${ids.length} producto(s) etiquetados con el rollo GROW` });
     }
   }
@@ -418,19 +430,47 @@ window.G = (function () {
     return 'ok';
   }
   const etiquetado = (pid) => !!estado().etiquetados[pid];
+  /** Cuándo se le puso la etiqueta GROW: con eso se sabe si una pieza salió de acá y de cuándo es */
+  const etiquetadoEn = (pid) => { const v = estado().etiquetados[pid]; return typeof v === 'string' ? v : null; };
   const enTransito = (pid) => estado().transitos.filter((t) => t.estado === 'transito').reduce((a, t) => a + t.items.filter((i) => i.pid === pid).reduce((b, i) => b + i.cant, 0), 0);
 
-  /** Los 3 precios del negocio (definidos por Walter): FOB (venta USA), ARG nacionalizado, venta público ARG */
+  /** Factor de importación del producto: el que se cargó en el ingreso, el del Excel, o el de la configuración */
+  function factorDe(p) {
+    const propio = estado().factores[p.id];
+    if (propio) return { factor: propio.factor, origen: 'ingreso', fecha: propio.fecha, ref: propio.ref };
+    if (p.costoFob && p.costoArg && p.multiplicador) return { factor: p.multiplicador, origen: 'excel' };
+    return { factor: estado().config.factorNac, origen: 'defecto' };
+  }
+  /** Costo FOB: el último cargado en un ingreso o el del Excel */
+  function costoFob(p) {
+    const propio = estado().factores[p.id];
+    return (propio && propio.fob) || p.costoFob || null;
+  }
+  /** Los precios del negocio (definidos por Walter): FOB (venta USA), ARG nacionalizado y las dos listas de venta.
+      El costo ARG sale del factor del producto, que se carga en cada ingreso de mercadería. */
   function precios(p, cfg) {
     const c = cfg || estado().config;
-    const fob = p.costoFob || null;
-    let arg = p.costoArg || null;
-    let argEstimado = false;
-    if (!arg && fob) { arg = Math.round(fob * c.factorNac * 100) / 100; argEstimado = true; }
+    const f = factorDe(p);
+    const fob = costoFob(p);
+    let arg = null;
+    if (f.origen === 'ingreso' && fob) arg = Math.round(fob * f.factor * 100) / 100;
+    else if (p.costoArg) arg = p.costoArg;
+    else if (fob) arg = Math.round(fob * c.factorNac * 100) / 100;
+    const argEstimado = arg != null && f.origen === 'defecto';
     const margen = c.margenes[p.categoria] != null ? c.margenes[p.categoria] : 50;
-    const venta = arg ? Math.round(arg * (1 + margen / 100) * 100) / 100 : null;
-    return { fob, arg, argEstimado, margen, venta, ventaArs: venta ? venta * c.tipoCambio : null, factorReal: p.multiplicador || null, sinCosto: !fob && !arg };
+    const margenDist = c.margenesDist[p.categoria] != null ? c.margenesDist[p.categoria] : 35;
+    const conMargen = (m) => (arg ? Math.round(arg * (1 + m / 100) * 100) / 100 : null);
+    const venta = conMargen(margen);
+    const ventaDist = conMargen(margenDist);
+    return {
+      fob, arg, argEstimado, factor: f.factor, factorOrigen: f.origen, factorFecha: f.fecha, factorRef: f.ref,
+      margen, margenDist, venta, ventaDist,
+      ventaArs: venta ? venta * c.tipoCambio : null, ventaDistArs: ventaDist ? ventaDist * c.tipoCambio : null,
+      factorReal: p.multiplicador || null, sinCosto: !fob && !arg,
+    };
   }
+  /** Precio de venta según la lista elegida ('publico' o 'distribuidor') */
+  const ventaDeLista = (pr, lista) => (lista === 'distribuidor' ? pr.ventaDist : pr.venta);
 
   function aplicarMovimiento(m, desdeUrl) {
     const e = estado();
@@ -446,7 +486,11 @@ window.G = (function () {
       loc.cant += cant;
       delete loc.aContar;
       delete e.etiquetados[p.id];
-      Object.assign(reg, { tipo: 'ingreso', cant, motivo: 'Ingreso de mercadería', usuario: 'Depósito' });
+      // costo de esta importación: el factor va por ítem, como pidió Walter
+      const fac = Math.round((parseFloat(m.factor) || 0) * 100) / 100;
+      const fob = Math.round((parseFloat(m.fob) || 0) * 100) / 100;
+      if (fac > 0) e.factores[p.id] = { factor: fac, fob: fob || costoFob(p), fecha: reg.fecha, ref: m.ref || '' };
+      Object.assign(reg, { tipo: 'ingreso', cant, motivo: 'Ingreso de mercadería', usuario: 'Depósito', doc: m.doc || '', salida: m.salida || '', factor: fac > 0 ? fac : null });
     } else if (m.tipo === 'egreso') {
       const loc = buscarLoc(m.dep, m.ubic);
       if (!cant) throw new Error('Ingresá una cantidad mayor a cero');
@@ -564,6 +608,76 @@ window.G = (function () {
     return f
       ? `<img class="foto ${clase || ''}" src="${f}" alt="Foto de ${esc(p.codigo)}">`
       : `<span class="foto sin-foto ${clase || ''}" title="Sin foto todavía">${icono('camera')}</span>`;
+  }
+
+  /* ---------------- exportar a Excel ----------------
+     Walter: "necesito poder bajar fragmentadamente toda la información". Se baja lo que se está viendo,
+     con las columnas elegidas, en CSV con punto y coma: Excel en español lo abre en columnas sin preguntar nada. */
+  function exportarCSV(nombre, columnas, filas) {
+    const celda = (v) => {
+      const s = v == null ? '' : String(v);
+      return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const lineas = [columnas.map((c) => celda(c.t)).join(';')];
+    filas.forEach((f) => lineas.push(columnas.map((c) => celda(c.v(f))).join(';')));
+    const blob = new Blob(['﻿' + lineas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = String(nombre).replace(/[\\/:*?"<>|]+/g, '-') + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    return filas.length;
+  }
+
+  /** Ventana modal simple (se cierra con Escape, con la X o tocando afuera) */
+  function modal(titulo, cuerpo, pie) {
+    const fondo = document.createElement('div');
+    fondo.className = 'modal-fondo';
+    fondo.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-label="${esc(titulo)}">
+        <div class="modal-cab"><b>${esc(titulo)}</b><button class="btn btn-icono btn-fantasma" type="button" data-cerrar aria-label="Cerrar">${icono('x')}</button></div>
+        <div class="modal-cuerpo">${cuerpo}</div>
+        ${pie ? `<div class="modal-pie">${pie}</div>` : ''}
+      </div>`;
+    document.body.appendChild(fondo);
+    hidratar(fondo);
+    const alTeclado = (e) => { if (e.key === 'Escape') cerrar(); };
+    function cerrar() { fondo.remove(); document.removeEventListener('keydown', alTeclado); }
+    document.addEventListener('keydown', alTeclado);
+    fondo.addEventListener('click', (e) => { if (e.target === fondo || e.target.closest('[data-cerrar]')) cerrar(); });
+    return { el: fondo, cerrar };
+  }
+
+  /** Diálogo "Exportar a Excel".
+      o = { nombre, resumen, columnas: [{k,t,v,def}], filas, todas, etiquetaFiltro } */
+  function dialogoExportar(o) {
+    const cols = o.columnas.map((c, i) => Object.assign({ i }, c));
+    const alcances = [{ v: 'vista', t: o.etiquetaFiltro || 'Lo que estoy viendo', n: o.filas.length }];
+    if (o.todas && o.todas.length !== o.filas.length) alcances.push({ v: 'todo', t: 'Todo el inventario', n: o.todas.length });
+    const m = modal('Exportar a Excel', `
+      <p class="chico tinta-2" style="margin-bottom:12px">${o.resumen || ''}</p>
+      <div class="campo" style="margin-bottom:14px"><span>Qué bajar</span>
+        <div class="pila" style="gap:6px">${alcances.map((a, i) => `<label class="check"><input type="radio" name="alcance" value="${a.v}"${i === 0 ? ' checked' : ''}><span>${esc(a.t)} <b class="num">${fmt.int(a.n)}</b> producto(s)</span></label>`).join('')}</div>
+      </div>
+      <div class="campo"><span>Columnas</span>
+        <div class="grilla" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 14px">
+          ${cols.map((c) => `<label class="check"><input type="checkbox" data-col="${c.i}"${c.def === false ? '' : ' checked'}><span>${esc(c.t)}</span></label>`).join('')}
+        </div>
+      </div>`,
+      `<span class="chico tenue">Se baja un archivo .csv que Excel abre directo.</span>
+       <button class="btn btn-acento" type="button" data-bajar>${icono('sheet')}Bajar el Excel</button>`);
+    m.el.querySelector('[data-bajar]').addEventListener('click', () => {
+      const elegidas = cols.filter((c) => m.el.querySelector(`[data-col="${c.i}"]`).checked);
+      if (!elegidas.length) { toast('Elegí al menos una columna', 'alert'); return; }
+      const alcance = m.el.querySelector('[name="alcance"]:checked').value;
+      const filas = alcance === 'todo' ? o.todas : o.filas;
+      const n = exportarCSV(o.nombre, elegidas, filas);
+      m.cerrar();
+      toast(`${fmt.int(n)} producto(s) exportados a Excel`, 'sheet');
+    });
+    return m;
   }
 
   function kpis(dep) {
@@ -705,17 +819,32 @@ window.G = (function () {
     cant(n) { return n > 0 ? `<span class="cant-mas num">+${n}</span>` : n < 0 ? `<span class="cant-menos num">${n}</span>` : '<span class="num tenue">0</span>'; },
     /** Segmentos genéricos: devuelve HTML; escuchar clicks en [data-seg] */
     segmentos(nombre, opciones, actual) {
-      return `<div class="segmentos" role="group" data-grupo="${nombre}">${opciones.map((o) => `<button type="button" data-seg="${nombre}" data-v="${esc(o.v)}" aria-pressed="${o.v === actual}">${o.icono ? icono(o.icono) : ''}${esc(o.t)}</button>`).join('')}</div>`;
+      return `<div class="segmentos" role="group" data-grupo="${nombre}">${opciones.map((o) => (o.pronto
+        ? `<button type="button" class="seg-pronto" disabled title="${esc(o.titulo || 'Se implementa en la etapa 2')}">${o.icono ? icono(o.icono) : ''}${esc(o.t)}<span class="tag-seg">etapa 2</span></button>`
+        : `<button type="button" data-seg="${nombre}" data-v="${esc(o.v)}" aria-pressed="${o.v === actual}">${o.icono ? icono(o.icono) : ''}${esc(o.t)}</button>`)).join('')}</div>`;
     },
     /** Marca para lo que es de la etapa 2 (Miami) cuando aparece en una pantalla de la etapa 1 */
     etapa2(texto) {
       return `<span class="badge b-etapa2" title="Se implementa en la etapa 2 (multi-depósito con Miami)">${icono('clock')}${esc(texto || 'Etapa 2')}</span>`;
     },
-    depositos(actual, conTodos) {
+    depositos(actual, conTodos, conProveedor) {
       const ops = (conTodos ? [{ v: 'ALL', t: 'Todos' }] : []).concat(DEPOSITOS.map((d) => ({ v: d.id, t: d.nombre })));
+      // los depósitos de proveedor (China) se muestran apagados: es stock que no es propio
+      if (conProveedor) DEP_PROVEEDOR.forEach((d) => ops.push({ v: d.id, t: d.nombre, pronto: true, titulo: 'Stock del proveedor, no es propio. Se implementa en la etapa 2.' }));
       const seg = ui.segmentos('dep', ops, actual);
       // en las pantallas de la etapa 1, Miami queda aclarado como etapa 2
       return pantalla.etapa === 1 ? `<div class="fila" style="gap:8px">${seg}${ui.etapa2('Miami: etapa 2')}</div>` : seg;
+    },
+    /** Selector de lista de precios: público o distribuidor */
+    listas(actual) {
+      return ui.segmentos('lista', LISTAS.map((l) => ({ v: l.id, t: l.corto })), actual);
+    },
+    /** "¿Esta pieza es nuestra?": la etiqueta GROW con su fecha y el último movimiento */
+    trazabilidad(p) {
+      const f = etiquetadoEn(p.id);
+      if (!f) return `<div class="alerta aviso">${icono('alert')}<span>Todavía no tiene etiqueta GROW: no se puede saber si salió de acá.</span></div>`;
+      const ult = estado().movimientos.find((m) => m.pid === p.id);
+      return `<div class="alerta ok">${icono('check')}<span>Etiqueta GROW <b class="mono">${esc(partN(p))}</b> impresa el <b>${fmt.fecha(f)}</b> (${fmt.hace(f)})${ult ? ` · último movimiento: ${ui.movTipo(ult).toLowerCase()} del ${fmt.fecha(ult.fecha)}` : ''}</span></div>`;
     },
   };
 
@@ -848,8 +977,9 @@ window.G = (function () {
     SCREENS, DEPOSITOS, UBIC_MIAMI, datos: DATA, productos, resumen: DATA.resumen, cajas: DATA.cajas,
     icono, hidratar, esc, fmt, norm, compacto, resaltar, azar, hash, demorar,
     params, qs, href, paramsFlujo,
-    estado, producto: (id) => porId.get(id), porCodigo, depo, ubicaciones, ubic, stockItems, stock, presente, minimo, estadoStock, etiquetado, enTransito,
-    precios, aplicarMovimiento, buscar, kpis, fotos, agregarFoto, reducirImagen, fotoHTML,
+    estado, producto: (id) => porId.get(id), porCodigo, depo, ubicaciones, ubic, stockItems, stock, presente, minimo, estadoStock, etiquetado, etiquetadoEn, enTransito,
+    precios, factorDe, costoFob, ventaDeLista, LISTAS, DEP_PROVEEDOR, aplicarMovimiento, buscar, kpis, fotos, agregarFoto, reducirImagen, fotoHTML,
+    exportarCSV, dialogoExportar, modal,
     agregarEstructura, quitarEstructura, idsDeEstructura, nuevas: () => NUEVAS.slice(),
     codigoBarras, code128Valores, TIPOS_PARTE, sufijoProveedor, sufijoDefecto, partN, etiqueta, etiquetaProducto, etiquetaDespacho,
     ui, tooltip, toast, pantalla,

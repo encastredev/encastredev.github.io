@@ -283,7 +283,7 @@
         clearInterval(timer);
         const productos = cola.filter((it) => !it.manual).map((it) => it.pid);
         const nManuales = cola.filter((it) => it.manual).length;
-        productos.forEach((id) => { G.estado().etiquetados[id] = true; });
+        productos.forEach((id) => { G.estado().etiquetados[id] = new Date().toISOString(); });
         const previos = (G.qs('etq') || '').split(',').filter(Boolean);
         const etq = [...new Set(previos.concat(productos))].join(',');
         $('vista-cola').hidden = true;
