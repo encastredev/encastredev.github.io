@@ -37,10 +37,14 @@
     </div>
     <div class="resultados">
       <span id="res-txt"></span>
-      <span class="fila" id="accion-sel" hidden>
-        <b id="sel-n"></b>
-        <a class="btn btn-chico btn-acento" id="sel-ir"><i data-i="tag"></i>Imprimir etiquetas</a>
-        <button class="btn btn-chico btn-fantasma" type="button" id="sel-limpiar">Quitar selección</button>
+      <span class="fila">
+        <span class="fila" id="accion-sel" hidden>
+          <b id="sel-n"></b>
+          <a class="btn btn-chico btn-acento" id="sel-ir"><i data-i="tag"></i>Imprimir etiquetas</a>
+          <button class="btn btn-chico btn-fantasma" type="button" id="sel-limpiar">Quitar selección</button>
+        </span>
+        <span class="fila" style="flex-wrap:nowrap"><span class="chico tenue">Lista</span><span id="f-lista"></span></span>
+        <button class="btn btn-chico" type="button" id="exportar"><i data-i="sheet"></i>Exportar a Excel</button>
       </span>
     </div>
     <div class="tabla-caja">
@@ -52,7 +56,7 @@
           <th>Marca</th>
           <th>Ubicación</th>
           <th class="num">Stock</th>
-          <th class="num">Venta púb. ARG</th>
+          <th class="num" id="th-venta">Venta púb. ARG</th>
           <th>Estado</th>
           <th>Etiqueta</th>
           <th class="flecha"><span class="sr">Abrir</span></th>
@@ -68,7 +72,7 @@
 <script>
 (function () {
   const { fmt, esc, icono, ui } = G;
-  const st = { q: G.qs('q', ''), dep: G.qs('dep', 'ALL'), cat: G.qs('cat', ''), estado: G.qs('estado', ''), pend: G.qs('pend') === '1', sinfoto: G.qs('sinfoto') === '1', limite: 25 };
+  const st = { q: G.qs('q', ''), dep: G.qs('dep', 'ALL'), cat: G.qs('cat', ''), estado: G.qs('estado', ''), pend: G.qs('pend') === '1', sinfoto: G.qs('sinfoto') === '1', lista: 'publico', limite: 25 };
   const abiertos = new Set();
   const seleccion = new Set();
 
@@ -100,7 +104,7 @@
         ${G.enTransito(p.id) ? `<div class="chico" style="margin-top:4px">${icono('truck', 'i-sm')} ${G.enTransito(p.id)} u. en tránsito</div>` : ''}
       </div>
       <div class="panel"><div class="fuerte chico" style="margin-bottom:6px">${icono('dollar', 'i-sm')} Precios</div>
-        <dl class="kv chico"><dt>Costo FOB</dt><dd>${fmt.usd(pr.fob)}</dd><dt>Costo ARG${pr.argEstimado ? ' (est.)' : ''}</dt><dd>${fmt.usd(pr.arg)}</dd><dt>Venta público</dt><dd>${fmt.usd(pr.venta)}</dd></dl>
+        <dl class="kv chico"><dt>Costo FOB</dt><dd>${fmt.usd(pr.fob)}</dd><dt>Costo ARG${pr.argEstimado ? ' (est.)' : ''}</dt><dd>${fmt.usd(pr.arg)}</dd><dt>Factor</dt><dd>${fmt.mult(pr.factor)}</dd><dt>Distribuidor</dt><dd>${fmt.usd(pr.ventaDist)}</dd><dt>Venta público</dt><dd>${fmt.usd(pr.venta)}</dd></dl>
       </div>
       <div class="panel"><div class="fuerte chico" style="margin-bottom:6px">${icono('camera', 'i-sm')} Foto</div>
         <div class="fila" style="flex-wrap:nowrap;align-items:flex-start"><div style="width:72px;flex:none">${G.fotoHTML(p)}</div>
@@ -137,7 +141,7 @@
         <td>${esc(p.marca || '—')}</td>
         <td>${items.slice(0, 2).map((s) => ui.ubicCorta(s)).join(' ')}${items.length > 2 ? ` <span class="chico tenue">+${items.length - 2}</span>` : ''}</td>
         <td class="num"><b style="font-size:15px">${G.stock(p.id, st.dep)}</b></td>
-        <td class="num">${pr.venta ? fmt.usd(pr.venta) : '<span class="tenue chico">sin costo</span>'}</td>
+        <td class="num">${G.ventaDeLista(pr, st.lista) ? fmt.usd(G.ventaDeLista(pr, st.lista)) : '<span class="tenue chico">sin costo</span>'}</td>
         <td>${ui.estado(p, st.dep)}</td>
         <td>${ui.etiqueta(p)}</td>
         <td class="flecha">${icono('chevron')}</td>
@@ -148,7 +152,56 @@
     $('accion-sel').hidden = !seleccion.size;
     $('sel-n').textContent = `${seleccion.size} seleccionado(s)`;
     $('sel-ir').href = G.href('06-etiquetas-producto.html', { ids: [...seleccion].join(',') });
+    $('f-lista').innerHTML = ui.listas(st.lista);
+    $('th-venta').textContent = st.lista === 'distribuidor' ? 'Venta distrib.' : 'Venta púb. ARG';
   }
+
+  /* Exportar a Excel lo que se está viendo: pedido de Walter ("un Excel de solamente filtros") */
+  const n2 = (v) => (v == null ? '' : v.toFixed(2).replace('.', ','));
+  const COLUMNAS = [
+    { t: 'Código', v: (p) => p.codigo },
+    { t: 'Descripción', v: (p) => p.descripcion },
+    { t: 'Categoría', v: (p) => p.categoria },
+    { t: 'Marca', v: (p) => p.marca || '' },
+    { t: 'Tipo de parte', v: (p) => G.TIPOS_PARTE[p.tipoParte].nombre, def: false },
+    { t: 'Ubicaciones', v: (p) => G.stockItems(p.id, st.dep).map((s) => `${G.depo(s.dep).corto} ${s.ubic}`).join(' / ') },
+    { t: 'Stock Misiones', v: (p) => G.stock(p.id, 'MIS') },
+    { t: 'Stock Miami', v: (p) => G.stock(p.id, 'MIA'), def: false },
+    { t: 'Costo FOB USD', v: (p) => n2(G.precios(p).fob), def: false },
+    { t: 'Factor', v: (p) => n2(G.precios(p).factor), def: false },
+    { t: 'Costo ARG USD', v: (p) => n2(G.precios(p).arg) },
+    { t: 'Venta público USD', v: (p) => n2(G.precios(p).venta) },
+    { t: 'Venta distribuidor USD', v: (p) => n2(G.precios(p).ventaDist), def: false },
+    { t: 'Venta público ARS', v: (p) => n2(G.precios(p).ventaArs), def: false },
+    { t: 'Etiquetado', v: (p) => (G.etiquetado(p.id) ? 'Sí' : 'No'), def: false },
+    { t: 'Con foto', v: (p) => (G.fotos(p.id).length ? 'Sí' : 'No'), def: false },
+    { t: 'Referencias cruzadas', v: (p) => p.refs.join(' / '), def: false },
+    { t: 'Máquinas compatibles', v: (p) => p.compat.join(' / '), def: false },
+  ];
+  function describirFiltros() {
+    const partes = [];
+    if (st.q.trim()) partes.push(`búsqueda “${st.q.trim()}”`);
+    if (st.cat) partes.push(st.cat);
+    if (st.dep !== 'ALL') partes.push(G.depo(st.dep).nombre);
+    if (st.estado) partes.push({ ok: 'stock OK', bajo: 'bajo mínimo', sin: 'sin stock', contar: 'a contar' }[st.estado]);
+    if (st.pend) partes.push('sin etiqueta');
+    if (st.sinfoto) partes.push('sin foto');
+    return partes;
+  }
+  $('exportar').addEventListener('click', () => {
+    const partes = describirFiltros();
+    const filas = resultados().map((r) => r.p);
+    G.dialogoExportar({
+      nombre: `GROW stock${partes.length ? ' - ' + partes.join(' - ') : ''} - ${new Date().toISOString().slice(0, 10)}`,
+      resumen: partes.length
+        ? `Se baja el inventario filtrado por <b>${partes.map(esc).join('</b>, <b>')}</b>. Es el Excel que le podés dejar a alguien sin darle acceso al sistema.`
+        : 'Se baja el inventario completo. Si filtrás antes (por categoría, depósito o búsqueda) baja solo esa parte.',
+      etiquetaFiltro: partes.length ? 'Lo que estoy viendo' : 'Todo el inventario',
+      columnas: COLUMNAS,
+      filas,
+      todas: G.productos,
+    });
+  });
 
   const aplicar = () => { st.limite = 25; render(); };
   $('q').addEventListener('input', G.demorar(() => { st.q = $('q').value; aplicar(); }, 160));
@@ -164,6 +217,8 @@
   document.getElementById('pagina').addEventListener('click', (e) => {
     const prueba = e.target.closest('[data-prueba]');
     if (prueba) { st.q = prueba.dataset.prueba; $('q').value = st.q; aplicar(); $('q').focus(); return; }
+    const lista = e.target.closest('[data-seg="lista"]');
+    if (lista) { st.lista = lista.dataset.v; render(); return; }
     if (e.target.closest('[data-stop]') || e.target.closest('.detalle')) return;
     const fila = e.target.closest('tr.fila-dato');
     if (fila) {

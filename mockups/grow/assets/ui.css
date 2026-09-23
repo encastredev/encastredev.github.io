@@ -524,6 +524,19 @@ mark { background: var(--acento); color: var(--tinta); border-radius: 2px; paddi
 .pie-portada { max-width: 1180px; margin: 0 auto; padding: 28px var(--gutter) 40px; color: var(--tenue); font-size: 12.5px; }
 
 /* ==========================================================================
+   MODAL (exportar a Excel)
+   ========================================================================== */
+.modal-fondo { position: fixed; inset: 0; z-index: 60; background: rgba(27, 27, 26, .45); display: grid; place-items: center; padding: 16px; }
+.modal { background: var(--superficie); border-radius: var(--radio); box-shadow: var(--sombra-alta); width: min(560px, 100%); max-height: 88vh; display: flex; flex-direction: column; min-width: 0; }
+.modal-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 12px 14px 18px; border-bottom: 1px solid var(--linea); }
+.modal-cuerpo { padding: 16px 18px; overflow: auto; min-width: 0; }
+.modal-cuerpo > * { min-width: 0; }
+.modal-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px 16px; border-top: 1px solid var(--linea); flex-wrap: wrap; }
+.check input[type="radio"] { width: 17px; height: 17px; accent-color: #1b1b1a; margin: 0; flex: none; }
+.segmentos button.seg-pronto { color: var(--tenue); cursor: not-allowed; opacity: .85; }
+.tag-seg { font-size: 10px; border: 1px dashed var(--linea-2); border-radius: 999px; padding: 0 5px; white-space: nowrap; }
+
+/* ==========================================================================
    RESPONSIVE (siempre al final para que le gane a las reglas base)
    ========================================================================== */
 @media (max-width: 1180px) {
@@ -531,7 +544,7 @@ mark { background: var(--acento); color: var(--tinta); border-radius: 2px; paddi
   #tabla-inventario th:nth-child(4), #tabla-inventario td:nth-child(4),
   #tabla-inventario th:nth-child(9), #tabla-inventario td:nth-child(9) { display: none; }
   #tabla-precios th:nth-child(3), #tabla-precios td:nth-child(3),
-  #tabla-precios th:nth-child(6), #tabla-precios td:nth-child(6) { display: none; }
+  #tabla-precios th:nth-child(9), #tabla-precios td:nth-child(9) { display: none; }
   #tabla-movs th:nth-child(6), #tabla-movs td:nth-child(6) { display: none; }
 }
 
@@ -552,8 +565,8 @@ mark { background: var(--acento); color: var(--tinta); border-radius: 2px; paddi
   .titulo { font-size: 23px; }
   #tabla-inventario th:nth-child(5), #tabla-inventario td:nth-child(5),
   #tabla-inventario th:nth-child(7), #tabla-inventario td:nth-child(7) { display: none; }
-  #tabla-precios th:nth-child(5), #tabla-precios td:nth-child(5),
-  #tabla-precios th:nth-child(7), #tabla-precios td:nth-child(7) { display: none; }
+  #tabla-precios th:nth-child(4), #tabla-precios td:nth-child(4),
+  #tabla-precios th:nth-child(8), #tabla-precios td:nth-child(8) { display: none; }
   #tabla-movs th:nth-child(4), #tabla-movs td:nth-child(4),
   #tabla-movs th:nth-child(7), #tabla-movs td:nth-child(7) { display: none; }
 }
@@ -567,8 +580,8 @@ mark { background: var(--acento); color: var(--tinta); border-radius: 2px; paddi
   .tabla th, .tabla td { padding: 9px 8px; }
   #tabla-inventario th:nth-child(1), #tabla-inventario td:nth-child(1),
   #tabla-inventario th:nth-child(8), #tabla-inventario td:nth-child(8) { display: none; }
-  #tabla-precios th:nth-child(4), #tabla-precios td:nth-child(4),
-  #tabla-precios th:nth-child(9), #tabla-precios td:nth-child(9) { display: none; }
+  #tabla-precios th:nth-child(5), #tabla-precios td:nth-child(5),
+  #tabla-precios th:nth-child(6), #tabla-precios td:nth-child(6) { display: none; }
   #tabla-movs th:nth-child(5), #tabla-movs td:nth-child(5) { display: none; }
   .desplegable-cuerpo { padding-left: 0; }
   .filtros .select { flex: 1 1 140px; }

@@ -27,15 +27,15 @@ Todas las páginas tienen `<meta name="robots" content="noindex, nofollow">` par
 |---|---|---|---|
 | 00 | `index.html` | — | Portada: el problema con los números del Excel, la etapa 1, el recorrido sugerido, el índice y cómo sigue el proyecto |
 | 01 | `01-panel.html` | 1 | Cambiar entre Todos, Misiones y Miami (recalcula los indicadores); desplegar envíos; pasar el mouse por las barras |
-| 02 | `02-inventario.html` | 1 | Buscar `P959052` (referencia cruzada) o `320D` (máquina); filtros; abrir filas; seleccionar productos y mandarlos a etiquetas |
-| 03 | `03-ficha-producto.html` | 1 | **Fotos del producto** (agregar hasta 3); stock por ubicación; tipo de parte; los 3 precios en USD o en pesos; filtrar máquinas compatibles; etiqueta con Part N y unidades por empaque |
-| 04 | `04-movimiento.html` | 1 | Egreso, ingreso, ajuste o reubicación; el stock resultante se calcula en vivo; confirmar lleva a la ficha actualizada |
-| 05 | `05-mapa-deposito.html` | 1 | Mapa de estanterías, estantes y cajas (con los colores del Excel); buscar un producto y ver dónde está; **Editar depósito**: agregar una estantería (nombre y niveles), un estante o una caja, ver sus etiquetas de ubicación y mover productos ahí |
+| 02 | `02-inventario.html` | 1 | Buscar `P959052` (referencia cruzada) o `320D` (máquina); filtros; abrir filas; cambiar entre la lista **público** y **distribuidor**; **exportar a Excel lo que está filtrado**; seleccionar productos y mandarlos a etiquetas |
+| 03 | `03-ficha-producto.html` | 1 | **Fotos del producto** (agregar hasta 3); stock por ubicación; tipo de parte; **el factor de importación del producto**, editable, que recalcula el costo ARG y las dos ventas; filtrar máquinas compatibles; etiqueta con Part N y unidades por empaque |
+| 04 | `04-movimiento.html` | 1 | Egreso, ingreso, ajuste o reubicación; el stock resultante se calcula en vivo. En **Ingreso** se carga el **costo FOB y el factor de esa importación**, el documento del despacho y el N° de tracking: ahí queda definido el costo del repuesto |
+| 05 | `05-mapa-deposito.html` | 1 | Mapa de estanterías, estantes y cajas (con los colores del Excel); buscar un producto y ver dónde está; **exportar a Excel lo que hay en una ubicación** para salir a controlarla; **Editar depósito**: agregar una estantería (nombre y niveles), un estante o una caja, ver sus etiquetas de ubicación y mover productos ahí |
 | 06 | `06-etiquetas-producto.html` | 1 | Etiquetas de la **XP-H500B**: Part N con sufijo (proveedor, `.GEN` o `.ALT`), unidades por empaque (ej. bolsas de 20 O-rings), tipo de parte (alternativa sobre el rollo pre-impreso; original u obsoleta en rollo blanco con el título impreso), **etiqueta manual**, código de barras, “ver solo lo que imprime” y calibración en mm |
 | 07 | `07-despacho.html` | 2 (adelanto) | Envío desde Miami o a un cliente; bultos, peso y etiquetas “Bulto 1 de N” de la **XP-365B** |
-| 08 | `08-precios.html` | 1 | Tipo de cambio, factor FOB→ARG y márgenes por categoría: recalcula la venta al público; filtra los factores raros del Excel |
+| 08 | `08-precios.html` | 1 | Tipo de cambio, factor FOB→ARG **por defecto** (para los que todavía no tienen el suyo) y márgenes por categoría para **las dos listas**; simulador; cuántos productos ya tienen su factor propio |
 | 09 | `09-migracion.html` | 1 | Filas reales del Excel, antes y después; problemas detectados con ejemplos; plan de importación |
-| 10 | `10-app-buscar.html` | 1 | Celular: simular el lector, ver dónde está el repuesto y cuánto hay, y **sacarle la foto** si no tiene |
+| 10 | `10-app-buscar.html` | 1 | Celular: simular el lector, ver dónde está el repuesto y cuánto hay, **si la pieza es nuestra y de cuándo es su etiqueta**, y **sacarle la foto** si no tiene |
 | 11 | `11-app-recepcion.html` | 2 (adelanto) | Celular: recibir un envío escaneando bultos y contando productos |
 | 12 | `12-app-conteo.html` | 1 | Celular: conteo por ubicación (con modo ciego), diferencias en unidades y en dólares, y **foto de cada producto** mientras se cuenta |
 
@@ -49,6 +49,8 @@ Los datos viajan entre pantallas por la URL: se sigue viendo reflejado mientras 
 3. **Miami:** 07 (despachar) → 11 (recibir con el celular) → 01 con el envío cerrado y el stock ubicado → 06 para etiquetar lo que llegó.
 4. **Etiquetas:** 02 (seleccionar) → 06 (imprimir) → 02 y 03 los muestran etiquetados.
 5. **Depósito nuevo:** 05 (Editar depósito → crear la estantería M) → “Mover productos acá” → 04 (reubicación con destino M0) → “Ver en el mapa” → 05 con la estantería M y su stock. La estructura creada viaja en `?nuevas=`.
+6. **Importación:** 04 (Ingreso → costo FOB, factor, documento y N° de tracking) → 03 muestra el costo ARG nuevo, las dos ventas recalculadas y el documento en el historial.
+7. **Exportar:** 02 (filtrar por categoría) → “Exportar a Excel” → elegir columnas → baja un `.csv` con solo esa parte del stock.
 
 Para volver al estado inicial: link “Reiniciar esta pantalla” del menú, o abrir la página sin parámetros.
 
@@ -72,6 +74,14 @@ Para volver al estado inicial: link “Reiniciar esta pantalla” del menú, o a
 
 ---
 
+## Definido en la reunión del 22/09 con Walter
+- **El costo en Argentina va por producto, no por regla general.** El factor para nacionalizar va de **×2 a ×10** según el flete, el volumen y si consolida el envío. Se define **cuando entra la importación**, ítem por ítem. El factor por categoría queda solo como valor por defecto y para valorizar el stock.
+- **Dos listas de precios:** consumidor final y distribuidor (≈45% y ≈30% de margen). Los precios por cliente quedan para la etapa 3.
+- **Documentos de importación:** se adjunta el papel del despacho y se guarda un N° de referencia o tracking, para ver qué envío está demorado.
+- **Código de barras propio GROW** (no el del fabricante): además sirve para saber si una pieza salió de acá y de cuándo, si un cliente manda la foto de la caja.
+- **Exportar a Excel, por partes** (audios del 22/09): “un Excel de solamente filtros, un Excel de solamente sensores”, para dejárselo a alguien que no entra al sistema.
+- **Facturación, remitos, clientes y cuenta corriente son la etapa 3**, no la 2.
+
 ## Definido con GROW (audios de Walter)
 - **Part N** = número de pieza + "." + sufijo. El sufijo son las iniciales del proveedor (ej. `.KO`), `.GEN` si es genuino/original o `.ALT` si es alternativo en general.
 - **Descripción:** el nombre del producto, en inglés o en castellano.
@@ -86,10 +96,10 @@ Para volver al estado inicial: link “Reiniciar esta pantalla” del menú, o a
 - **Medidas de los rollos:** se asumió 100×70 mm la etiqueta de producto y 80×50 mm la de despacho.
 - **Tipo de parte de cada producto:** se asignó automáticamente (original según la marca, obsoleta si dice usado o reacondicionado, el resto alternativa). Hay que revisarlo.
 - **Empaque:** solo se detectó en 6 productos del Excel (ej. “4 (20 O-RING)”); el resto figura por unidad.
-- **Precios:** qué margen usar por categoría y la regla FOB → costo ARG.
+- **Precios:** los márgenes de cada lista por categoría (los que están son de ejemplo).
 - **Miami:** la distribución real del warehouse.
-- **Despacho:** qué datos lleva la etiqueta (cliente, transporte, remito).
-- **Logo:** el logo GROW en vector, para reemplazar el que está recreado.
+- **Despacho:** qué datos lleva la etiqueta (cliente, transporte, remito) y qué número de guía usan.
+- **Usuarios:** cuántas personas lo van a usar y con qué rol (aparece Carolina, del lado de GROW).
 
 ## Estructura
 ```

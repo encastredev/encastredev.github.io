@@ -65,7 +65,8 @@
         ${items.length > 1 ? `<div>${items.filter((s) => s !== principal).map((s) => `<div class="fila entre chico" style="padding:4px 0;flex-wrap:nowrap"><span class="corta">${G.depo(s.d).corto} · ${esc(G.ubic(s.ubic, s.d).nombre)}</span><b class="num">${s.cant} u.</b></div>`).join('')}</div>` : ''}
         <label class="interruptor chico"><input type="checkbox" id="t-solo" ${soloMisiones ? 'checked' : ''}> Solo depósito Misiones</label>
         ${soloMisiones ? '' : `<div class="chico tinta-2">${ui.etapa2('Miami: etapa 2')} El stock de Miami se ve desde la etapa 2.</div>`}
-        <div class="fila">${ui.estado(p, 'MIS')} ${ui.etiqueta(p)} <span class="badge b-borde">Venta ${fmt.usd(pr.venta)}</span></div>
+        <div class="fila">${ui.estado(p, 'MIS')} ${ui.etiqueta(p)} <span class="badge b-borde">Público ${fmt.usd(pr.venta)}</span> <span class="badge b-borde">Distrib. ${fmt.usd(pr.ventaDist)}</span></div>
+        ${ui.trazabilidad(p)}
         <details class="desplegable" style="border-top:1px solid var(--linea)">
           <summary class="lista-item"><span class="mov-ic mov-transferencia">${icono('link')}</span><div><b>Referencias y máquinas</b><div class="chico tenue">${p.refs.length} ref. · ${p.compat.length} familia(s)</div></div>${icono('chevron', 'chev')}</summary>
           <div class="pila" style="gap:8px;padding-bottom:10px">

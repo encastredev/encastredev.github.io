@@ -192,6 +192,7 @@
     const conEtiqueta = st.dep === 'MIS' && (info || libre);
     $('panel-ubic').innerHTML = `<div class="card-cab"><div><div class="card-titulo">${icono('pin')}${esc(u.nombre)}</div><div class="card-sub">${G.depo(st.dep).nombre}${info ? ` · ${info.prods.length} producto(s) · ${info.u} u. · ${fmt.usd(valor)}` : libre ? ' · libre' : ''}</div></div></div>
       <div class="card-cuerpo">${cuerpo}
+        ${info ? `<div class="fila" style="margin-top:10px"><button class="btn btn-chico" type="button" id="exportar-ubic">${icono('sheet')}Exportar esta ubicación</button></div>` : ''}
         ${conEtiqueta ? `<details class="desplegable" style="border-top:1px solid var(--linea);margin-top:8px" ${libre ? 'open' : ''}>
           <summary class="lista-item"><span class="mov-ic mov-transferencia">${icono('tag')}</span><div><b>Etiqueta de ubicación</b><div class="chico tenue">Para pegar en el estante · XP-365B</div></div>${icono('chevron', 'chev')}</summary>
           <div class="pila" style="gap:10px;padding-bottom:12px"><div class="etq-fondo" style="padding:14px">${etiquetaUbicacion(st.sel)}</div>
@@ -239,7 +240,7 @@
   }
 
   function render() {
-    $('deps').innerHTML = ui.depositos(st.dep, false);
+    $('deps').innerHTML = ui.depositos(st.dep, false, true);
     const c = contenido(st.dep);
     $('mapa').innerHTML = st.dep === 'MIA' ? mapaMiami(c) : mapaMisiones(c);
     panel(c);
@@ -270,6 +271,29 @@
     }
     const imp = e.target.closest('[data-imprimir-lote], [data-imprimir-ubic]');
     if (imp) { G.toast(`${imp.dataset.imprimirLote || 1} etiqueta(s) de ubicación enviadas a la XP-365B`, 'printer'); return; }
+    // bajar a Excel lo que hay en una ubicación: sirve para controlar un estante en papel
+    if (e.target.closest('#exportar-ubic')) {
+      const info = contenido(st.dep)[st.sel];
+      const u = G.ubic(st.sel, st.dep);
+      const n2 = (v) => (v == null ? '' : v.toFixed(2).replace('.', ','));
+      G.dialogoExportar({
+        nombre: `GROW ${G.depo(st.dep).nombre} - ${st.sel} - ${new Date().toISOString().slice(0, 10)}`,
+        resumen: `Se baja lo que hay en <b>${esc(u.nombre)}</b>. Sirve para salir a controlar el estante con la planilla en la mano.`,
+        etiquetaFiltro: 'Lo que hay en esta ubicación',
+        columnas: [
+          { t: 'Ubicación', v: (x) => st.sel },
+          { t: 'Código', v: (x) => x.p.codigo },
+          { t: 'Descripción', v: (x) => x.p.descripcion },
+          { t: 'Categoría', v: (x) => x.p.categoria, def: false },
+          { t: 'Marca', v: (x) => x.p.marca || '', def: false },
+          { t: 'Cantidad', v: (x) => x.cant },
+          { t: 'Contado', v: () => '' },
+          { t: 'Costo ARG USD', v: (x) => n2(G.precios(x.p).arg), def: false },
+        ],
+        filas: info ? info.prods.slice().sort((a, b) => b.cant - a.cant) : [],
+      });
+      return;
+    }
     const u = e.target.closest('[data-ubic]');
     if (u && !u.disabled) {
       st.sel = u.dataset.ubic; render();

@@ -14,34 +14,35 @@
     <div>
       <div class="antetitulo"><i data-i="dollar" class="i-sm"></i> Gestión</div>
       <h1 class="titulo">Costos y precios</h1>
-      <p class="bajada">Los tres precios que maneja GROW: <b>Costo FOB</b> (precio de venta en USA), <b>Costo ARG</b> (nacionalizado) y <b>Venta público ARG</b>. Cambiá una regla y se recalcula todo.</p>
+      <p class="bajada">Los precios que maneja GROW: <b>Costo FOB</b> (precio de venta en USA), <b>Costo ARG</b> (nacionalizado) y las dos listas de venta: <b>público</b> y <b>distribuidor</b>. El factor para nacionalizar es de cada producto y se carga en el ingreso; acá está el que se usa cuando todavía no tiene el suyo.</p>
     </div>
   </div>
 
   <div class="dos-col" style="margin-bottom:16px">
     <section class="card">
-      <div class="card-cab"><div><div class="card-titulo"><i data-i="adjust"></i>Reglas</div><div class="card-sub">Margen sobre el costo ARG para calcular la venta al público, por categoría</div></div></div>
+      <div class="card-cab"><div><div class="card-titulo"><i data-i="adjust"></i>Reglas</div><div class="card-sub">Margen sobre el costo ARG por categoría, para las dos listas de precios</div></div></div>
       <div class="card-cuerpo pila" style="gap:14px">
         <div class="form-grilla">
           <label class="campo"><span>Tipo de cambio (ARS por USD)</span><input class="input" id="tc" type="number" min="1" step="10"></label>
-          <label class="campo"><span>Factor FOB → ARG si falta el costo ARG</span><input class="input" id="factor" type="number" min="1" step="0.1"></label>
+          <label class="campo"><span>Factor FOB → ARG por defecto</span><input class="input" id="factor" type="number" min="1" step="0.1"><span class="chico tenue">Solo para los productos que todavía no tienen el suyo</span></label>
         </div>
-        <div class="form-grilla" id="margenes" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px 14px"></div>
+        <div class="form-grilla" id="margenes" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px 14px"></div>
       </div>
     </section>
     <div class="pila">
       <section class="card">
         <div class="card-cab"><div class="card-titulo"><i data-i="sparkle"></i>Simulador</div></div>
         <div class="card-cuerpo pila" style="gap:10px">
-          <div class="form-grilla" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
+          <div class="form-grilla" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
             <label class="campo"><span>Costo FOB (USD)</span><input class="input" id="s-fob" type="number" min="0" step="0.5" value="40"></label>
+            <label class="campo"><span>Factor (×)</span><input class="input" id="s-factor" type="number" min="1" max="20" step="0.1" value="2.2"></label>
             <label class="campo"><span>Categoría</span><select class="select" id="s-cat"></select></label>
           </div>
           <dl class="kv" id="s-res"></dl>
         </div>
       </section>
       <section class="card">
-        <div class="card-cab"><div><div class="card-titulo"><i data-i="alert"></i>Factores del Excel</div><div class="card-sub">Cuántas veces se multiplicó el FOB para llegar al costo ARG</div></div></div>
+        <div class="card-cab"><div><div class="card-titulo"><i data-i="alert"></i>Factores del Excel</div><div class="card-sub">Cuántas veces se multiplicó el FOB para llegar al costo ARG. Según Walter va de ×2 a ×10 según el flete: por eso se carga por producto.</div></div></div>
         <div class="card-cuerpo"><div class="chips" id="factores"></div></div>
       </section>
     </div>
@@ -57,7 +58,7 @@
     </div>
     <div class="tabla-caja">
       <table class="tabla" id="tabla-precios">
-        <thead><tr><th>Código</th><th>Descripción</th><th>Categoría</th><th class="num">Costo FOB</th><th class="num">Costo ARG</th><th class="num">Margen</th><th class="num">Factor Excel</th><th class="num">Venta USD</th><th class="num">Venta ARS</th></tr></thead>
+        <thead><tr><th>Código</th><th>Descripción</th><th>Categoría</th><th class="num">Costo FOB</th><th class="num">Factor</th><th class="num">Costo ARG</th><th class="num">Venta púb.</th><th class="num">Distrib.</th><th class="num">Púb. ARS</th></tr></thead>
         <tbody id="filas"></tbody>
       </table>
     </div>
@@ -73,11 +74,17 @@
   const cfg = G.estado().config;
   const st = { q: '', cat: '', vista: 'todos', limite: 30, factor: null };
   const cats = Object.keys(cfg.margenes);
-  const raro = (f) => f != null && (f < 1.8 || f > 3.2);
+  // Walter: nacionalizar cuesta entre x2 y x10 según el flete. Solo marcamos lo que no puede ser.
+  const raro = (f) => f != null && (f < 1.2 || f > 12);
+  const ORIGEN = { ingreso: 'del ingreso', excel: 'del Excel', defecto: 'por defecto' };
 
   $('tc').value = cfg.tipoCambio;
   $('factor').value = cfg.factorNac;
-  $('margenes').innerHTML = cats.map((c) => `<label class="campo"><span>${esc(c)}</span><span class="fila" style="flex-wrap:nowrap"><input class="input input-chico" type="number" min="0" max="300" step="5" data-margen="${esc(c)}" value="${cfg.margenes[c]}"><b class="chico">%</b></span></label>`).join('');
+  $('s-factor').value = cfg.factorNac;
+  $('margenes').innerHTML = cats.map((c) => `<div class="campo"><span>${esc(c)}</span><span class="fila" style="flex-wrap:nowrap;gap:6px">
+        <label class="campo" style="gap:2px"><input class="input input-chico num" type="number" min="0" max="300" step="5" data-margen="${esc(c)}" value="${cfg.margenes[c]}" aria-label="Margen público ${esc(c)}"><span class="chico tenue" style="text-align:center">público</span></label>
+        <label class="campo" style="gap:2px"><input class="input input-chico num" type="number" min="0" max="300" step="5" data-margen-dist="${esc(c)}" value="${cfg.margenesDist[c]}" aria-label="Margen distribuidor ${esc(c)}"><span class="chico tenue" style="text-align:center">distrib.</span></label>
+        </span></div>`).join('');
   $('s-cat').innerHTML = cats.map((c) => `<option>${esc(c)}</option>`).join('');
   $('f-cat').insertAdjacentHTML('beforeend', cats.map((c) => `<option>${esc(c)}</option>`).join(''));
 
@@ -97,7 +104,7 @@
       if (q && !G.norm(p.codigo + ' ' + p.descripcion).includes(q)) return false;
       if (st.cat && p.categoria !== st.cat) return false;
       if (st.factor && String(p.multiplicador) !== st.factor) return false;
-      if (st.vista === 'raros' && !raro(pr.factorReal)) return false;
+      if (st.vista === 'raros' && !raro(pr.factor)) return false;
       if (st.vista === 'estimados' && !pr.argEstimado) return false;
       return true;
     });
@@ -105,7 +112,7 @@
 
   function render() {
     const lista = filas();
-    $('f-vista').innerHTML = ui.segmentos('vista', [{ v: 'todos', t: 'Todos' }, { v: 'raros', t: 'Factor raro' }, { v: 'estimados', t: 'ARG estimado' }], st.vista);
+    $('f-vista').innerHTML = ui.segmentos('vista', [{ v: 'todos', t: 'Todos' }, { v: 'raros', t: 'Factor dudoso' }, { v: 'estimados', t: 'Sin factor propio' }], st.vista);
     $('filas').innerHTML = lista.slice(0, st.limite).map((p) => {
       const pr = G.precios(p);
       return `<tr>
@@ -113,10 +120,10 @@
         <td><div class="desc">${esc(p.descripcion)}</div></td>
         <td class="chico">${esc(p.categoria)}</td>
         <td class="num">${fmt.usd(pr.fob)}</td>
+        <td class="num">${raro(pr.factor) ? `<span class="badge b-aviso">${icono('alert')}${fmt.mult(pr.factor)}</span>` : fmt.mult(pr.factor)}<div class="sub">${ORIGEN[pr.factorOrigen]}</div></td>
         <td class="num">${fmt.usd(pr.arg)}${pr.argEstimado ? '<div class="sub">estimado</div>' : ''}</td>
-        <td class="num">${pr.margen}%</td>
-        <td class="num">${pr.factorReal ? (raro(pr.factorReal) ? `<span class="badge b-aviso">${icono('alert')}${fmt.mult(pr.factorReal)}</span>` : fmt.mult(pr.factorReal)) : '<span class="tenue">—</span>'}</td>
         <td class="num"><b>${fmt.usd(pr.venta)}</b></td>
+        <td class="num">${fmt.usd(pr.ventaDist)}</td>
         <td class="num">${fmt.ars(pr.ventaArs)}</td>
       </tr>`;
     }).join('') || `<tr><td colspan="9"><div class="vacio-estado">Sin productos con esos filtros</div></td></tr>`;
@@ -124,32 +131,40 @@
     $('mas').hidden = st.limite >= lista.length;
 
     const est = conPrecio.filter((p) => G.precios(p).argEstimado).length;
-    const raros = G.productos.filter((p) => raro(p.multiplicador)).length;
+    const propio = conPrecio.filter((p) => G.precios(p).factorOrigen !== 'defecto').length;
     const valorVenta = G.productos.reduce((a, p) => a + (G.precios(p).venta || 0) * Math.max(0, G.stock(p.id, 'ALL')), 0);
     $('resumen').innerHTML = `
       <div class="card kpi destacado"><span class="kpi-etq">${icono('dollar')}Stock a precio de venta</span><span class="kpi-valor num" id="k-venta">${fmt.usdCorto(valorVenta)}</span><span class="kpi-pie">${fmt.ars(valorVenta * cfg.tipoCambio)}</span></div>
       <div class="card kpi"><span class="kpi-etq">${icono('check')}Con costo cargado</span><span class="kpi-valor num">${fmt.int(conPrecio.length)}</span><span class="kpi-pie">de ${fmt.int(G.productos.length)} productos</span></div>
-      <div class="card kpi"><span class="kpi-etq">${icono('sparkle')}Costo ARG estimado</span><span class="kpi-valor num">${fmt.int(est)}</span><span class="kpi-pie">FOB ${fmt.mult(cfg.factorNac)}</span></div>
-      <div class="card kpi"><span class="kpi-etq">${icono('alert')}Factor fuera de rango</span><span class="kpi-valor num">${fmt.int(raros)}</span><span class="kpi-pie">menor a x1,8 o mayor a x3,2</span></div>`;
+      <div class="card kpi"><span class="kpi-etq">${icono('adjust')}Con factor propio</span><span class="kpi-valor num">${fmt.int(propio)}</span><span class="kpi-pie">el resto usa el ${fmt.mult(cfg.factorNac)} por defecto</span></div>
+      <div class="card kpi"><span class="kpi-etq">${icono('alert')}Sin factor propio</span><span class="kpi-valor num">${fmt.int(est)}</span><span class="kpi-pie">se carga en el próximo ingreso</span></div>`;
     simular();
   }
 
   function simular() {
     const fob = Math.max(0, parseFloat($('s-fob').value) || 0);
     const cat = $('s-cat').value;
-    const arg = fob * cfg.factorNac;
+    const factor = Math.max(1, parseFloat($('s-factor').value) || 1);
+    const arg = fob * factor;
     const venta = arg * (1 + (cfg.margenes[cat] || 0) / 100);
-    $('s-res').innerHTML = `<dt>Costo ARG (FOB ${fmt.mult(cfg.factorNac)})</dt><dd>${fmt.usd(arg)}</dd>
-      <dt>Margen ${esc(cat)}</dt><dd>${cfg.margenes[cat]}%</dd>
-      <dt class="total"><b>Venta público ARG</b></dt><dd class="total" id="s-venta" style="font-size:18px">${fmt.usd(venta)}</dd>
-      <dt>En pesos</dt><dd>${fmt.ars(venta * cfg.tipoCambio)}</dd>`;
+    const ventaDist = arg * (1 + (cfg.margenesDist[cat] || 0) / 100);
+    $('s-res').innerHTML = `<dt>Costo ARG (FOB ${fmt.mult(factor)})</dt><dd>${fmt.usd(arg)}</dd>
+      <dt class="total"><b>Venta público</b> <span class="chico tenue">${cfg.margenes[cat]}%</span></dt><dd class="total" id="s-venta" style="font-size:18px">${fmt.usd(venta)}</dd>
+      <dt>En pesos</dt><dd>${fmt.ars(venta * cfg.tipoCambio)}</dd>
+      <dt>Venta distribuidor <span class="chico tenue">${cfg.margenesDist[cat]}%</span></dt><dd><b>${fmt.usd(ventaDist)}</b></dd>`;
   }
 
   const rerender = G.demorar(() => { render(); }, 120);
   $('tc').addEventListener('input', () => { cfg.tipoCambio = Math.max(1, parseFloat($('tc').value) || 1); rerender(); });
-  $('factor').addEventListener('input', () => { cfg.factorNac = Math.max(1, parseFloat($('factor').value) || 1); rerender(); });
-  $('margenes').addEventListener('input', (e) => { const m = e.target.closest('[data-margen]'); if (m) { cfg.margenes[m.dataset.margen] = Math.max(0, parseFloat(m.value) || 0); rerender(); } });
+  $('factor').addEventListener('input', () => { cfg.factorNac = Math.max(1, parseFloat($('factor').value) || 1); $('s-factor').value = cfg.factorNac; rerender(); });
+  $('margenes').addEventListener('input', (e) => {
+    const pub = e.target.closest('[data-margen]');
+    if (pub) { cfg.margenes[pub.dataset.margen] = Math.max(0, parseFloat(pub.value) || 0); rerender(); return; }
+    const dist = e.target.closest('[data-margen-dist]');
+    if (dist) { cfg.margenesDist[dist.dataset.margenDist] = Math.max(0, parseFloat(dist.value) || 0); rerender(); }
+  });
   $('s-fob').addEventListener('input', simular);
+  $('s-factor').addEventListener('input', simular);
   $('s-cat').addEventListener('change', simular);
   $('q').addEventListener('input', G.demorar(() => { st.q = $('q').value; st.limite = 30; render(); }, 150));
   $('f-cat').addEventListener('change', () => { st.cat = $('f-cat').value; st.limite = 30; render(); });
