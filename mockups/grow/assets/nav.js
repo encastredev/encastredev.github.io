@@ -13,7 +13,7 @@ const SCREENS = [
     resumen: 'Buscador universal: código GROW, referencia de otra marca o modelo de máquina.',
     probar: ['Buscar P959052 (referencia cruzada) o 320D (máquina)', 'Cambiar la lista de precios: público o distribuidor', 'Filtrar por categoría y tocar “Exportar a Excel”'] },
   { archivo: '03-ficha-producto.html', etapa: 1, n: '03', titulo: 'Ficha de producto', disp: 'notebook', rol: 'Mostrador',
-    resumen: 'Todo sobre un repuesto: dónde está, cuánto hay, sus 3 precios y sus equivalencias.',
+    resumen: 'Todo sobre un repuesto: dónde está, cuánto hay, sus costos y precios, y sus equivalencias.',
     probar: ['Cambiar el factor de importación y ver cómo se recalculan los dos precios', 'Agregar una foto del producto', 'Ver la etiqueta tal como sale en el rollo GROW'] },
   { archivo: '04-movimiento.html', etapa: 1, n: '04', titulo: 'Registrar movimiento', disp: 'notebook', rol: 'Mostrador / Depósito',
     resumen: 'Ingresos, egresos, ajustes y transferencias con el resultado calculado en vivo.',
