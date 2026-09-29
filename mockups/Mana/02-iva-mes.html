@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Conciliación de IVA · Maná</title>
+<link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="escritorio" data-pantalla="02-iva-mes.html">
+
+<main id="pagina">
+
+  <div id="aviso-conexion-caja"></div>
+
+  <div class="panel">
+    <div class="panel-cabecera">
+      <h2 id="titulo-periodo">Período</h2>
+      <div class="barra-acciones">
+        <div class="campo">
+          <label for="sel-periodo">Período</label>
+          <select id="sel-periodo"></select>
+        </div>
+        <button class="btn btn-chico" id="btn-exportar"><span data-i="bajar" data-tam="15"></span>Exportar</button>
+      </div>
+    </div>
+
+    <div class="grilla g-kpi" id="resumen"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-cabecera">
+      <h2>Diferencias</h2>
+      <span class="panel-nota" id="contador"></span>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+      <div class="chips" id="chips-tipo"></div>
+      <div class="campo" style="flex:1;min-width:190px">
+        <input type="search" id="buscar" placeholder="Buscar proveedor o comprobante" style="width:100%">
+      </div>
+    </div>
+
+    <table class="tabla" id="t-difs">
+      <thead>
+        <tr>
+          <th>Comprobante</th>
+          <th style="width:190px">Qué pasa</th>
+          <th style="width:100px">Fecha</th>
+          <th style="width:170px">Proveedor</th>
+          <th class="der" style="width:130px">IVA en juego</th>
+        </tr>
+      </thead>
+      <tbody id="cuerpo"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <div class="panel-cabecera"><h2>Por qué aparecen estas diferencias</h2></div>
+    <p style="font-size:13.5px;color:var(--tinta-2);max-width:72ch">
+      El sistema lee tres fuentes y las compara comprobante por comprobante:
+      <strong>Holistor</strong> (lo que compras cargó), <strong>Todosoft</strong> (lo que las tres
+      cajas facturaron) y <strong>ARCA</strong> (lo que la AFIP dice que existe). Cruzar contra
+      ARCA es lo que permite encontrar lo que no está cargado en ninguno de los dos sistemas —
+      hoy eso no lo ve nadie hasta que llega el contador.
+    </p>
+  </div>
+
+  <div id="aviso-simulado"></div>
+
+</main>
+
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+var filtroTipo = 'todas';
+var busqueda = '';
+
+function iniciar() {
+  var sel = document.getElementById('sel-periodo');
+  sel.innerHTML = G.D.meta.periodos.map(function (p) {
+    return '<option value="' + p + '">' + G.fmt.periodo(p) + '</option>';
+  }).join('');
+  sel.value = G.periodo();
+  sel.addEventListener('change', function () {
+    G.estado.periodo = sel.value;
+    filtroTipo = 'todas';
+    pintar();
+  });
+
+  document.getElementById('buscar').addEventListener('input', function (e) {
+    busqueda = e.target.value;
+    pintarTabla();
+  });
+
+  document.getElementById('btn-exportar').addEventListener('click', function () {
+    G.toast('Se generó el archivo de conciliación de ' + G.fmt.periodo(G.estado.periodo));
+  });
+
+  document.getElementById('aviso-simulado').innerHTML = G.ui.avisoSimulado();
+  pintar();
+}
+
+function tiposDelPeriodo() {
+  var vistos = {};
+  G.diferenciasAbiertas().forEach(function (d) { vistos[d.tipo] = d.titulo; });
+  return vistos;
+}
+
+function pintar() {
+  var p = G.estado.periodo;
+  var iva = G.ivaDelPeriodo(p);
+  var abiertas = G.diferenciasAbiertas(p);
+  var resueltas = iva.diferencias.length - abiertas.length;
+
+  document.getElementById('titulo-periodo').textContent = G.fmt.periodo(p);
+  document.getElementById('aviso-conexion-caja').innerHTML = G.ui.avisoConexion(p);
+  var incompleto = G.comprasIncompletas(p);
+
+  var enJuego = abiertas.reduce(function (a, d) { return a + d.iva; }, 0);
+  document.getElementById('resumen').innerHTML = [
+    incompleto
+      ? G.ui.kpi({
+          rotulo: 'IVA compras · Holistor', valor: 'Incompleto', tono: 'alerta',
+          pie: 'Holistor no contestó anoche'
+        })
+      : G.ui.kpi({
+          rotulo: 'IVA compras · ' + (G.comprasPorArchivo(p) ? 'archivo' : 'Holistor'),
+          valor: G.fmt.monedaCorta(iva.compras.iva),
+          pie: G.fmt.num(iva.compras.comprobantes) + ' comprobantes leídos'
+        }),
+    G.ui.kpi({
+      rotulo: 'IVA ventas · Todosoft', valor: G.fmt.monedaCorta(iva.ventas.iva),
+      pie: G.fmt.num(iva.ventas.comprobantes) + ' comprobantes de las 3 cajas'
+    }),
+    G.ui.kpi({
+      rotulo: 'Saldo del período',
+      valor: incompleto ? '—' : G.fmt.monedaCorta(iva.ventas.iva - iva.compras.iva),
+      pie: incompleto ? 'se calcula cuando estén las compras' : 'a pagar, antes de resolver las diferencias'
+    }),
+    G.ui.kpi({
+      rotulo: 'En juego', valor: G.fmt.monedaCorta(enJuego),
+      tono: enJuego > 0 ? 'alerta' : 'ok',
+      pie: abiertas.length + ' diferencias abiertas' +
+        (resueltas ? ' · ' + resueltas + ' resueltas hoy' : '')
+    })
+  ].join('');
+
+  var tipos = tiposDelPeriodo();
+  var chips = ['<button class="chip' + (filtroTipo === 'todas' ? ' activo' : '') +
+    '" data-tipo="todas">Todas (' + abiertas.length + ')</button>'];
+  Object.keys(tipos).forEach(function (t) {
+    var n = abiertas.filter(function (d) { return d.tipo === t; }).length;
+    chips.push('<button class="chip' + (filtroTipo === t ? ' activo' : '') +
+      '" data-tipo="' + t + '">' + tipos[t] + ' (' + n + ')</button>');
+  });
+  var cont = document.getElementById('chips-tipo');
+  cont.innerHTML = chips.join('');
+  cont.querySelectorAll('.chip').forEach(function (b) {
+    b.addEventListener('click', function () {
+      filtroTipo = b.dataset.tipo;
+      pintar();
+    });
+  });
+
+  pintarTabla();
+  G.pintarIconos(document);
+}
+
+function pintarTabla() {
+  var p = G.estado.periodo;
+  var lista = G.diferenciasAbiertas(p).filter(function (d) {
+    if (filtroTipo !== 'todas' && d.tipo !== filtroTipo) return false;
+    return G.contiene(d.proveedor + ' ' + d.comprobante + ' ' + d.cuit, busqueda);
+  });
+
+  document.getElementById('cuerpo').innerHTML = lista.length
+    ? lista.map(function (d) {
+        var tono = d.tipo === 'monto' ? 'ambar' : (d.tipo === 'periodo' ? 'neutra' : 'alerta');
+        return '<tr class="clic" onclick="G.ir(\'03-iva-comprobante.html\',{dif:\'' + d.id +
+          '\',periodo:\'' + p + '\'})">' +
+          '<td class="fuerte">' + d.comprobante +
+            '<span class="chica">' + d.detalle + '</span></td>' +
+          '<td>' + G.ui.marca(d.titulo, tono) + '</td>' +
+          '<td class="num">' + G.fmt.fechaCorta(d.fecha) + '</td>' +
+          '<td>' + d.proveedor + '<span class="chica">' + d.cuit + '</span></td>' +
+          '<td class="der fuerte num">' + G.fmt.moneda(d.iva) + '</td></tr>';
+      }).join('')
+    : G.ui.vacio(5, busqueda || filtroTipo !== 'todas'
+        ? 'Ninguna diferencia coincide con el filtro.'
+        : 'No quedan diferencias abiertas en este período.');
+
+  var total = lista.reduce(function (a, d) { return a + d.iva; }, 0);
+  document.getElementById('contador').textContent =
+    lista.length + (lista.length === 1 ? ' diferencia' : ' diferencias') +
+    ' · ' + G.fmt.moneda(total) + ' de IVA';
+}
+</script>
+</body>
+</html>

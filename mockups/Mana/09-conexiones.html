@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Conexiones · Maná</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+  /* --- mapa de fuentes ---------------------------------------------------- */
+  .mapa {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) 44px minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+  }
+  .fuentes { display: grid; gap: 12px; min-width: 0; }
+  .fuente {
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    background: var(--blanco);
+    padding: 14px 15px;
+    min-width: 0;
+    border-left: 4px solid var(--verde);
+  }
+  .fuente.falla { border-left-color: var(--alerta); background: var(--alerta-suave); }
+  .fuente.manual { border-left-color: var(--madera); }
+  .fuente-cabecera { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+  .fuente h3 { font-size: 16px; margin: 0; }
+  .fuente .que { font-size: 12.5px; color: var(--tinta-3); display: block; margin-top: 2px; }
+  .fuente dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 10px 0 0; font-size: 12.5px; }
+  .fuente dt { color: var(--tinta-3); }
+  .fuente dd { margin: 0; color: var(--tinta); min-width: 0; overflow-wrap: anywhere; }
+  .fuente .acciones { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .flecha { display: flex; flex-direction: column; align-items: center; color: var(--salvia); }
+  .flecha svg { width: 40px; height: 40px; }
+  .nucleo {
+    border-radius: var(--radio);
+    background: var(--verde);
+    color: var(--blanco);
+    padding: 18px;
+    min-width: 0;
+  }
+  .nucleo h3 { color: var(--blanco); font-size: 18px; margin: 0 0 4px; }
+  .nucleo p { font-size: 12.5px; color: var(--verde-suave); margin: 0 0 12px; }
+  .nucleo ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 7px; }
+  .nucleo li { display: flex; gap: 8px; align-items: center; font-size: 13px; background: rgba(255,255,255,.1); border-radius: 8px; padding: 7px 10px; min-width: 0; }
+  .nucleo li .ico { flex: none; }
+  .nucleo li.afectado { background: rgba(180,67,46,.55); }
+
+  /* --- rutas de Holistor -------------------------------------------------- */
+  .rutas { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; counter-reset: ruta; }
+  .ruta {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    background: var(--blanco);
+    counter-increment: ruta;
+  }
+  .ruta::before {
+    content: counter(ruta);
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--titulo); font-weight: 600;
+    background: var(--crema); color: var(--tinta-2);
+  }
+  .ruta.activa { border-color: var(--verde); box-shadow: 0 0 0 2px var(--verde-suave); }
+  .ruta.activa::before { background: var(--verde); color: var(--blanco); }
+  .ruta h4 { font-size: 14px; margin: 0 0 3px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ruta p { font-size: 12.5px; color: var(--tinta-2); margin: 0; }
+
+  /* --- subir el archivo --------------------------------------------------- */
+  .zona {
+    border: 2px dashed var(--linea);
+    border-radius: var(--radio);
+    padding: 22px 18px;
+    text-align: center;
+    background: var(--crema-2);
+  }
+  .zona.activa { border-color: var(--alerta-borde); background: var(--blanco); }
+  .zona.arrastrando { border-color: var(--verde); background: var(--verde-suave); }
+  .zona p { font-size: 13px; color: var(--tinta-2); margin: 6px auto 14px; max-width: 52ch; }
+  .zona .acciones { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .pasos { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; text-align: left; }
+  .pasos li { display: flex; gap: 10px; align-items: center; font-size: 13.5px; color: var(--tinta-3); }
+  .pasos li.hecho { color: var(--tinta); }
+  .pasos li .ico { color: var(--verde); flex: none; }
+  .pasos li .espera { width: 17px; height: 17px; border-radius: 50%; border: 2px solid var(--linea); flex: none; }
+
+  /* --- historial ---------------------------------------------------------- */
+  .historial { display: grid; gap: 10px; }
+  .hist-fila { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 12px; align-items: center; }
+  .hist-fila .nombre { font-size: 13px; font-weight: 600; }
+  .noches { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; }
+  .noche { height: 22px; border-radius: 4px; background: var(--salvia); }
+  .noche.demora { background: #d9b25f; }
+  .noche.falla { background: var(--alerta); }
+  .noche.manual { background: var(--madera); }
+  .noche.hoy { outline: 2px solid var(--tinta); outline-offset: 1px; }
+  .hist-dias { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; font-family: var(--mono); font-size: 9.5px; color: var(--tinta-3); text-align: center; }
+  .leyenda { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--tinta-2); margin-top: 12px; }
+  .leyenda span { display: inline-flex; gap: 6px; align-items: center; }
+  .leyenda i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  /* --- compromisos -------------------------------------------------------- */
+  .compromiso { display: flex; gap: 12px; align-items: flex-start; }
+  .compromiso .ico { color: var(--verde); flex: none; margin-top: 2px; }
+  .compromiso h3 { font-size: 15px; margin: 0 0 4px; }
+  .compromiso p { font-size: 13px; color: var(--tinta-2); margin: 0; }
+
+  @media (max-width: 900px) {
+    .mapa { grid-template-columns: minmax(0, 1fr); }
+    .flecha svg { transform: rotate(90deg); }
+  }
+  @media (max-width: 520px) {
+    .hist-fila { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .noche { height: 18px; }
+    .hist-dias { font-size: 8px; }
+    .noches, .hist-dias { gap: 2px; }
+  }
+</style>
+</head>
+<body data-shell="escritorio" data-pantalla="09-conexiones.html">
+
+<main id="pagina">
+
+  <div id="aviso-conexion-caja"></div>
+
+  <div class="grilla g-kpi" id="kpis"></div>
+
+  <div class="panel">
+    <div class="panel-cabecera">
+      <h2>De dónde sale cada dato</h2>
+      <span class="panel-nota">Lectura de anoche · 22/09/2026</span>
+    </div>
+    <div class="mapa">
+      <div class="fuentes" id="fuentes"></div>
+      <div class="flecha" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg>
+      </div>
+      <div class="nucleo">
+        <h3>Sistema de Maná</h3>
+        <p>Lee de noche, cruza y deja todo listo antes de que abra administración.</p>
+        <ul id="salidas"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="grilla g-2">
+
+    <div class="panel">
+      <div class="panel-cabecera">
+        <h2>Holistor: tres formas de leerlo</h2>
+        <span class="panel-nota">de la mejor a la más simple</span>
+      </div>
+      <ol class="rutas" id="rutas"></ol>
+      <p style="font-size:12.5px;color:var(--tinta-3);margin-top:12px">
+        Si la primera no se puede, el sistema no se cae: baja a la siguiente. La tercera
+        funciona desde el primer día, pase lo que pase con el proveedor.
+      </p>
+    </div>
+
+    <div class="panel" id="panel-subir">
+      <div class="panel-cabecera">
+        <h2>Subir el export a mano</h2>
+        <span class="panel-nota" id="nota-subir"></span>
+      </div>
+      <div id="zona-subir"></div>
+    </div>
+
+  </div>
+
+  <div class="panel">
+    <div class="panel-cabecera">
+      <h2>Las últimas 14 noches</h2>
+      <span class="panel-nota" id="nota-historial"></span>
+    </div>
+    <div class="historial" id="historial"></div>
+    <div class="leyenda">
+      <span><i style="background:var(--salvia)"></i>Leída completa</span>
+      <span><i style="background:#d9b25f"></i>Con demora, se completó sola</span>
+      <span><i style="background:var(--alerta)"></i>Sin respuesta</span>
+      <span><i style="background:var(--madera)"></i>Completada con archivo</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-cabecera"><h2>Lo que el sistema promete</h2></div>
+    <div class="grilla g-3">
+      <div class="compromiso">
+        <span class="ico" data-i="escudo" data-tam="22"></span>
+        <div>
+          <h3>Solo lectura</h3>
+          <p>Nunca escribe en Holistor ni en Todosoft. Si mañana se apaga, los dos sistemas siguen exactamente como estaban.</p>
+        </div>
+      </div>
+      <div class="compromiso">
+        <span class="ico" data-i="alerta" data-tam="22"></span>
+        <div>
+          <h3>Si algo falla, avisa</h3>
+          <p>Nunca completa un número con un supuesto. Si falta una fuente, el mes queda marcado como incompleto hasta que llegue el dato.</p>
+        </div>
+      </div>
+      <div class="compromiso">
+        <span class="ico" data-i="lupa" data-tam="22"></span>
+        <div>
+          <h3>Cada número dice de dónde salió</h3>
+          <p>Cada total muestra de qué fuente y de qué lectura viene, para que el contador pueda rastrearlo.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="etapa-futura">
+    <p style="font-size:12.5px;color:var(--tinta-2);margin:0">
+      <strong>Supuestos a confirmar.</strong> Que Holistor permita leer de forma automática
+      (lo vemos con el contrato y con el proveedor), que el sistema pueda tener un usuario propio
+      sin sumar licencia, y que Todosoft acepte un usuario de solo lectura sobre la base de Caja 1.
+      Ninguno frena el proyecto: la carga del archivo a mano cubre cualquiera de los tres.
+    </p>
+  </div>
+
+  <div id="aviso-simulado"></div>
+
+</main>
+
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+/* Las 14 noches se escriben a mano para que cuenten la misma historia que el
+   resto del boceto: el 13/09 Caja 1 estaba apagada (lo mismo que dice el
+   resguardo), así que esa noche tampoco se pudo leer Todosoft. */
+var NOCHES = ['2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13',
+  '2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-19',
+  '2026-09-20', '2026-09-21', '2026-09-22'];
+var HISTORIA = {
+  holistor: { '2026-09-16': 'demora' },
+  todosoft: { '2026-09-13': 'falla' },
+  arca: { '2026-09-18': 'demora' }
+};
+var procesando = false;
+
+function holistor() {
+  return G.D.conexiones.find(function (c) { return c.id === 'holistor'; });
+}
+function estadoHolistor() { return G.conexionEstado(holistor()); }
+
+function iniciar() {
+  document.getElementById('aviso-simulado').innerHTML = G.ui.avisoSimulado();
+  pintar();
+}
+
+function pintar() {
+  var est = estadoHolistor();
+  var p = G.D.meta.periodoActual;
+  var iva = G.ivaDelPeriodo(p);
+  var alDia = G.D.conexiones.filter(function (c) { return G.conexionEstado(c) !== 'falla'; }).length;
+
+  document.getElementById('aviso-conexion-caja').innerHTML = G.ui.avisoConexion(p);
+
+  /* --- KPIs --- */
+  var total = 0, buenas = 0;
+  G.D.conexiones.forEach(function (c) {
+    NOCHES.forEach(function (n) {
+      total++;
+      if (estadoNoche(c, n) !== 'falla') buenas++;
+    });
+  });
+  document.getElementById('kpis').innerHTML = [
+    G.ui.kpi({
+      rotulo: 'Fuentes al día', valor: alDia + ' de ' + G.D.conexiones.length,
+      pie: alDia === G.D.conexiones.length ? 'todo leído anoche' : 'una no contestó anoche',
+      tono: alDia === G.D.conexiones.length ? 'ok' : 'alerta'
+    }),
+    G.ui.kpi({
+      rotulo: 'Holistor', valor: { ok: 'Automático', falla: 'No contestó', manual: 'Por archivo' }[est],
+      pie: { ok: 'leído a las 03:40', falla: 'reintentado a las 03:40, 04:10 y 04:40',
+        manual: 'export subido por administración' }[est],
+      tono: { ok: 'ok', falla: 'alerta', manual: 'ambar' }[est]
+    }),
+    G.ui.kpi({
+      rotulo: 'Compras ' + G.fmt.periodoCorto(p),
+      valor: est === 'falla' ? 'Incompleto' : G.fmt.num(iva.compras.comprobantes),
+      pie: est === 'falla' ? 'el IVA espera el archivo' : 'comprobantes en el cruce de IVA',
+      tono: est === 'falla' ? 'alerta' : 'ok',
+      href: G.href('02-iva-mes.html', { periodo: p })
+    }),
+    G.ui.kpi({
+      rotulo: 'Últimas 14 noches', valor: buenas + '/' + total,
+      pie: 'lecturas que se completaron',
+      tono: buenas === total ? 'ok' : 'ambar'
+    })
+  ].join('');
+
+  pintarFuentes(est);
+  pintarRutas(est);
+  pintarSubir(est);
+  pintarHistorial();
+  G.pintarIconos(document);
+}
+
+/* --- las tres fuentes ----------------------------------------------------- */
+function pintarFuentes(est) {
+  document.getElementById('fuentes').innerHTML = G.D.conexiones.map(function (c) {
+    var e = G.conexionEstado(c);
+    var marca = {
+      ok: G.ui.marca('Al día', 'ok'),
+      falla: G.ui.marca('Sin respuesta', 'alerta'),
+      manual: G.ui.marca('Por archivo', 'neutra')
+    }[e] || G.ui.marca('Con demora', 'ambar');
+    var ultima = e === 'falla' ? 'Intentado ' + c.ultima.slice(11) + ', sin respuesta'
+      : e === 'manual' ? 'Archivo subido hoy' : G.fmt.fecha(c.ultima) + ', ' + c.ultima.slice(11);
+    var detalle = e === 'falla' ? 'Nada: el mes queda marcado como incompleto'
+      : e === 'manual' ? G.fmt.num(G.ivaDelPeriodo(G.D.meta.periodoActual).compras.comprobantes) +
+        ' comprobantes leídos del archivo' : c.detalle;
+    var acciones = '';
+    if (c.id === 'holistor') {
+      acciones = '<div class="acciones">' + (e === 'ok'
+        ? '<button class="btn btn-chico" id="btn-falla">' + G.icono('alerta', 15) + 'Simular que no contesta</button>'
+        : '<button class="btn btn-chico" id="btn-normal">' + G.icono('check', 15) + 'Volver a la normalidad</button>') +
+        '</div>';
+    }
+    return '<div class="fuente ' + e + '" id="fuente-' + c.id + '">' +
+      '<div class="fuente-cabecera"><div><h3>' + c.nombre + '</h3><span class="que">' + c.que +
+        ' · ' + (c.tipo === 'nube' ? 'en la nube' : 'en el local') + '</span></div>' +
+        '<span id="estado-' + c.id + '">' + marca + '</span></div>' +
+      '<dl><dt>Última lectura</dt><dd>' + ultima + '</dd>' +
+      '<dt>Qué trajo</dt><dd>' + detalle + '</dd>' +
+      '<dt>Cómo se lee</dt><dd>' + (c.id === 'holistor' && e === 'manual'
+        ? 'Export de Excel subido a mano' : c.ruta) + '</dd></dl>' +
+      acciones + '</div>';
+  }).join('');
+
+  var b = document.getElementById('btn-falla');
+  if (b) b.addEventListener('click', function () {
+    G.estado.conexiones.holistor = 'falla';
+    pintar();
+    G.toast('Holistor no contestó. Mirá el tablero: el mes quedó incompleto.');
+  });
+  var n = document.getElementById('btn-normal');
+  if (n) n.addEventListener('click', function () {
+    delete G.estado.conexiones.holistor;
+    pintar();
+    G.toast('Holistor vuelve a leerse solo, como todas las noches');
+  });
+
+  var salidas = [
+    { texto: 'Conciliación de IVA', icono: 'recibo', usa: ['holistor', 'todosoft', 'arca'] },
+    { texto: 'Precios y márgenes', icono: 'etiqueta', usa: ['holistor', 'todosoft'] },
+    { texto: 'Tablero y alertas del celular', icono: 'campana', usa: ['holistor', 'todosoft', 'arca'] },
+    { texto: 'Turnos y horas', icono: 'personas', usa: [] }
+  ];
+  document.getElementById('salidas').innerHTML = salidas.map(function (s) {
+    var afectado = est === 'falla' && s.usa.indexOf('holistor') !== -1;
+    return '<li class="' + (afectado ? 'afectado' : '') + '">' + G.icono(afectado ? 'alerta' : s.icono, 16) +
+      '<span>' + s.texto + (afectado ? ' · incompleto' : '') + '</span></li>';
+  }).join('');
+}
+
+/* --- las tres rutas de Holistor ------------------------------------------- */
+function pintarRutas(est) {
+  var rutas = [
+    { titulo: 'Lectura automática', marca: G.ui.marca('A confirmar', 'ambar'),
+      texto: 'El sistema entra con su propio usuario y lee compras e impuestos todas las noches. Nadie toca nada.' },
+    { titulo: 'Robot que exporta', marca: G.ui.marca('Plan B', 'neutra'),
+      texto: 'Si no hay lectura directa, un robot hace el mismo clic de "Exportar a Excel" que hoy hace administración.' },
+    { titulo: 'Archivo subido a mano', marca: G.ui.marca('Siempre disponible', 'ok'),
+      texto: 'Administración exporta desde Holistor y lo arrastra acá. Dos minutos, y el mes se completa igual.' }
+  ];
+  var activa = est === 'ok' ? 0 : 2;
+  document.getElementById('rutas').innerHTML = rutas.map(function (r, i) {
+    var extra = i === activa
+      ? (est === 'ok' ? ' ' + G.ui.marca('En uso', 'ok')
+        : est === 'falla' ? ' ' + G.ui.marca('La salida de hoy', 'alerta') : ' ' + G.ui.marca('En uso hoy', 'ok'))
+      : '';
+    return '<li class="ruta' + (i === activa ? ' activa' : '') + '"><div><h4>' + r.titulo + ' ' +
+      r.marca + extra + '</h4><p>' + r.texto + '</p></div></li>';
+  }).join('');
+}
+
+/* --- subir el archivo ----------------------------------------------------- */
+function pintarSubir(est) {
+  if (procesando) return;
+  var zona = document.getElementById('zona-subir');
+  var nota = document.getElementById('nota-subir');
+  var p = G.D.meta.periodoActual;
+
+  if (est === 'ok') {
+    nota.textContent = 'hoy no hace falta';
+    zona.innerHTML = '<div class="zona">' + G.icono('subir', 26) +
+      '<p>Si alguna noche Holistor no contesta, acá se sube el export de compras y el mes se ' +
+      'completa igual. Hoy no hace falta: Holistor se leyó solo.</p>' +
+      '<div class="acciones"><button class="btn btn-chico" id="btn-probar-falla">Probalo: simulá la falla</button></div></div>';
+    document.getElementById('btn-probar-falla').addEventListener('click', function () {
+      G.estado.conexiones.holistor = 'falla';
+      pintar();
+      document.getElementById('panel-subir').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    return;
+  }
+
+  if (est === 'manual') {
+    var iva = G.ivaDelPeriodo(p);
+    var faltan = iva.diferencias.filter(function (d) { return d.tipo === 'falta_holistor'; }).length;
+    nota.textContent = 'listo';
+    zona.innerHTML = '<div class="zona" id="resultado-subida">' +
+      '<ul class="pasos">' +
+        '<li class="hecho">' + G.icono('check') + '<span><strong>' + G.fmt.num(iva.compras.comprobantes) +
+          ' comprobantes</strong> de compras de ' + G.fmt.periodo(p) + ' leídos del archivo</span></li>' +
+        '<li class="hecho">' + G.icono('check') + '<span>IVA compras: <strong>' + G.fmt.moneda(iva.compras.iva) +
+          '</strong></span></li>' +
+        '<li class="hecho">' + G.icono('check') + '<span>Cruzado contra ARCA: <strong>' + faltan +
+          ' comprobantes</strong> están en ARCA y no en el archivo, igual que antes</span></li>' +
+      '</ul>' +
+      '<div class="acciones" style="margin-top:16px">' +
+        '<a class="btn btn-primario btn-chico" href="' + G.href('02-iva-mes.html', { periodo: p }) + '">Ver el IVA del mes</a>' +
+        '<a class="btn btn-chico" href="' + G.href('10-alertas.html') + '">Cómo lo ve Jorge</a>' +
+      '</div></div>';
+    return;
+  }
+
+  /* est === 'falla' */
+  nota.textContent = 'falta el archivo de ' + G.fmt.periodoCorto(p);
+  zona.innerHTML = '<div class="zona activa" id="zona-arrastre">' + G.icono('subir', 26) +
+    '<p><strong>Arrastrá acá el export de compras de Holistor</strong>, o usá el de ejemplo. ' +
+    'Es el mismo Excel que administración ya sabe sacar.</p>' +
+    '<div class="acciones">' +
+      '<button class="btn btn-primario btn-chico" id="btn-subir-ejemplo">' + G.icono('subir', 15) +
+        'Usar el export de ejemplo</button>' +
+      '<label class="btn btn-chico" style="cursor:pointer">Elegir archivo…' +
+        '<input type="file" id="input-archivo" accept=".xlsx,.xls,.csv" class="sr"></label>' +
+      '<a class="btn btn-chico" href="' + G.href('10-alertas.html') + '">Cómo lo ve Jorge</a>' +
+    '</div></div>';
+
+  document.getElementById('btn-subir-ejemplo').addEventListener('click', function () {
+    procesar('compras-holistor-' + p + '.xlsx');
+  });
+  document.getElementById('input-archivo').addEventListener('change', function (e) {
+    if (e.target.files && e.target.files[0]) procesar(e.target.files[0].name);
+  });
+  var z = document.getElementById('zona-arrastre');
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    z.addEventListener(ev, function (e) { e.preventDefault(); z.classList.add('arrastrando'); });
+  });
+  z.addEventListener('dragleave', function () { z.classList.remove('arrastrando'); });
+  z.addEventListener('drop', function (e) {
+    e.preventDefault();
+    z.classList.remove('arrastrando');
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    procesar(f ? f.name : 'export.xlsx');
+  });
+}
+
+/* El archivo no se lee de verdad: el boceto muestra los pasos y usa los
+   números del período. Con los datos reales, acá va el lector del export. */
+function procesar(nombre) {
+  procesando = true;
+  var p = G.D.meta.periodoActual;
+  var iva = G.ivaDelPeriodo(p);
+  var pasos = [
+    'Leyendo ' + nombre,
+    'Reconociendo columnas: fecha, CUIT, comprobante, neto, IVA',
+    G.fmt.num(iva.compras.comprobantes) + ' comprobantes encontrados',
+    'Cruzando contra ARCA y Todosoft'
+  ];
+  document.getElementById('nota-subir').textContent = 'procesando…';
+  var zona = document.getElementById('zona-subir');
+  zona.innerHTML = '<div class="zona"><ul class="pasos" id="pasos">' + pasos.map(function (t) {
+    return '<li><span class="espera"></span><span>' + t + '</span></li>';
+  }).join('') + '</ul></div>';
+  var lis = zona.querySelectorAll('#pasos li');
+  pasos.forEach(function (_, i) {
+    setTimeout(function () {
+      lis[i].classList.add('hecho');
+      lis[i].firstChild.outerHTML = G.icono('check');
+      if (i === pasos.length - 1) {
+        setTimeout(function () {
+          procesando = false;
+          G.estado.conexiones.holistor = 'manual';
+          pintar();
+          G.toast('Listo: ' + G.fmt.periodo(p) + ' quedó completo');
+        }, 350);
+      }
+    }, 320 * (i + 1));
+  });
+}
+
+/* --- historial ------------------------------------------------------------ */
+function estadoNoche(c, noche) {
+  if (noche === NOCHES[NOCHES.length - 1]) {
+    var e = G.conexionEstado(c);
+    return e === 'ok' ? 'ok' : e;
+  }
+  return (HISTORIA[c.id] || {})[noche] || 'ok';
+}
+
+function pintarHistorial() {
+  var textos = { ok: 'leída completa', demora: 'con demora', falla: 'sin respuesta', manual: 'completada con archivo' };
+  var filas = G.D.conexiones.map(function (c) {
+    return '<div class="hist-fila"><span class="nombre">' + c.nombre + '</span><div class="noches">' +
+      NOCHES.map(function (n, i) {
+        var e = estadoNoche(c, n);
+        return '<span class="noche ' + e + (i === NOCHES.length - 1 ? ' hoy' : '') + '" title="' +
+          G.fmt.fecha(n) + ': ' + textos[e] + '"></span>';
+      }).join('') + '</div></div>';
+  });
+  filas.push('<div class="hist-fila"><span></span><div class="hist-dias">' + NOCHES.map(function (n) {
+    return '<span>' + n.slice(8) + '</span>';
+  }).join('') + '</div></div>');
+  document.getElementById('historial').innerHTML = filas.join('');
+  document.getElementById('nota-historial').textContent =
+    'El 13/09 Caja 1 estaba apagada: tampoco hubo copia de resguardo esa noche.';
+}
+</script>
+</body>
+</html>

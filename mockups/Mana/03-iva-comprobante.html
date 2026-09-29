@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Detalle de la diferencia · Maná</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+  .fuente-cabecera { display: flex; align-items: center; gap: 8px; }
+  .dato-grande { font-family: var(--titulo); font-size: 26px; font-weight: 600; display: block; }
+  .ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+  .ficha > div { min-width: 0; }
+  .ficha .rotulo { display: block; margin-bottom: 3px; }
+  .ficha .valor { font-size: 14.5px; font-weight: 600; }
+</style>
+</head>
+<body data-shell="escritorio" data-pantalla="03-iva-comprobante.html">
+
+<main id="pagina">
+
+  <div id="contenido"></div>
+
+</main>
+
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+function difActual() {
+  var id = G.param('dif');
+  var lista = G.ivaDelPeriodo().diferencias;
+  return lista.find(function (d) { return d.id === id; }) || lista[0];
+}
+
+function iniciar() { pintar(); }
+
+function pintar() {
+  var p = G.estado.periodo;
+  var d = difActual();
+  if (!d) {
+    document.getElementById('contenido').innerHTML =
+      '<div class="panel"><p>No hay ninguna diferencia para mostrar en este período.</p>' +
+      '<a class="btn" href="' + G.href('02-iva-mes.html') + '">Volver al período</a></div>';
+    return;
+  }
+
+  var resuelta = !!G.estado.resueltas[d.id];
+  var abiertas = G.diferenciasAbiertas(p).length;
+
+  var html = '';
+
+  /* --- encabezado --- */
+  html += '<div class="panel">' +
+    '<div class="panel-cabecera">' +
+      '<div style="min-width:0">' +
+        '<span class="rotulo">' + d.comprobante + '</span>' +
+        '<h2 style="font-size:22px;margin-top:4px">' + d.titulo + '</h2>' +
+      '</div>' +
+      (resuelta ? G.ui.marca('Resuelta', 'ok') : G.ui.marca('Abierta', 'alerta')) +
+    '</div>' +
+    '<p style="font-size:14.5px;color:var(--tinta-2);max-width:70ch">' + d.detalle + '</p>' +
+    '<div class="ficha" style="margin-top:18px">' +
+      campo('Proveedor', d.proveedor) +
+      campo('CUIT', d.cuit) +
+      campo('Fecha del comprobante', G.fmt.fecha(d.fecha)) +
+      campo('Neto gravado', G.fmt.moneda(d.neto)) +
+      campo('IVA en juego', G.fmt.moneda(d.iva)) +
+    '</div>' +
+  '</div>';
+
+  /* --- qué dice cada fuente --- */
+  html += '<div class="panel">' +
+    '<div class="panel-cabecera"><h2>Qué dice cada fuente</h2>' +
+    '<span class="panel-nota">El mismo comprobante, mirado desde los tres lados</span></div>' +
+    '<table class="tabla" id="t-fuentes"><thead><tr>' +
+      '<th>Fuente</th><th class="der">Neto</th><th class="der">IVA</th><th>Estado</th>' +
+    '</tr></thead><tbody>' +
+      filaFuente('Holistor', 'Compras y proveedores', d.fuentes.holistor, d) +
+      filaFuente('Todosoft', 'Ventas y cierres de caja', d.fuentes.todosoft, d) +
+      filaFuente('ARCA', 'Mis Comprobantes', d.fuentes.arca, d) +
+    '</tbody></table>' +
+    (d.repeticiones
+      ? '<p style="margin-top:12px;font-size:13px;color:var(--alerta)">Este comprobante figura ' +
+        d.repeticiones + ' veces en Holistor. Se está computando el IVA dos veces.</p>' : '') +
+  '</div>';
+
+  /* --- acciones --- */
+  html += '<div class="panel">' +
+    '<div class="panel-cabecera"><h2>Qué hacer con esto</h2></div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+      (resuelta
+        ? '<button class="btn" id="btn-reabrir"><span data-i="cruz" data-tam="15"></span>Volver a abrirla</button>'
+        : '<button class="btn btn-primario" id="btn-resolver"><span data-i="check" data-tam="15"></span>Marcar como resuelta</button>') +
+      '<button class="btn" id="btn-pedir"><span data-i="recibo" data-tam="15"></span>Pedirle el comprobante al proveedor</button>' +
+      '<a class="btn" href="' + G.href('02-iva-mes.html', { periodo: p }) + '">' +
+        '<span data-i="izq" data-tam="15"></span>Volver al período</a>' +
+    '</div>' +
+    '<p style="margin-top:14px;font-size:13px;color:var(--tinta-2)">' +
+      'Quedan <strong id="cuenta-abiertas">' + abiertas + '</strong> diferencias abiertas en ' +
+      G.fmt.periodo(p) + '. El sistema no toca ni Holistor ni Todosoft: marca, avisa y deja el ' +
+      'registro de quién resolvió qué.' +
+    '</p>' +
+  '</div>';
+
+  /* --- otras del período --- */
+  var otras = G.diferenciasAbiertas(p).filter(function (x) { return x.id !== d.id; }).slice(0, 4);
+  if (otras.length) {
+    html += '<div class="panel"><div class="panel-cabecera">' +
+      '<h2>Otras diferencias abiertas</h2>' +
+      '<a class="btn btn-chico" href="' + G.href('02-iva-mes.html', { periodo: p }) + '">Ver todas</a>' +
+      '</div><table class="tabla" id="t-otras"><tbody>' +
+      otras.map(function (x) {
+        return '<tr class="clic" onclick="G.ir(\'03-iva-comprobante.html\',{dif:\'' + x.id +
+          '\',periodo:\'' + p + '\'})">' +
+          '<td class="fuerte">' + x.comprobante + '<span class="chica">' + x.titulo + '</span></td>' +
+          '<td>' + x.proveedor + '</td>' +
+          '<td class="der fuerte num">' + G.fmt.moneda(x.iva) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
+  document.getElementById('contenido').innerHTML = html;
+
+  var r = document.getElementById('btn-resolver');
+  if (r) r.addEventListener('click', function () {
+    G.estado.resueltas[d.id] = true;
+    G.toast('Diferencia resuelta. Quedan ' + G.diferenciasAbiertas(p).length + ' abiertas.');
+    pintar();
+  });
+  var ab = document.getElementById('btn-reabrir');
+  if (ab) ab.addEventListener('click', function () {
+    delete G.estado.resueltas[d.id];
+    G.toast('La diferencia volvió a quedar abierta.');
+    pintar();
+  });
+  document.getElementById('btn-pedir').addEventListener('click', function () {
+    G.toast('Se armó el pedido para ' + d.proveedor + ' (en el sistema real sale por mail).');
+  });
+
+  G.pintarIconos(document);
+}
+
+function campo(rotulo, valor) {
+  return '<div><span class="rotulo">' + rotulo + '</span>' +
+    '<span class="valor num">' + valor + '</span></div>';
+}
+
+function filaFuente(nombre, que, o, d) {
+  var falta = !o;
+  var distinto = o && o.iva !== d.fuentes.arca.iva;
+  var estado = falta
+    ? G.ui.marca('No figura', 'alerta')
+    : (distinto ? G.ui.marca('No coincide', 'ambar') : G.ui.marca('Coincide', 'ok'));
+  return '<tr>' +
+    '<td class="fuerte">' + nombre + '<span class="chica">' + que + '</span></td>' +
+    '<td class="der num">' + (o ? G.fmt.moneda(o.neto) : '—') + '</td>' +
+    '<td class="der num fuerte">' + (o ? G.fmt.moneda(o.iva) : '—') + '</td>' +
+    '<td>' + estado + '</td></tr>';
+}
+</script>
+</body>
+</html>

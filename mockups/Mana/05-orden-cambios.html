@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Orden de cambios · Maná</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+  .vacio-grande { text-align: center; padding: 44px 20px; }
+  .vacio-grande h2 { font-size: 20px; margin-bottom: 8px; }
+  .vacio-grande p { color: var(--tinta-2); font-size: 14px; max-width: 46ch; margin: 0 auto 18px; }
+  .flecha-precio { color: var(--tinta-3); padding: 0 6px; }
+  .resumen-linea {
+    display: flex; justify-content: space-between; gap: 14px;
+    padding: 9px 0; border-bottom: 1px solid var(--linea-2); font-size: 14px;
+  }
+  .resumen-linea:last-child { border-bottom: 0; }
+  .resumen-linea .valor { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .resumen-total { background: var(--verde-suave); margin: 10px -18px -18px;
+    padding: 14px 18px; border-radius: 0 0 var(--radio) var(--radio); }
+  .resumen-total .valor { font-family: var(--titulo); font-size: 20px; color: var(--verde); }
+  @media (max-width: 760px) {
+    #t-lote td:nth-child(3), #t-lote th:nth-child(3) { display: none; }
+  }
+  @media (max-width: 620px) {
+    #t-lote th { width: auto !important; }
+    #t-lote .btn { white-space: normal; }
+  }
+</style>
+</head>
+<body data-shell="escritorio" data-pantalla="05-orden-cambios.html">
+
+<main id="pagina">
+  <div id="contenido"></div>
+  <div id="aviso-simulado"></div>
+</main>
+
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+function iniciar() {
+  document.getElementById('aviso-simulado').innerHTML = G.ui.avisoSimulado();
+  pintar();
+}
+
+function productosDelLote() {
+  return Object.keys(G.estado.lote).map(function (id) {
+    var p = G.D.productos.find(function (x) { return x.id === id; });
+    return { p: p, nuevo: G.estado.lote[id] };
+  }).sort(function (a, b) { return a.p.nombre.localeCompare(b.p.nombre, 'es'); });
+}
+
+function pintar() {
+  var lote = productosDelLote();
+  var cont = document.getElementById('contenido');
+
+  if (!lote.length) {
+    cont.innerHTML =
+      '<div class="panel vacio-grande">' +
+        '<h2>El lote está vacío</h2>' +
+        '<p>Elegí en la pantalla de precios los productos que querés actualizar y van a ' +
+        'aparecer acá, listos para cargar en Todosoft.</p>' +
+        '<a class="btn btn-primario" href="04-precios.html">Ir a precios y márgenes</a>' +
+      '</div>';
+    return;
+  }
+
+  var recupera = lote.reduce(function (a, x) {
+    return a + (x.nuevo - x.p.precio) * x.p.ventaMes;
+  }, 0);
+  var subaProm = lote.reduce(function (a, x) {
+    return a + (x.nuevo / x.p.precio - 1) * 100;
+  }, 0) / lote.length;
+  var rubros = {};
+  lote.forEach(function (x) { rubros[x.p.rubro] = true; });
+
+  var html = '';
+
+  html += '<div class="grilla g-kpi">' + [
+    G.ui.kpi({ rotulo: 'Productos', valor: lote.length, pie: 'en esta orden de cambios' }),
+    G.ui.kpi({ rotulo: 'Rubros', valor: Object.keys(rubros).length, pie: 'alcanzados' }),
+    G.ui.kpi({ rotulo: 'Suba promedio', valor: G.fmt.pct(subaProm), pie: 'sobre el precio de venta' }),
+    G.ui.kpi({ rotulo: 'Recuperás', valor: G.fmt.monedaCorta(recupera),
+      pie: 'por mes, con la venta actual', tono: 'ok' })
+  ].join('') + '</div>';
+
+  html += '<div class="grilla g-2" style="grid-template-columns:minmax(0,2.3fr) minmax(250px,1fr)">';
+
+  /* --- la lista --- */
+  html += '<div class="panel">' +
+    '<div class="panel-cabecera"><h2>Precios a cargar</h2>' +
+    '<span class="panel-nota">Sacá los que no quieras tocar ahora</span></div>' +
+    '<table class="tabla" id="t-lote"><thead><tr>' +
+      '<th>Producto</th>' +
+      '<th class="der" style="width:170px">Precio</th>' +
+      '<th style="width:120px">Margen nuevo</th>' +
+      '<th class="der" style="width:78px"></th>' +
+    '</tr></thead><tbody>' +
+    lote.map(function (x) {
+      var margen = (x.nuevo - x.p.costo) / x.nuevo * 100;
+      return '<tr>' +
+        '<td class="fuerte">' + x.p.nombre +
+          '<span class="chica">' + G.nombreRubro(x.p.rubro) + ' · por ' + x.p.unidad +
+          ' · costo ' + G.fmt.moneda(x.p.costo) + '</span></td>' +
+        '<td class="der"><span class="num" style="color:var(--tinta-3);text-decoration:line-through">' +
+          G.fmt.moneda(x.p.precio) + '</span><span class="flecha-precio">→</span>' +
+          '<span class="num fuerte" style="color:var(--verde)">' + G.fmt.moneda(x.nuevo) + '</span></td>' +
+        '<td>' + G.ui.barrita(margen, G.objetivoDe(x.p.rubro)) +
+          '<span class="chica">' + G.fmt.pct(margen) + ' · objetivo ' +
+          G.fmt.pct(G.objetivoDe(x.p.rubro), 0) + '</span></td>' +
+        '<td class="der"><button class="btn btn-chico" data-quitar="' + x.p.id + '">Quitar</button></td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+
+  /* --- el resumen y las acciones --- */
+  html += '<div class="panel" style="align-self:start">' +
+    '<div class="panel-cabecera"><h2>Resumen</h2></div>' +
+    linea('Productos', lote.length) +
+    linea('Suba promedio', G.fmt.pct(subaProm)) +
+    linea('Venta mensual alcanzada',
+      G.fmt.num(lote.reduce(function (a, x) { return a + x.p.ventaMes; }, 0)) + ' unidades') +
+    '<div class="resumen-total"><div class="resumen-linea" style="border:0">' +
+      '<span>Recuperás por mes</span><span class="valor">' +
+      G.fmt.moneda(recupera) + '</span></div></div>' +
+    '<div style="display:flex;flex-direction:column;gap:9px;margin-top:18px">' +
+      '<button class="btn btn-primario" id="btn-generar">' +
+        '<span data-i="bajar" data-tam="15"></span>Generar archivo para Todosoft</button>' +
+      '<button class="btn" id="btn-imprimir">' +
+        '<span data-i="lista" data-tam="15"></span>Imprimir la lista para el mostrador</button>' +
+      '<a class="btn" href="04-precios.html">' +
+        '<span data-i="izq" data-tam="15"></span>Volver a precios</a>' +
+      '<button class="btn" id="btn-vaciar">Vaciar el lote</button>' +
+    '</div>' +
+    '<p style="margin-top:16px;font-size:12.5px;color:var(--tinta-2)">' +
+      'El sistema no escribe en Todosoft: arma el archivo y lo deja listo. Si más adelante ' +
+      'Todosoft acepta importación, esto pasa a ser un botón.</p>' +
+  '</div>';
+
+  html += '</div>';
+
+  html += '<div class="etapa-futura">' +
+    '<p style="font-size:13px;color:var(--tinta-2);margin:0">' +
+    '<strong>Supuesto a confirmar con Jorge.</strong> Acá dimos por sentado que los precios se ' +
+    'cargan a mano, de a uno. Si Todosoft acepta un archivo de importación, esta pantalla se ' +
+    'vuelve mucho más corta y el trabajo desaparece.</p></div>';
+
+  cont.innerHTML = html;
+
+  cont.querySelectorAll('[data-quitar]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var p = G.D.productos.find(function (x) { return x.id === b.dataset.quitar; });
+      delete G.estado.lote[b.dataset.quitar];
+      G.toast(p.nombre + ' salió del lote');
+      pintar();
+    });
+  });
+  document.getElementById('btn-generar').addEventListener('click', function () {
+    G.toast('Archivo generado: ' + lote.length + ' precios listos para cargar');
+  });
+  document.getElementById('btn-imprimir').addEventListener('click', function () {
+    G.toast('Lista enviada a la impresora del mostrador');
+  });
+  document.getElementById('btn-vaciar').addEventListener('click', function () {
+    Object.keys(G.estado.lote).forEach(function (k) { delete G.estado.lote[k]; });
+    G.toast('Lote vacío');
+    pintar();
+  });
+
+  G.pintarIconos(document);
+}
+
+function linea(rotulo, valor) {
+  return '<div class="resumen-linea"><span>' + rotulo +
+    '</span><span class="valor">' + valor + '</span></div>';
+}
+</script>
+</body>
+</html>

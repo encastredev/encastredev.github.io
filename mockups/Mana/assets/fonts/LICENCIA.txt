@@ -1,0 +1,19 @@
+Fuentes incluidas en este boceto
+================================
+
+Fraunces — SIL Open Font License 1.1
+  Copyright (c) 2019 The Fraunces Project Authors
+  https://github.com/undercasetype/Fraunces
+
+Inter — SIL Open Font License 1.1
+  Copyright (c) 2016 The Inter Project Authors
+  https://github.com/rsms/inter
+
+Ambas se distribuyen bajo la SIL Open Font License, Version 1.1,
+que permite su uso, estudio, modificacion y redistribucion, incluso
+con fines comerciales, siempre que las fuentes no se vendan por si
+solas y que las versiones modificadas no usen los Nombres Reservados.
+
+Texto completo de la licencia: https://openfontlicense.org
+
+Subconjuntos descargados desde Google Fonts (subset "latin") el 22/09/2026.

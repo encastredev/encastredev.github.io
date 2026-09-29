@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Panificados Maná · Boceto del sistema · Encastre</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+  .bloques { margin-top: 44px; }
+  .bloques h2 { font-size: 27px; margin-bottom: 8px; }
+  .bloques .intro { color: var(--tinta-2); max-width: 62ch; margin-bottom: 20px; }
+  .num-grande {
+    font-family: var(--titulo); font-size: 40px; font-weight: 600;
+    line-height: 1; display: block; color: var(--verde);
+  }
+  .num-pie { font-size: 13px; color: var(--tinta-2); display: block; margin-top: 7px; }
+  .dolor { display: flex; gap: 12px; align-items: flex-start; }
+  .dolor .ico { color: var(--alerta); flex: none; margin-top: 3px; }
+  .dolor h3 { font-size: 15.5px; margin-bottom: 3px; font-family: var(--texto); font-weight: 600; }
+  .dolor p { font-size: 13.5px; color: var(--tinta-2); }
+  .paso { display: flex; gap: 13px; align-items: flex-start; padding: 13px 0; border-bottom: 1px solid var(--linea-2); }
+  .paso:last-child { border-bottom: 0; }
+  .paso-n {
+    flex: none; width: 27px; height: 27px; border-radius: 50%;
+    background: var(--tinta); color: var(--crema); display: flex;
+    align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600;
+  }
+  .paso-cuerpo { min-width: 0; flex: 1; }
+  .paso h3 { font-size: 15px; font-family: var(--texto); font-weight: 600; margin-bottom: 3px; }
+  .paso p { font-size: 13.5px; color: var(--tinta-2); margin-bottom: 7px; }
+  .etapa { display: flex; gap: 12px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--linea-2); }
+  .etapa:last-child { border-bottom: 0; }
+  .etapa-n { font-family: var(--mono); font-size: 11px; color: var(--tinta-3); flex: none; width: 74px; }
+  .etapa-cuerpo { min-width: 0; flex: 1; }
+  .etapa h3 { font-size: 15px; font-family: var(--texto); font-weight: 600; margin-bottom: 2px; }
+  .etapa p { font-size: 13.5px; color: var(--tinta-2); }
+  .pie-doc { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--linea); display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+  .pie-doc p { font-size: 13px; color: var(--tinta-2); max-width: 46ch; }
+  .pie-doc .datos { font-family: var(--mono); font-size: 11.5px; color: var(--tinta-3); text-align: right; }
+  @media (max-width: 720px) {
+    .bloques h2 { font-size: 22px; }
+    .num-grande { font-size: 33px; }
+    .pie-doc .datos { text-align: left; }
+    #t-indice td:nth-child(3), #t-indice th:nth-child(3) { display: none; }
+  }
+  @media (max-width: 480px) {
+    #t-indice td:nth-child(4), #t-indice th:nth-child(4) { display: none; }
+  }
+</style>
+</head>
+<body data-shell="portada" data-pantalla="index.html" class="portada">
+
+<div class="portada-top">
+  <div class="portada-top-inner">
+    <span id="logo-top"></span>
+    <span class="portada-firma">Encastre · Posadas</span>
+  </div>
+</div>
+
+<main id="pagina" class="portada-envoltorio">
+
+  <section class="hero">
+    <span class="rotulo">Boceto navegable · septiembre 2026</span>
+    <h1>El sistema que conecta lo que hoy conecta una persona</h1>
+    <div class="hero-regla"></div>
+    <p class="hero-bajada">
+      Este no es un dibujo: es el sistema funcionando. Todo lo que ves acá se toca,
+      se filtra y se recalcula. Recorrelo, probalo, y decinos qué falta.
+    </p>
+  </section>
+
+  <section class="grilla g-kpi">
+    <div class="panel">
+      <span class="num-grande">53</span>
+      <span class="num-pie">empleados, según la nota de MisionesOnline de 2024</span>
+    </div>
+    <div class="panel">
+      <span class="num-grande">24 h</span>
+      <span class="num-pie">abiertos, todos los días del año</span>
+    </div>
+    <div class="panel">
+      <span class="num-grande">3</span>
+      <span class="num-pie">cajas, las tres colgando de una sola PC</span>
+    </div>
+    <div class="panel">
+      <span class="num-grande">1</span>
+      <span class="num-pie">persona en administración, donde antes había tres</span>
+    </div>
+  </section>
+
+  <section class="bloques">
+    <h2>Lo que pasa hoy</h2>
+    <p class="intro">
+      Holistor administra compras y Todosoft administra ventas. Cada uno hace bien su parte,
+      pero ninguno sabe lo que hace el otro. El puente entre los dos es una persona y una planilla.
+    </p>
+    <div class="grilla g-3">
+      <div class="panel dolor">
+        <span class="ico" data-i="recibo"></span>
+        <div>
+          <h3>El IVA se cruza a mano, todos los meses</h3>
+          <p>El dato ya existe en los dos sistemas. El trabajo es exclusivamente pasarlo de un lado al otro.</p>
+        </div>
+      </div>
+      <div class="panel dolor">
+        <span class="ico" data-i="etiqueta"></span>
+        <div>
+          <h3>Sube un insumo y el precio queda viejo</h3>
+          <p>Entre que el costo cambia en Holistor y el precio se actualiza en Todosoft, se vende perdiendo margen.</p>
+        </div>
+      </div>
+      <div class="panel dolor">
+        <span class="ico" data-i="personas"></span>
+        <div>
+          <h3>53 personas, tres franjas, un Excel</h3>
+          <p>Turnos, francos y horas nocturnas de una operación que no cierra nunca, sostenidos a mano.</p>
+        </div>
+      </div>
+      <div class="panel dolor">
+        <span class="ico" data-i="escudo"></span>
+        <div>
+          <h3>Caja 1 es servidor de las tres</h3>
+          <p>Si esa máquina no arranca, ninguna de las tres cajas factura. Los backups dependen de que alguien se acuerde.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloques">
+    <h2>Qué resuelve el sistema</h2>
+    <p class="intro">
+      No reemplaza Holistor ni Todosoft. Se para en el medio, lee de los dos —y de ARCA— y
+      hace solo el cruce que hoy hace una persona.
+    </p>
+    <div class="grilla g-2">
+      <div class="panel">
+        <h3 style="font-size:16px;margin-bottom:6px">Conciliación de IVA automática</h3>
+        <p style="font-size:13.5px;color:var(--tinta-2)">
+          Compras, ventas y ARCA cruzadas todas las noches. A la mañana están las diferencias
+          listas, con el detalle de qué dice cada sistema sobre el mismo comprobante. Cruzar
+          contra ARCA además encuentra lo que no está cargado en <em>ningún</em> lado.
+        </p>
+      </div>
+      <div class="panel">
+        <h3 style="font-size:16px;margin-bottom:6px">Precios que avisan</h3>
+        <p style="font-size:13.5px;color:var(--tinta-2)">
+          Cuando sube un costo en Holistor, el sistema calcula qué precios quedaron por debajo
+          del margen objetivo y arma la lista de cambios para cargar en Todosoft.
+        </p>
+      </div>
+      <div class="panel">
+        <h3 style="font-size:16px;margin-bottom:6px">Turnos y horas de 53 personas</h3>
+        <p style="font-size:13.5px;color:var(--tinta-2)">
+          La grilla semanal por sector y franja, con la cobertura a la vista, y el acumulado
+          mensual de horas nocturnas, feriados y francos adeudados.
+        </p>
+      </div>
+      <div class="panel">
+        <h3 style="font-size:16px;margin-bottom:6px">Caja 1 con red</h3>
+        <p style="font-size:13.5px;color:var(--tinta-2)">
+          Copia automática todas las madrugadas, una fuera del local, y una prueba de
+          restauración por mes. Sin tocar Todosoft.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloques">
+    <h2>Recorrido sugerido</h2>
+    <p class="intro">Cinco flujos de punta a punta. Cada uno arranca en un clic.</p>
+    <div class="panel">
+      <div class="paso">
+        <span class="paso-n">1</span>
+        <div class="paso-cuerpo">
+          <h3>Resolver una diferencia de IVA</h3>
+          <p>Del tablero a la lista del mes, abrís una diferencia, la resolvés y el contador baja.</p>
+          <a class="btn btn-primario btn-chico" href="01-tablero.html">Empezar por el tablero</a>
+        </div>
+      </div>
+      <div class="paso">
+        <span class="paso-n">2</span>
+        <div class="paso-cuerpo">
+          <h3>Actualizar precios después de una suba</h3>
+          <p>Subís el margen objetivo, se recalculan todos los sugeridos y armás la orden de cambios.</p>
+          <a class="btn btn-chico" href="04-precios.html">Ir a precios</a>
+        </div>
+      </div>
+      <div class="paso">
+        <span class="paso-n">3</span>
+        <div class="paso-cuerpo">
+          <h3>El día que Holistor no contesta</h3>
+          <p>Ponés la conexión en falla, subís el export a mano y el mes se completa igual.</p>
+          <a class="btn btn-chico" href="09-conexiones.html">Ir a conexiones</a>
+        </div>
+      </div>
+      <div class="paso">
+        <span class="paso-n">4</span>
+        <div class="paso-cuerpo">
+          <h3>Cubrir el hueco del sábado a la noche</h3>
+          <p>Encontrás la franja sin gente, la cubrís, y las horas nocturnas de esa persona suben.</p>
+          <a class="btn btn-chico" href="06-turnos.html">Ir a turnos</a>
+        </div>
+      </div>
+      <div class="paso">
+        <span class="paso-n">5</span>
+        <div class="paso-cuerpo">
+          <h3>Desde el celular, a las 7 de la mañana</h3>
+          <p>Las alertas del día, quién está cubriendo cada franja, y el margen de cualquier producto.</p>
+          <a class="btn btn-chico" href="10-alertas.html">Abrir la app del celular</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloques">
+    <h2>Las pantallas</h2>
+    <p class="intro">Trece pantallas. Doce entran ahora; la última muestra hacia dónde sigue.</p>
+    <div class="panel">
+      <table class="tabla" id="t-indice">
+        <thead>
+          <tr>
+            <th style="width:34px"></th>
+            <th>Pantalla</th>
+            <th style="width:96px">Dispositivo</th>
+            <th style="width:170px">Quién la usa</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpo-indice"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="bloques">
+    <h2>Cómo sigue</h2>
+    <div class="panel">
+      <div class="etapa">
+        <span class="etapa-n">Etapa 1</span>
+        <div class="etapa-cuerpo">
+          <h3>El puente de IVA y el resguardo de Caja 1</h3>
+          <p>Lo que más tiempo consume y lo que más daño evita, juntos en la primera entrega.</p>
+        </div>
+      </div>
+      <div class="etapa">
+        <span class="etapa-n">Etapa 2</span>
+        <div class="etapa-cuerpo">
+          <h3>Precios y márgenes</h3>
+          <p>La alerta de precio desactualizado y la orden de cambios para Todosoft.</p>
+        </div>
+      </div>
+      <div class="etapa">
+        <span class="etapa-n">Etapa 3</span>
+        <div class="etapa-cuerpo">
+          <h3>Turnos, horas y francos</h3>
+          <p>La grilla de las 53 personas y el acumulado mensual de nocturnas y feriados.</p>
+        </div>
+      </div>
+      <div class="etapa">
+        <span class="etapa-n">Después</span>
+        <div class="etapa-cuerpo">
+          <h3>Pedidos y encargos</h3>
+          <p>Tortas y encargos por fecha, hoy repartidos entre WhatsApp y el mostrador. Está
+             marcado con líneas punteadas en el boceto: se ve, pero no entra ahora.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloques">
+    <h2>Sobre este boceto</h2>
+    <div class="grilla g-2">
+      <div class="panel">
+        <h3 style="font-size:15px;font-family:var(--texto);margin-bottom:6px">Los datos son simulados</h3>
+        <p style="font-size:13.5px;color:var(--tinta-2)">
+          La estructura es la real de Maná: los rubros, los sectores, la dotación, los horarios.
+          Los números no: todavía no tuvimos acceso a Holistor ni a Todosoft. Con una exportación
+          de un mes, el boceto muestra los datos de verdad.
+        </p>
+      </div>
+      <div class="panel">
+        <h3 style="font-size:15px;font-family:var(--texto);margin-bottom:6px">Todo vuelve al inicio al recargar</h3>
+        <p style="font-size:13.5px;color:var(--tinta-2)">
+          Lo que toques queda en memoria mientras navegás. Si recargás la página, el boceto
+          vuelve al estado inicial. Es a propósito: así se puede volver a mostrar el mismo
+          recorrido cuantas veces haga falta.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="pie-doc">
+    <p>
+      Boceto preparado por Encastre para Panificados Maná. Punto de partida para la conversación,
+      no una propuesta cerrada.
+    </p>
+    <div class="datos">
+      encastre.dev@gmail.com<br>
+      +54 9 3764 60-8249<br>
+      Posadas, Misiones
+    </div>
+  </div>
+
+</main>
+
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.getElementById('logo-top').innerHTML = G.logoHTML(36);
+
+  var filas = G.SCREENS.map(function (s) {
+    var disp = s.disp === 'celular' ? 'Celular' : 'Notebook';
+    var hecha = G.listo(s.archivo);
+    var marcas = (s.futuro ? ' ' + G.ui.marca('Etapa posterior', 'ambar') : '') +
+      (hecha ? '' : ' ' + G.ui.marca('Todavía no', 'neutra'));
+    return '<tr' + (hecha
+        ? ' class="clic" onclick="G.ir(\'' + s.archivo + '\')"'
+        : ' style="opacity:.55"') + '>' +
+      '<td class="num" style="color:var(--tinta-3);font-family:var(--mono);font-size:12px">' + s.n + '</td>' +
+      '<td><span class="fuerte">' + s.titulo + marcas +
+        '</span><span class="chica">' + s.resumen + '</span></td>' +
+      '<td>' + disp + '</td>' +
+      '<td>' + s.rol + '</td></tr>';
+  }).join('');
+  document.getElementById('cuerpo-indice').innerHTML = filas;
+
+  G.pintarIconos(document);
+});
+</script>
+</body>
+</html>

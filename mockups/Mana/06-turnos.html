@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Turnos de la semana · Maná</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+  .celda-turno {
+    display: block; width: 100%; text-align: left;
+    border: 1px solid var(--linea); border-radius: var(--radio-ch);
+    background: var(--blanco); padding: 9px 10px; cursor: pointer;
+    font: inherit; color: inherit; min-width: 0;
+  }
+  .celda-turno:hover { border-color: var(--salvia); }
+  .celda-turno.elegida { border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde); }
+  .celda-turno.falta { background: var(--alerta-suave); border-color: var(--alerta-borde); }
+  .celda-turno.completa { background: var(--ok-suave); border-color: var(--verde-borde); }
+  .celda-num { font-family: var(--titulo); font-size: 17px; font-weight: 600; display: block; }
+  .celda-pie { font-size: 11px; color: var(--tinta-3); display: block; }
+  .fila-hoy td { background: var(--crema); }
+  .persona {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--linea); border-radius: 999px;
+    padding: 4px 11px; font-size: 12.5px; background: var(--blanco); margin: 0 5px 5px 0;
+  }
+  .persona.nueva { border-color: var(--verde); background: var(--verde-suave); color: var(--verde); font-weight: 600; }
+  .sector-bloque { padding: 13px 0; border-bottom: 1px solid var(--linea-2); }
+  .sector-bloque:last-child { border-bottom: 0; }
+  .sector-cabecera {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 9px;
+  }
+  .sector-cabecera h3 { font-size: 15px; font-family: var(--texto); font-weight: 600; }
+  #t-turnos th .rango {
+    font-weight: 400; text-transform: none; letter-spacing: 0;
+  }
+  .celda-vacia { color: var(--tinta-3); display: block; padding: 9px 0; }
+  @media (max-width: 620px) {
+    #t-turnos th { width: auto !important; }
+    #t-turnos th .rango { display: none; }
+    #t-turnos .celda-pie { display: none; }
+    .celda-turno { padding: 7px 6px; }
+    .celda-num { font-size: 15px; }
+  }
+</style>
+</head>
+<body data-shell="escritorio" data-pantalla="06-turnos.html">
+
+<main id="pagina">
+
+  <div class="grilla g-kpi" id="kpis"></div>
+
+  <div class="panel">
+    <div class="panel-cabecera">
+      <h2 id="titulo-semana">Semana</h2>
+      <div class="chips" id="chips-sector"></div>
+    </div>
+
+    <table class="tabla" id="t-turnos">
+      <thead>
+        <tr>
+          <th style="width:130px">Día</th>
+          <th>Mañana <span class="rango">06 a 14</span></th>
+          <th>Tarde <span class="rango">14 a 22</span></th>
+          <th>Noche <span class="rango">22 a 06</span></th>
+        </tr>
+      </thead>
+      <tbody id="cuerpo-turnos"></tbody>
+    </table>
+
+    <p style="margin-top:14px;font-size:12.5px;color:var(--tinta-2)">
+      Cada celda muestra cuánta gente hay sobre cuánta hace falta. Tocá una para ver
+      quiénes están y cubrir lo que falte.
+    </p>
+  </div>
+
+  <div id="detalle"></div>
+
+  <div id="aviso-simulado"></div>
+
+</main>
+
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+var filtroSector = 'todos';
+var elegida = null;   // { fecha, franja }
+
+function iniciar() {
+  document.getElementById('aviso-simulado').innerHTML = G.ui.avisoSimulado();
+  var h = G.huecos();
+  if (h.length) elegida = { fecha: h[0].fecha, franja: h[0].franja };
+  /* desde la alerta del celular llega el hueco puntual: ?hueco=2026-09-26~noche */
+  var pedido = (G.param('hueco') || '').split('~');
+  if (pedido.length === 2 && G.D.semana.grilla.some(function (b) {
+    return b.fecha === pedido[0] && b.franja === pedido[1];
+  })) elegida = { fecha: pedido[0], franja: pedido[1] };
+  pintar();
+}
+
+function bloques(fecha, franja) {
+  return G.D.semana.grilla.filter(function (b) {
+    if (b.fecha !== fecha || b.franja !== franja) return false;
+    return filtroSector === 'todos' || b.sector === filtroSector;
+  });
+}
+
+function pintar() {
+  var semana = G.D.semana;
+  var todos = semana.grilla.filter(function (b) {
+    return filtroSector === 'todos' || b.sector === filtroSector;
+  });
+  var hue = todos.filter(function (b) { return G.cubiertos(b) < b.requeridos; });
+  /* puestos que faltan, no bloques: es lo que se ve en la grilla y lo que
+     baja de a uno cada vez que se cubre a alguien */
+  var faltantes = hue.reduce(function (a, b) { return a + (b.requeridos - G.cubiertos(b)); }, 0);
+  var franjasConHueco = {};
+  hue.forEach(function (b) { franjasConHueco[b.fecha + b.franja] = true; });
+  franjasConHueco = Object.keys(franjasConHueco).length;
+  var puestos = todos.reduce(function (a, b) { return a + G.cubiertos(b); }, 0);
+  var necesarios = todos.reduce(function (a, b) { return a + b.requeridos; }, 0);
+  var nocturnas = todos.filter(function (b) { return b.franja === 'noche'; })
+    .reduce(function (a, b) { return a + G.cubiertos(b) * 8; }, 0);
+  var sumados = Object.keys(G.estado.turnosCubiertos)
+    .reduce(function (a, k) { return a + G.estado.turnosCubiertos[k].length; }, 0);
+
+  document.getElementById('titulo-semana').textContent =
+    'Semana del ' + G.fmt.fecha(semana.desde) + ' al ' + G.fmt.fecha(semana.hasta);
+
+  document.getElementById('kpis').innerHTML = [
+    G.ui.kpi({
+      rotulo: 'Puestos sin cubrir', valor: faltantes,
+      pie: faltantes
+        ? 'en ' + franjasConHueco + (franjasConHueco === 1 ? ' franja' : ' franjas') + ' de la semana'
+        : 'la semana está completa',
+      tono: faltantes ? 'alerta' : 'ok'
+    }),
+    G.ui.kpi({
+      rotulo: 'Cobertura', valor: G.fmt.pct(puestos / necesarios * 100, 0),
+      pie: puestos + ' puestos cubiertos de ' + necesarios,
+      tono: puestos >= necesarios ? 'ok' : 'ambar'
+    }),
+    G.ui.kpi({
+      rotulo: 'Horas nocturnas', valor: G.fmt.num(nocturnas),
+      pie: 'en la semana, sólo en la franja 22 a 06'
+    }),
+    G.ui.kpi({
+      rotulo: 'Sumados por vos', valor: sumados,
+      pie: sumados ? 'cambios sin guardar en esta recorrida' : 'todavía no cubriste ninguno',
+      tono: sumados ? 'ok' : undefined,
+      href: sumados ? '07-horas.html' : undefined
+    })
+  ].join('');
+
+  /* chips de sector */
+  var chips = ['<button class="chip' + (filtroSector === 'todos' ? ' activo' : '') +
+    '" data-sector="todos">Todos</button>'];
+  G.D.sectores.forEach(function (s) {
+    chips.push('<button class="chip' + (filtroSector === s.id ? ' activo' : '') +
+      '" data-sector="' + s.id + '">' + s.nombre + ' (' + s.dotacion + ')</button>');
+  });
+  var cont = document.getElementById('chips-sector');
+  cont.innerHTML = chips.join('');
+  cont.querySelectorAll('.chip').forEach(function (b) {
+    b.addEventListener('click', function () { filtroSector = b.dataset.sector; pintar(); });
+  });
+
+  pintarGrilla();
+  pintarDetalle();
+  G.pintarIconos(document);
+}
+
+function pintarGrilla() {
+  var dias = [];
+  G.D.semana.grilla.forEach(function (b) {
+    if (dias.indexOf(b.fecha) === -1) dias.push(b.fecha);
+  });
+
+  document.getElementById('cuerpo-turnos').innerHTML = dias.map(function (fecha) {
+    var nombreDia = G.D.semana.grilla.find(function (b) { return b.fecha === fecha; }).dia;
+    var celdas = G.D.franjas.map(function (f) {
+      var bs = bloques(fecha, f.id);
+      var cub = bs.reduce(function (a, b) { return a + G.cubiertos(b); }, 0);
+      var req = bs.reduce(function (a, b) { return a + b.requeridos; }, 0);
+      if (!req) {
+        return '<td><span class="celda-vacia" title="Sin dotación en esta franja">—</span></td>';
+      }
+      var clases = 'celda-turno';
+      if (cub < req) clases += ' falta';
+      else clases += ' completa';
+      if (elegida && elegida.fecha === fecha && elegida.franja === f.id) clases += ' elegida';
+      return '<td><button class="' + clases + '" data-fecha="' + fecha +
+        '" data-franja="' + f.id + '">' +
+        '<span class="celda-num num">' + cub + '/' + req + '</span>' +
+        '<span class="celda-pie">' + (cub < req ? 'falta ' + (req - cub) : 'completa') + '</span>' +
+        '</button></td>';
+    }).join('');
+    return '<tr><td class="fuerte">' + nombreDia +
+      '<span class="chica">' + G.fmt.fechaCorta(fecha) + '</span></td>' + celdas + '</tr>';
+  }).join('');
+
+  document.querySelectorAll('.celda-turno').forEach(function (b) {
+    b.addEventListener('click', function () {
+      elegida = { fecha: b.dataset.fecha, franja: b.dataset.franja };
+      pintar();
+      document.getElementById('detalle').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  });
+}
+
+function pintarDetalle() {
+  var cont = document.getElementById('detalle');
+  if (!elegida) { cont.innerHTML = ''; return; }
+
+  var bs = bloques(elegida.fecha, elegida.franja);
+  if (!bs.length) { cont.innerHTML = ''; return; }
+
+  var franja = G.D.franjas.find(function (f) { return f.id === elegida.franja; });
+  var dia = G.D.semana.grilla.find(function (b) { return b.fecha === elegida.fecha; }).dia;
+
+  var html = '<div class="panel"><div class="panel-cabecera">' +
+    '<div><span class="rotulo">' + G.fmt.fecha(elegida.fecha) + '</span>' +
+    '<h2>' + dia + ' · ' + franja.nombre + ' · ' + franja.desde + ' a ' + franja.hasta + '</h2></div>' +
+    (elegida.franja === 'noche'
+      ? G.ui.marca('Cada puesto suma 8 horas nocturnas', 'ambar') : '') +
+    '</div>';
+
+  html += bs.map(function (b) {
+    var extra = G.estado.turnosCubiertos[G.claveBloque(b)] || [];
+    var gente = b.empleados.concat(extra);
+    var falta = b.requeridos - gente.length;
+    return '<div class="sector-bloque">' +
+      '<div class="sector-cabecera">' +
+        '<h3>' + b.sectorNombre + '</h3>' +
+        '<span>' + (falta > 0
+          ? G.ui.marca('Falta ' + falta, 'alerta')
+          : G.ui.marca(gente.length + ' de ' + b.requeridos, 'ok')) + '</span>' +
+      '</div>' +
+      '<div>' + (gente.length
+        ? gente.map(function (id) {
+            var e = G.empleado(id);
+            var nueva = extra.indexOf(id) !== -1;
+            return '<span class="persona' + (nueva ? ' nueva' : '') + '">' +
+              (nueva ? G.icono('check', 13) : '') + e.nombre + '</span>';
+          }).join('')
+        : '<span style="font-size:13px;color:var(--alerta)">Nadie asignado en esta franja</span>') +
+      '</div>' +
+      (falta > 0
+        ? '<button class="btn btn-primario btn-chico" style="margin-top:9px" data-cubrir="' +
+          G.claveBloque(b) + '">' + G.icono('personas', 15) + 'Cubrir este puesto</button>'
+        : '') +
+    '</div>';
+  }).join('');
+
+  html += '</div>';
+  cont.innerHTML = html;
+
+  cont.querySelectorAll('[data-cubrir]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      cubrir(btn.dataset.cubrir);
+    });
+  });
+}
+
+function cubrir(clave) {
+  var b = G.D.semana.grilla.find(function (x) { return G.claveBloque(x) === clave; });
+  if (!b) return;
+  var extra = G.estado.turnosCubiertos[clave] || (G.estado.turnosCubiertos[clave] = []);
+  var ocupados = b.empleados.concat(extra);
+  var candidato = G.D.empleados.find(function (e) {
+    return e.sector === b.sector && ocupados.indexOf(e.id) === -1;
+  });
+  if (!candidato) { G.toast('No queda nadie disponible en ' + b.sectorNombre); return; }
+  extra.push(candidato.id);
+  G.toast(candidato.nombre + ' cubre ' + b.sectorNombre + ', ' + b.dia + ' ' +
+    b.franjaNombre + (b.franja === 'noche' ? ' · +8 h nocturnas' : ''));
+  pintar();
+}
+</script>
+</body>
+</html>

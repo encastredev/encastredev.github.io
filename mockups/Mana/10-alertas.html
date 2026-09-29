@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Alertas del día · Maná</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+  .saludo { background: var(--blanco); border: 1px solid var(--linea); border-radius: var(--radio); padding: 14px; }
+  .saludo .rotulo { display: block; }
+  .saludo h2 { font-size: 21px; margin: 4px 0 6px; }
+  .saludo h2 .num { color: var(--alerta); }
+  .saludo h2.tranquilo .num { color: var(--verde); }
+  .noche-resumen { display: flex; gap: 6px 12px; flex-wrap: wrap; font-size: 12px; color: var(--tinta-2); }
+  .noche-resumen span { display: inline-flex; gap: 5px; align-items: center; }
+  .noche-resumen .ico { color: var(--verde); }
+  .noche-resumen .mal .ico { color: var(--alerta); }
+
+  #chips-prio { gap: 6px; }
+  #chips-prio .chip { padding: 5px 10px; }
+  .alertas { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .alerta {
+    background: var(--blanco);
+    border: 1px solid var(--linea);
+    border-left: 4px solid var(--salvia);
+    border-radius: var(--radio);
+    padding: 12px 12px 10px;
+    min-width: 0;
+    animation: entrar .18s ease-out;
+  }
+  .alerta.urgente { border-left-color: var(--alerta); }
+  .alerta.hoy { border-left-color: #d9b25f; }
+  .alerta-cabecera { display: flex; gap: 8px; align-items: flex-start; }
+  .alerta-cabecera .ico { flex: none; margin-top: 2px; color: var(--tinta-3); }
+  .alerta.urgente .alerta-cabecera .ico { color: var(--alerta); }
+  .alerta h3 { font-size: 14.5px; margin: 0; flex: 1; min-width: 0; line-height: 1.3; }
+  .alerta p { font-size: 12.5px; color: var(--tinta-2); margin: 6px 0 10px; }
+  .alerta-pie { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .alerta-pie .btn { padding: 6px 11px; font-size: 12.5px; }
+  .btn-descartar { background: none; border: 0; color: var(--tinta-3); font: inherit; font-size: 12px; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; padding: 6px 4px; }
+  .btn-descartar:hover { color: var(--tinta); }
+
+  .deshacer {
+    display: flex; gap: 10px; align-items: center; justify-content: space-between;
+    background: var(--tinta); color: var(--crema); border-radius: 12px;
+    padding: 9px 12px; font-size: 12.5px;
+  }
+  .deshacer span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .deshacer button { background: none; border: 0; color: var(--salvia); font: inherit; font-weight: 600; cursor: pointer; flex: none; }
+
+  .vacio-movil { text-align: center; padding: 26px 12px; background: var(--blanco); border: 1px solid var(--linea); border-radius: var(--radio); }
+  .vacio-movil .ico { color: var(--verde); }
+  .vacio-movil h3 { font-size: 16px; margin: 8px 0 4px; }
+  .vacio-movil p { font-size: 12.5px; color: var(--tinta-2); margin: 0; }
+
+  .pie-alertas { font-size: 12px; color: var(--tinta-3); text-align: center; }
+  .pie-alertas button { background: none; border: 0; color: var(--verde); font: inherit; text-decoration: underline; cursor: pointer; }
+
+  @keyframes entrar { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body data-shell="telefono" data-pantalla="10-alertas.html">
+
+<main id="pagina">
+
+  <div class="saludo">
+    <span class="rotulo">Martes 22 de septiembre · 7:42</span>
+    <h2 id="titular"></h2>
+    <div class="noche-resumen" id="noche"></div>
+  </div>
+
+  <div class="chips" id="chips-prio"></div>
+
+  <ul class="alertas" id="alertas"></ul>
+
+  <div id="deshacer-caja"></div>
+
+  <p class="pie-alertas" id="pie"></p>
+
+  <div class="etapa-futura">
+    <p style="font-size:12px;color:var(--tinta-2);margin:0">
+      <strong>A confirmar:</strong> cómo le llegan a Jorge (notificación del celular o un
+      WhatsApp) y a qué hora. En el boceto, las 7 de la mañana.
+    </p>
+  </div>
+
+</main>
+
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+var filtro = 'todas';
+var ultimaDescartada = null;
+
+var PRIO = {
+  urgente: { texto: 'Urgente', tono: 'alerta', orden: 0 },
+  hoy: { texto: 'Para hoy', corto: 'Hoy', tono: 'ambar', orden: 1 },
+  saber: { texto: 'Para saber', tono: 'neutra', orden: 2 }
+};
+
+var FRANJA = { manana: 'a la mañana', tarde: 'a la tarde', noche: 'a la noche' };
+
+function iniciar() { pintar(); }
+
+/* Cada alerta sale de los mismos datos que las pantallas de la notebook:
+   si algo se resuelve allá, acá desaparece. */
+function armarAlertas() {
+  var D = G.D;
+  var p = D.meta.periodoActual;
+  var lista = [];
+
+  var hol = D.conexiones.find(function (c) { return c.id === 'holistor'; });
+  var eh = G.conexionEstado(hol);
+  if (eh === 'falla') {
+    lista.push({
+      id: 'holistor', prio: 'urgente', icono: 'enchufe',
+      titulo: 'Holistor no contestó anoche',
+      texto: 'Faltan las compras de ' + G.fmt.periodo(p).split(' ')[0] + ' y el IVA quedó incompleto. ' +
+        'Administración lo resuelve subiendo el export, en dos minutos.',
+      accion: 'Ver conexiones', archivo: '09-conexiones.html'
+    });
+  } else if (eh === 'manual') {
+    lista.push({
+      id: 'holistor-archivo', prio: 'saber', icono: 'check',
+      titulo: 'Compras cargadas desde archivo',
+      texto: 'Holistor no contestó anoche, pero administración subió el export. ' +
+        G.fmt.periodo(p).replace(/^./, function (l) { return l.toUpperCase(); }) + ' está completo.',
+      accion: 'Ver conexiones', archivo: '09-conexiones.html'
+    });
+  }
+
+  var abiertas = G.diferenciasAbiertas(p);
+  if (abiertas.length) {
+    var total = abiertas.reduce(function (a, d) { return a + d.iva; }, 0);
+    var mayor = abiertas.slice().sort(function (a, b) { return b.iva - a.iva; })[0];
+    lista.push({
+      id: 'iva', prio: 'urgente', icono: 'recibo',
+      titulo: abiertas.length + (abiertas.length === 1 ? ' diferencia' : ' diferencias') +
+        ' de IVA en ' + G.fmt.periodo(p).split(' ')[0],
+      texto: G.fmt.moneda(total) + ' de IVA en juego. La más grande: ' + mayor.proveedor +
+        ' (' + G.fmt.moneda(mayor.iva) + ').',
+      accion: 'Ver la lista', archivo: '02-iva-mes.html', extra: { periodo: p }
+    });
+  }
+
+  var hue = G.huecos();
+  if (hue.length) {
+    var noche = hue.filter(function (b) { return b.franja === 'noche'; })[0] || hue[0];
+    var faltan = noche.requeridos - G.cubiertos(noche);
+    lista.push({
+      id: 'turno', prio: 'hoy', icono: 'personas',
+      titulo: noche.dia + ' ' + noche.fecha.slice(8) + ' ' + FRANJA[noche.franja] + ': ' +
+        (faltan === 1 ? 'falta 1' : 'faltan ' + faltan) + ' en ' + noche.sectorNombre,
+      texto: 'Esta semana hay ' + hue.length + (hue.length === 1 ? ' franja' : ' franjas') +
+        ' sin cubrir del todo. Esta es la que más cuesta cubrir.',
+      accion: 'Cubrir el puesto', archivo: '06-turnos.html',
+      extra: { hueco: noche.fecha + '~' + noche.franja }
+    });
+  }
+
+  var desact = G.productosDesactualizados();
+  if (desact.length) {
+    var perdida = desact.reduce(function (a, x) { return a + G.impactoMensual(x); }, 0);
+    var peor = desact.slice().sort(function (a, b) { return G.impactoMensual(b) - G.impactoMensual(a); })[0];
+    lista.push({
+      id: 'precios', prio: 'hoy', icono: 'etiqueta',
+      titulo: desact.length + ' productos quedaron con el precio viejo',
+      texto: 'Subió el costo y el precio no. Se dejan de ganar ' + G.fmt.monedaCorta(perdida) +
+        ' por mes; el que más pesa es ' + peor.nombre.toLowerCase() + '.',
+      accion: 'Ver precios', archivo: '04-precios.html'
+    });
+  }
+
+  var fallida = (D.resguardo.copias || []).find(function (c) { return c.estado === 'error'; });
+  if (fallida) {
+    lista.push({
+      id: 'resguardo', prio: 'saber', icono: 'escudo',
+      titulo: 'La copia de Caja 1 del ' + G.fmt.fechaCorta(fallida.fecha) + ' no se hizo',
+      texto: fallida.detalle + '. Las copias de las noches siguientes salieron bien.',
+      accion: 'Ver resguardo', archivo: '08-resguardo.html'
+    });
+  }
+
+  var horas = (D.horas[p] || []).filter(function (h) { return h.francosAdeudados >= 2; });
+  if (horas.length) {
+    lista.push({
+      id: 'francos', prio: 'saber', icono: 'reloj',
+      titulo: horas.length + ' personas deben 2 francos o más',
+      texto: 'Conviene darlos antes del cierre del mes, para que no se sigan acumulando.',
+      accion: 'Ver horas y francos', archivo: '07-horas.html', extra: { orden: 'francos' }
+    });
+  }
+
+  return lista.sort(function (a, b) { return PRIO[a.prio].orden - PRIO[b.prio].orden; });
+}
+
+function visibles(todas) {
+  return todas.filter(function (a) { return !G.estado.alertasDescartadas[a.id]; });
+}
+
+function pintar() {
+  var todas = armarAlertas();
+  var vivas = visibles(todas);
+  var urgentes = vivas.filter(function (a) { return a.prio === 'urgente'; }).length;
+
+  /* --- titular --- */
+  var t = document.getElementById('titular');
+  t.className = vivas.length ? '' : 'tranquilo';
+  t.innerHTML = vivas.length
+    ? 'Buen día, Jorge. <span class="num" id="cuenta-alertas">' + vivas.length + '</span> ' +
+      (vivas.length === 1 ? 'cosa' : 'cosas') + ' para mirar' +
+      (urgentes ? ', ' + urgentes + (urgentes === 1 ? ' urgente' : ' urgentes') : '') + '.'
+    : 'Buen día, Jorge. <span class="num" id="cuenta-alertas">0</span> pendientes.';
+
+  /* --- lo que pasó anoche --- */
+  var leidas = G.D.conexiones.filter(function (c) { return G.conexionEstado(c) !== 'falla'; }).length;
+  var copia = G.ultimaCopia();
+  document.getElementById('noche').innerHTML =
+    '<span class="' + (leidas < G.D.conexiones.length ? 'mal' : '') + '">' +
+      G.icono(leidas < G.D.conexiones.length ? 'alerta' : 'check', 14) +
+      leidas + ' de ' + G.D.conexiones.length + ' fuentes leídas</span>' +
+    '<span>' + G.icono('check', 14) + 'Copia de Caja 1 ' + copia.hora + '</span>';
+
+  /* --- filtros --- */
+  var chips = [['todas', 'Todas', vivas.length]];
+  Object.keys(PRIO).forEach(function (k) {
+    chips.push([k, PRIO[k].corto || PRIO[k].texto, vivas.filter(function (a) { return a.prio === k; }).length]);
+  });
+  var caja = document.getElementById('chips-prio');
+  caja.innerHTML = chips.map(function (c) {
+    return '<button class="chip' + (filtro === c[0] ? ' activo' : '') + '" data-prio="' + c[0] + '">' +
+      c[1] + ' (' + c[2] + ')</button>';
+  }).join('');
+  caja.querySelectorAll('.chip').forEach(function (b) {
+    b.addEventListener('click', function () { filtro = b.dataset.prio; pintar(); });
+  });
+
+  /* --- lista --- */
+  var lista = vivas.filter(function (a) { return filtro === 'todas' || a.prio === filtro; });
+  var ul = document.getElementById('alertas');
+  if (!lista.length) {
+    ul.innerHTML = '<li class="vacio-movil">' + G.icono('check', 30) +
+      '<h3>' + (vivas.length ? 'Nada en esta categoría' : 'Todo en orden') + '</h3>' +
+      '<p>' + (vivas.length ? 'Las demás alertas siguen en "Todas".'
+        : 'Nada necesita tu decisión hoy. Si algo cambia a la noche, mañana te aparece acá.') +
+      '</p></li>';
+  } else {
+    ul.innerHTML = lista.map(function (a) {
+      return '<li class="alerta ' + a.prio + '" id="alerta-' + a.id + '" data-id="' + a.id + '">' +
+        '<div class="alerta-cabecera">' + G.icono(a.icono, 18) + '<h3>' + a.titulo + '</h3>' +
+          G.ui.marca(PRIO[a.prio].texto, PRIO[a.prio].tono) + '</div>' +
+        '<p>' + a.texto + '</p>' +
+        '<div class="alerta-pie">' +
+          '<button class="btn" data-abrir="' + a.id + '">' + a.accion + G.icono('der', 14) + '</button>' +
+          '<button class="btn-descartar" data-descartar="' + a.id + '">' + G.icono('cruz', 13) + 'Descartar</button>' +
+        '</div></li>';
+    }).join('');
+  }
+
+  ul.querySelectorAll('[data-abrir]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var a = todas.find(function (x) { return x.id === b.dataset.abrir; });
+      if (!G.listo(a.archivo)) {
+        var s = G.pantalla(a.archivo);
+        G.toast('“' + (s ? s.titulo : a.archivo) + '” todavía no está armada en el boceto');
+        return;
+      }
+      G.ir(a.archivo, a.extra);
+    });
+  });
+  ul.querySelectorAll('[data-descartar]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var a = todas.find(function (x) { return x.id === b.dataset.descartar; });
+      G.estado.alertasDescartadas[a.id] = true;
+      ultimaDescartada = a;
+      pintar();
+    });
+  });
+
+  /* --- deshacer --- */
+  var dh = document.getElementById('deshacer-caja');
+  if (ultimaDescartada && G.estado.alertasDescartadas[ultimaDescartada.id]) {
+    dh.innerHTML = '<div class="deshacer"><span>Descartaste “' + ultimaDescartada.titulo + '”</span>' +
+      '<button id="btn-deshacer">Deshacer</button></div>';
+    document.getElementById('btn-deshacer').addEventListener('click', function () {
+      delete G.estado.alertasDescartadas[ultimaDescartada.id];
+      ultimaDescartada = null;
+      pintar();
+    });
+  } else {
+    dh.innerHTML = '';
+  }
+
+  /* --- pie --- */
+  var descartadas = todas.length - vivas.length;
+  var pie = document.getElementById('pie');
+  pie.innerHTML = descartadas
+    ? descartadas + (descartadas === 1 ? ' descartada' : ' descartadas') +
+      ' · <button id="btn-mostrar">Volver a mostrarlas</button>'
+    : 'Las alertas se arman solas cada madrugada, con lo que el sistema leyó a la noche.';
+  var bm = document.getElementById('btn-mostrar');
+  if (bm) bm.addEventListener('click', function () {
+    G.estado.alertasDescartadas = {};
+    ultimaDescartada = null;
+    pintar();
+  });
+}
+</script>
+</body>
+</html>

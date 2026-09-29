@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Precios y márgenes · Maná</title>
+<link rel="stylesheet" href="assets/ui.css">
+<style>
+  .control-margen {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: var(--verde-suave); border: 1px solid var(--verde-borde);
+    border-radius: var(--radio); padding: 14px 16px;
+  }
+  .control-margen > * { min-width: 0; }
+  .control-margen input[type="range"] { flex: 1; min-width: 180px; }
+  .control-valor {
+    font-family: var(--titulo); font-size: 22px; font-weight: 600;
+    color: var(--verde); white-space: nowrap;
+  }
+  .costo-flecha { color: var(--tinta-3); padding: 0 4px; }
+  .barra-lote {
+    position: sticky; bottom: 0; z-index: 30;
+    background: var(--tinta); color: var(--crema);
+    border-radius: var(--radio); padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .barra-lote > * { min-width: 0; }
+  .barra-lote .texto { flex: 1; font-size: 13.5px; }
+  .barra-lote strong { font-family: var(--titulo); font-size: 17px; }
+  @media (max-width: 900px) {
+    #t-precios td:nth-child(3), #t-precios th:nth-child(3) { display: none; }
+  }
+  @media (max-width: 700px) {
+    #t-precios td:nth-child(2), #t-precios th:nth-child(2) { display: none; }
+  }
+  @media (max-width: 620px) {
+    /* en el celular las columnas se acomodan solas: los anchos fijos estorban */
+    #t-precios th { width: auto !important; }
+    #t-precios td:nth-child(4), #t-precios th:nth-child(4) { display: none; }
+    #t-precios .btn { white-space: normal; }
+  }
+</style>
+</head>
+<body data-shell="escritorio" data-pantalla="04-precios.html">
+
+<main id="pagina">
+
+  <div class="grilla g-kpi" id="kpis"></div>
+
+  <div class="panel">
+    <div class="panel-cabecera">
+      <h2>Margen objetivo</h2>
+      <span class="panel-nota">Cada rubro tiene el suyo. Esto los mueve a todos a la vez.</span>
+    </div>
+    <div class="control-margen">
+      <span class="rotulo" style="flex:none">Ajuste</span>
+      <input type="range" id="slider-margen" min="-5" max="10" step="1" value="0">
+      <span class="control-valor" id="valor-margen">sin cambios</span>
+      <button class="btn btn-chico" id="btn-reset">Volver al original</button>
+    </div>
+    <p style="margin-top:12px;font-size:13px;color:var(--tinta-2)" id="detalle-margen"></p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-cabecera">
+      <h2>Productos con el precio atrasado</h2>
+      <span class="panel-nota" id="contador"></span>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+      <div class="chips" id="chips-rubro"></div>
+      <div class="campo" style="flex:1;min-width:190px">
+        <input type="search" id="buscar" placeholder="Buscar producto" style="width:100%">
+      </div>
+      <div class="campo">
+        <label for="sel-orden">Ordenar por</label>
+        <select id="sel-orden">
+          <option value="impacto">Lo que se pierde por mes</option>
+          <option value="margen">Margen más caído</option>
+          <option value="suba">Suba de costo</option>
+          <option value="nombre">Nombre</option>
+        </select>
+      </div>
+    </div>
+
+    <table class="tabla" id="t-precios">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th style="width:150px">Costo</th>
+          <th class="der" style="width:110px">Precio hoy</th>
+          <th style="width:150px">Margen</th>
+          <th class="der" style="width:120px">Sugerido</th>
+          <th class="der" style="width:130px"></th>
+        </tr>
+      </thead>
+      <tbody id="cuerpo"></tbody>
+    </table>
+  </div>
+
+  <div class="barra-lote" id="barra-lote"></div>
+
+  <div id="aviso-simulado"></div>
+
+</main>
+
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+var filtroRubro = 'todos';
+var busqueda = '';
+var orden = 'impacto';
+
+function iniciar() {
+  var slider = document.getElementById('slider-margen');
+  slider.value = G.estado.ajusteMargen;
+  slider.addEventListener('input', function () {
+    G.estado.ajusteMargen = parseInt(slider.value, 10);
+    pintar();
+  });
+
+  document.getElementById('btn-reset').addEventListener('click', function () {
+    G.estado.ajusteMargen = 0;
+    slider.value = 0;
+    pintar();
+    G.toast('Márgenes objetivo como estaban');
+  });
+
+  document.getElementById('buscar').addEventListener('input', function (e) {
+    busqueda = e.target.value;
+    pintarTabla();
+  });
+
+  document.getElementById('sel-orden').addEventListener('change', function (e) {
+    orden = e.target.value;
+    pintarTabla();
+  });
+
+  document.getElementById('aviso-simulado').innerHTML = G.ui.avisoSimulado();
+  pintar();
+}
+
+function pintar() {
+  var desact = G.productosDesactualizados();
+  var perdida = desact.reduce(function (a, p) { return a + G.impactoMensual(p); }, 0);
+  var caida = desact.length
+    ? desact.reduce(function (a, p) { return a + (G.objetivoDe(p.rubro) - G.margenDe(p)); }, 0) / desact.length
+    : 0;
+  var enLote = Object.keys(G.estado.lote).length;
+
+  document.getElementById('kpis').innerHTML = [
+    G.ui.kpi({
+      rotulo: 'Precios atrasados', valor: desact.length,
+      pie: 'productos por debajo del margen objetivo',
+      tono: desact.length > 25 ? 'alerta' : (desact.length ? 'ambar' : 'ok')
+    }),
+    G.ui.kpi({
+      rotulo: 'Se deja de ganar', valor: G.fmt.monedaCorta(perdida),
+      pie: 'por mes, mientras el precio siga viejo', tono: 'alerta'
+    }),
+    G.ui.kpi({
+      rotulo: 'Margen caído', valor: G.fmt.num(caida, 1) + ' pts',
+      pie: 'por debajo del objetivo, en promedio'
+    }),
+    G.ui.kpi({
+      rotulo: 'En el lote', valor: enLote,
+      pie: enLote ? 'listos para cargar en Todosoft' : 'todavía no sumaste ninguno',
+      tono: enLote ? 'ok' : undefined,
+      href: enLote ? '05-orden-cambios.html' : undefined
+    })
+  ].join('');
+
+  var aj = G.estado.ajusteMargen;
+  document.getElementById('valor-margen').textContent =
+    aj === 0 ? 'sin cambios' : (aj > 0 ? '+' + aj : aj) + ' puntos';
+  document.getElementById('detalle-margen').innerHTML =
+    G.D.rubros.slice(0, 11).map(function (r) {
+      var base = G.objetivoBase(r.id), fin = G.objetivoDe(r.id);
+      var cambio = fin !== base
+        ? ' <strong style="color:var(--verde)">' + fin + '%</strong>'
+        : ' ' + base + '%';
+      return r.nombre + cambio;
+    }).join(' · ');
+
+  /* chips de rubro */
+  var chips = ['<button class="chip' + (filtroRubro === 'todos' ? ' activo' : '') +
+    '" data-rubro="todos">Todos (' + G.productosDesactualizados().length + ')</button>'];
+  G.D.rubros.forEach(function (r) {
+    var n = G.productosDesactualizados().filter(function (p) { return p.rubro === r.id; }).length;
+    if (!n) return;
+    chips.push('<button class="chip' + (filtroRubro === r.id ? ' activo' : '') +
+      '" data-rubro="' + r.id + '">' + r.nombre + ' (' + n + ')</button>');
+  });
+  var cont = document.getElementById('chips-rubro');
+  cont.innerHTML = chips.join('');
+  cont.querySelectorAll('.chip').forEach(function (b) {
+    b.addEventListener('click', function () { filtroRubro = b.dataset.rubro; pintar(); });
+  });
+
+  pintarTabla();
+  pintarBarra();
+  G.pintarIconos(document);
+}
+
+function pintarTabla() {
+  var lista = G.productosDesactualizados().filter(function (p) {
+    if (filtroRubro !== 'todos' && p.rubro !== filtroRubro) return false;
+    return G.contiene(p.nombre + ' ' + G.nombreRubro(p.rubro), busqueda);
+  });
+
+  lista.sort(function (a, b) {
+    if (orden === 'nombre') return a.nombre.localeCompare(b.nombre, 'es');
+    if (orden === 'margen') {
+      return (G.objetivoDe(a.rubro) - G.margenDe(a)) < (G.objetivoDe(b.rubro) - G.margenDe(b)) ? 1 : -1;
+    }
+    if (orden === 'suba') {
+      return (a.costo / a.costoAnterior) < (b.costo / b.costoAnterior) ? 1 : -1;
+    }
+    return G.impactoMensual(a) < G.impactoMensual(b) ? 1 : -1;
+  });
+
+  document.getElementById('cuerpo').innerHTML = lista.length
+    ? lista.map(fila).join('')
+    : G.ui.vacio(6, G.estado.ajusteMargen < 0
+        ? 'Con este margen objetivo no queda ningún producto atrasado.'
+        : 'Ningún producto coincide con el filtro.');
+
+  document.getElementById('cuerpo').querySelectorAll('[data-sumar]').forEach(function (b) {
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var id = b.dataset.sumar;
+      var prod = G.D.productos.find(function (x) { return x.id === id; });
+      if (G.estado.lote[id]) {
+        delete G.estado.lote[id];
+        G.toast(prod.nombre + ' salió del lote');
+      } else {
+        G.estado.lote[id] = G.sugerido(prod);
+        G.toast(prod.nombre + ' · ' + G.fmt.moneda(prod.precio) + ' → ' +
+          G.fmt.moneda(G.sugerido(prod)));
+      }
+      pintar();
+    });
+  });
+
+  var perdida = lista.reduce(function (a, p) { return a + G.impactoMensual(p); }, 0);
+  document.getElementById('contador').textContent =
+    lista.length + (lista.length === 1 ? ' producto' : ' productos') +
+    ' · ' + G.fmt.moneda(perdida) + ' por mes';
+}
+
+function fila(p) {
+  var margen = G.margenDe(p);
+  var objetivo = G.objetivoDe(p.rubro);
+  var sug = G.sugerido(p);
+  var suba = (p.costo / p.costoAnterior - 1) * 100;
+  var enLote = !!G.estado.lote[p.id];
+
+  return '<tr>' +
+    '<td class="fuerte">' + p.nombre +
+      '<span class="chica">' + G.nombreRubro(p.rubro) + ' · por ' + p.unidad +
+      ' · ' + G.fmt.num(p.ventaMes) + ' al mes</span></td>' +
+    '<td><span class="num" style="color:var(--tinta-3)">' + G.fmt.moneda(p.costoAnterior) +
+      '</span><span class="costo-flecha">→</span><span class="num fuerte">' +
+      G.fmt.moneda(p.costo) + '</span>' +
+      '<span class="chica">+' + G.fmt.pct(suba, 0) + ' el ' + G.fmt.fechaCorta(p.fechaCosto) + '</span></td>' +
+    '<td class="der num">' + G.fmt.moneda(p.precio) +
+      '<span class="chica">desde ' + G.fmt.fechaCorta(p.precioDesde) + '</span></td>' +
+    '<td>' + G.ui.barrita(margen, objetivo) +
+      '<span class="chica">' + G.fmt.pct(margen) + ' · objetivo ' + G.fmt.pct(objetivo, 0) + '</span></td>' +
+    '<td class="der fuerte num" style="color:var(--verde)">' + G.fmt.moneda(sug) +
+      '<span class="chica">+' + G.fmt.moneda(sug - p.precio) + '</span></td>' +
+    '<td class="der"><button class="btn btn-chico' + (enLote ? ' btn-primario' : '') +
+      '" data-sumar="' + p.id + '">' + (enLote ? 'En el lote' : 'Sumar') + '</button></td>' +
+  '</tr>';
+}
+
+function pintarBarra() {
+  var ids = Object.keys(G.estado.lote);
+  var barra = document.getElementById('barra-lote');
+  if (!ids.length) {
+    barra.innerHTML = '<span class="texto">Sumá productos al lote para armar la orden de ' +
+      'cambios que se carga en Todosoft.</span>';
+    return;
+  }
+  var recupera = ids.reduce(function (a, id) {
+    var p = G.D.productos.find(function (x) { return x.id === id; });
+    return a + (G.estado.lote[id] - p.precio) * p.ventaMes;
+  }, 0);
+  barra.innerHTML =
+    '<span class="texto"><strong>' + ids.length + '</strong> ' +
+      (ids.length === 1 ? 'producto en el lote' : 'productos en el lote') +
+      ' · recuperás <strong>' + G.fmt.monedaCorta(recupera) + '</strong> por mes</span>' +
+    '<a class="btn btn-primario" href="05-orden-cambios.html">Ver la orden de cambios' +
+      '<span data-i="der" data-tam="15"></span></a>';
+}
+</script>
+</body>
+</html>

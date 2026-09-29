@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Tablero · Maná</title>
+<link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="escritorio" data-pantalla="01-tablero.html">
+
+<main id="pagina">
+
+  <div class="barra-acciones" style="justify-content:space-between;width:100%">
+    <div class="campo">
+      <label for="sel-periodo">Período</label>
+      <select id="sel-periodo"></select>
+    </div>
+    <span class="panel-nota" id="sello-lectura"></span>
+  </div>
+
+  <div id="aviso-conexion-caja"></div>
+
+  <div class="grilla g-kpi" id="kpis"></div>
+
+  <div class="grilla g-2">
+
+    <div class="panel">
+      <div class="panel-cabecera">
+        <h2>IVA del período</h2>
+        <span class="panel-nota" id="nota-iva"></span>
+      </div>
+      <table class="tabla" id="t-totales">
+        <thead>
+          <tr><th>Origen</th><th class="der">Neto</th><th class="der">Comprobantes</th><th class="der">IVA</th></tr>
+        </thead>
+        <tbody id="cuerpo-totales"></tbody>
+      </table>
+      <p style="margin-top:14px;font-size:13px;color:var(--tinta-2)" id="pie-iva"></p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-cabecera">
+        <h2>Lo que leyó el sistema anoche</h2>
+        <a class="btn btn-chico" href="09-conexiones.html">Ver conexiones</a>
+      </div>
+      <div id="lista-conexiones"></div>
+      <div class="etapa-futura" style="margin-top:14px">
+        <p style="font-size:12.5px;color:var(--tinta-2);margin:0">
+          <strong>Supuesto a confirmar.</strong> La lectura automática de Holistor depende de
+          cómo nos deje entrar el proveedor. Si no se puede, el sistema funciona igual con el
+          archivo cargado a mano — eso se prueba en la pantalla de conexiones.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="panel">
+    <div class="panel-cabecera">
+      <h2>Las diferencias más grandes del período</h2>
+      <a class="btn btn-chico" id="btn-ver-todas" href="02-iva-mes.html">Ver las 7</a>
+    </div>
+    <table class="tabla" id="t-difs">
+      <thead>
+        <tr>
+          <th>Comprobante</th>
+          <th>Qué pasa</th>
+          <th style="width:110px">Fecha</th>
+          <th style="width:150px">Proveedor</th>
+          <th class="der" style="width:120px">IVA en juego</th>
+        </tr>
+      </thead>
+      <tbody id="cuerpo-difs"></tbody>
+    </table>
+  </div>
+
+  <div id="aviso-simulado"></div>
+
+</main>
+
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+function iniciar() {
+  var sel = document.getElementById('sel-periodo');
+  sel.innerHTML = G.D.meta.periodos.map(function (p) {
+    return '<option value="' + p + '">' + G.fmt.periodo(p) + '</option>';
+  }).join('');
+  sel.value = G.periodo();
+  sel.addEventListener('change', function () {
+    G.estado.periodo = sel.value;
+    pintar();
+    G.toast('Período: ' + G.fmt.periodo(sel.value));
+  });
+
+  document.getElementById('aviso-simulado').innerHTML = G.ui.avisoSimulado();
+  document.getElementById('sello-lectura').textContent =
+    'Última lectura: 22/09/2026, 04:05';
+  pintar();
+}
+
+function pintar() {
+  var p = G.estado.periodo;
+  var iva = G.ivaDelPeriodo(p);
+  var abiertas = G.diferenciasAbiertas(p);
+  var desact = G.productosDesactualizados();
+  var hue = G.huecos();
+  var copia = G.ultimaCopia();
+
+  var enJuego = abiertas.reduce(function (a, d) { return a + d.iva; }, 0);
+  var margenPerdido = desact.reduce(function (a, x) {
+    return a + (G.sugerido(x) - x.precio) * (x.ventaMes / 30) * 30 / 1000;
+  }, 0);
+
+  /* --- KPIs --- */
+  document.getElementById('kpis').innerHTML = [
+    G.ui.kpi({
+      rotulo: 'Conciliación de IVA',
+      valor: abiertas.length,
+      pie: abiertas.length === 0
+        ? 'Sin diferencias abiertas en ' + G.fmt.periodoCorto(p)
+        : 'diferencias abiertas · ' + G.fmt.moneda(enJuego) + ' en juego',
+      tono: abiertas.length === 0 ? 'ok' : 'alerta',
+      href: G.href('02-iva-mes.html', { periodo: p })
+    }),
+    G.ui.kpi({
+      rotulo: 'Precios',
+      valor: desact.length,
+      pie: 'productos por debajo del margen objetivo',
+      tono: desact.length > 15 ? 'alerta' : 'ambar',
+      href: '04-precios.html'
+    }),
+    G.ui.kpi({
+      rotulo: 'Turnos de esta semana',
+      valor: hue.length,
+      pie: hue.length === 0 ? 'Semana cubierta' : 'franjas sin cubrir del todo',
+      tono: hue.length === 0 ? 'ok' : 'ambar',
+      href: '06-turnos.html'
+    }),
+    G.ui.kpi({
+      rotulo: 'Resguardo de Caja 1',
+      valor: copia && copia.estado === 'ok' ? 'Al día' : 'Revisar',
+      pie: copia ? 'última copia ' + G.fmt.fecha(copia.fecha) + ' a las ' + copia.hora : '—',
+      tono: copia && copia.estado === 'ok' ? 'ok' : 'alerta',
+      href: '08-resguardo.html'
+    })
+  ].join('');
+
+  document.getElementById('aviso-conexion-caja').innerHTML = G.ui.avisoConexion(p);
+
+  /* --- totales de IVA --- */
+  var saldo = iva.ventas.iva - iva.compras.iva;
+  var incompleto = G.comprasIncompletas(p);
+  document.getElementById('cuerpo-totales').innerHTML =
+    (incompleto
+      ? '<tr><td class="fuerte">Compras<span class="chica">Holistor no contestó</span></td>' +
+        '<td class="der">—</td><td class="der">—</td><td class="der">' +
+        G.ui.marca('Incompleto', 'alerta') + '</td></tr>'
+      : fila('Compras', iva.compras, G.comprasPorArchivo(p) ? 'archivo subido a mano' : 'Holistor')) +
+    fila('Ventas', iva.ventas, 'Todosoft') +
+    '<tr style="background:var(--verde-suave)">' +
+      '<td class="fuerte">Saldo a pagar<span class="chica">IVA ventas menos IVA compras</span></td>' +
+      '<td class="der">—</td><td class="der">—</td>' +
+      '<td class="der fuerte num">' + (incompleto ? '—' : G.fmt.moneda(saldo)) + '</td></tr>';
+
+  document.getElementById('nota-iva').textContent = G.fmt.periodo(p);
+  document.getElementById('pie-iva').innerHTML =
+    'Hoy este cruce le lleva a administración cerca de <strong>' + iva.horasManuales +
+    ' horas</strong> por mes, entre exportar, pegar en Excel y revisar. El sistema lo deja hecho ' +
+    'cada madrugada.';
+
+  /* --- conexiones --- */
+  document.getElementById('lista-conexiones').innerHTML = G.D.conexiones.map(function (c) {
+    var est = G.conexionEstado(c);
+    var tono = { ok: 'ok', falla: 'alerta', manual: 'neutra' }[est] || 'ambar';
+    var texto = { ok: 'Al día', falla: 'Sin respuesta', manual: 'Por archivo' }[est] || 'Con demora';
+    return '<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;' +
+      'border-bottom:1px solid var(--linea-2)">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div class="fuerte" style="font-size:14px">' + c.nombre + '</div>' +
+        '<div class="chica" style="font-size:12.5px;color:var(--tinta-3)">' +
+          (est === 'falla' ? 'No contestó · se reintentó 3 veces'
+            : est === 'manual' ? 'Export cargado a mano por administración' : c.detalle) + '</div>' +
+      '</div>' +
+      '<div style="flex:none;text-align:right">' +
+        G.ui.marca(texto, tono) +
+        '<div class="chica" style="font-size:11.5px;color:var(--tinta-3);margin-top:4px">' +
+          c.ultima.slice(11) + '</div>' +
+      '</div></div>';
+  }).join('');
+
+  /* --- diferencias más grandes --- */
+  var top = abiertas.slice().sort(function (a, b) { return b.iva - a.iva; }).slice(0, 3);
+  document.getElementById('cuerpo-difs').innerHTML = top.length
+    ? top.map(function (d) {
+        return '<tr class="clic" onclick="G.ir(\'03-iva-comprobante.html\',{dif:\'' + d.id +
+          '\',periodo:\'' + p + '\'})">' +
+          '<td class="fuerte">' + d.comprobante + '</td>' +
+          '<td>' + G.ui.marca(d.titulo, d.tipo === 'monto' ? 'ambar' : 'alerta') + '</td>' +
+          '<td class="num">' + G.fmt.fecha(d.fecha) + '</td>' +
+          '<td>' + d.proveedor + '</td>' +
+          '<td class="der fuerte num">' + G.fmt.moneda(d.iva) + '</td></tr>';
+      }).join('')
+    : G.ui.vacio(5, 'No quedan diferencias abiertas en ' + G.fmt.periodo(p) + '.');
+
+  var btn = document.getElementById('btn-ver-todas');
+  btn.textContent = abiertas.length ? 'Ver las ' + abiertas.length : 'Ver el período';
+  btn.href = G.href('02-iva-mes.html', { periodo: p });
+
+  G.pintarIconos(document);
+}
+
+function fila(nombre, o, fuente) {
+  return '<tr><td class="fuerte">' + nombre +
+    '<span class="chica">según ' + fuente + '</span></td>' +
+    '<td class="der num">' + G.fmt.monedaCorta(o.neto) + '</td>' +
+    '<td class="der num">' + G.fmt.num(o.comprobantes) + '</td>' +
+    '<td class="der num">' + G.fmt.moneda(o.iva) + '</td></tr>';
+}
+</script>
+</body>
+</html>
