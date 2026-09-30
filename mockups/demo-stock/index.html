@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Encastre Stock · Demo</title>
+  <meta name="description" content="Demo navegable de un sistema de stock a medida hecho por Encastre. Datos inventados.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230e1210'/%3E%3Cpath d='M2 3h9v4H7.5v4H11v2H7.5v4H11v4H2z' fill='%23e8ede8'/%3E%3Cpath d='M22 3h-9v4h3.5v4H13v2h3.5v4H13v4h9z' fill='%234fbe8e'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+</head>
+<body data-shell="portada" data-pantalla="index.html">
+<main id="pagina">
+  <section class="hero">
+    <div class="hero-in">
+      <div class="antetitulo">Demo · Sistema de stock a medida</div>
+      <h1>Del Excel desordenado a un sistema que sabe <em>dónde está cada producto</em>, cuánto hay y cuánto vale.</h1>
+      <p>Esta es una demo de ejemplo hecha por Encastre. Todos los datos son inventados y nada se guarda: al recargar vuelve al estado inicial. Se puede recorrer desde la notebook y desde el celular.</p>
+      <div class="fila">
+        <a class="btn btn-oscuro btn-grande" data-href="02-inventario.html">Empezar por el inventario <i data-i="next"></i></a>
+        <a class="btn btn-grande" data-href="12-app-conteo.html"><i data-i="phone"></i> Ver la app del depósito</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <h2>Qué resuelve</h2>
+    <div class="grilla">
+      <div class="card dolor"><i data-i="search"></i><strong>Encontrar cualquier producto</strong><span class="tinta-2 chico">Por código, por número de otra marca o por modelo de máquina.</span></div>
+      <div class="card dolor"><i data-i="arrows"></i><strong>Stock siempre al día</strong><span class="tinta-2 chico">Cada venta, ingreso o ajuste descuenta y suma solo, y avisa cuando algo queda por debajo del mínimo.</span></div>
+      <div class="card dolor"><i data-i="check"></i><strong>Conteo con el celular</strong><span class="tinta-2 chico">Se recorre el depósito ubicación por ubicación y el sistema marca las diferencias.</span></div>
+      <div class="card dolor"><i data-i="dollar"></i><strong>Precios que se calculan solos</strong><span class="tinta-2 chico">Costo, factor de importación y dos listas de venta: público y distribuidor.</span></div>
+      <div class="card dolor"><i data-i="sheet"></i><strong>Bajar a Excel lo que quieras</strong><span class="tinta-2 chico">Todo o por partes. El Excel sigue existiendo para quien lo necesite, pero ya no es donde vive el stock.</span></div>
+      <div class="card dolor"><i data-i="history"></i><strong>Historial de todo</strong><span class="tinta-2 chico">Cada movimiento queda registrado con usuario y fecha.</span></div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <h2>Recorrido sugerido</h2>
+    <p>Lo que se carga en una pantalla aparece en la siguiente.</p>
+    <div class="pasos-demo">
+      <a class="card paso-demo" data-href="02-inventario.html" data-q="EX-210"><strong>Buscar como en el mostrador</strong><span class="tinta-2 chico">Inventario → buscar “EX-210” y abrir una fila.</span></a>
+      <a class="card paso-demo" data-href="04-movimiento.html"><strong>Registrar una venta</strong><span class="tinta-2 chico">Vender 2 unidades y ver la alerta de stock bajo.</span></a>
+      <a class="card paso-demo" data-href="03-ficha-producto.html"><strong>Ver la ficha</strong><span class="tinta-2 chico">Stock, precios, historial y etiqueta del producto.</span></a>
+      <a class="card paso-demo" data-href="12-app-conteo.html"><strong>Contar con el celular</strong><span class="tinta-2 chico">Cargar lo contado, sacar una foto y confirmar el ajuste.</span></a>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <h2>Pantallas</h2>
+    <div class="grilla" id="indice"></div>
+  </section>
+
+  <p class="pie-portada">Demo de Encastre · encastredev.github.io. Productos, marcas, códigos y movimientos inventados. ¿Querés algo así para tu negocio? Escribinos.</p>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  document.getElementById('indice').innerHTML = G.SCREENS.slice(1).map((s) => `
+    <a class="card pantalla-card" href="${G.href(s.archivo)}">
+      <div class="fila entre"><span class="num-p">${s.n}</span><span class="badge ${s.disp === 'celular' ? 'b-acento' : 'b-neutro'}">${G.icono(s.disp === 'celular' ? 'phone' : 'laptop')}${s.disp === 'celular' ? 'Celular' : 'Notebook'}</span></div>
+      <div><strong>${G.esc(s.titulo)}</strong><div class="tinta-2 chico" style="margin:4px 0 8px">${G.esc(s.resumen)}</div>
+      <ul>${s.probar.map((t) => `<li>${G.esc(t)}</li>`).join('')}</ul></div>
+      <span class="chico tenue">${G.esc(s.rol)}</span>
+    </a>`).join('');
+
+  document.querySelectorAll('[data-href]').forEach((a) => { a.href = G.href(a.dataset.href, a.dataset.q ? { q: a.dataset.q } : null); });
+})();
+</script>
+</body>
+</html>
