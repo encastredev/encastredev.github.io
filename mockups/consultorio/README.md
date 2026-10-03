@@ -5,6 +5,11 @@ Reemplaza al Word de fichas, que se importa una vez.
 
 Archivos estáticos (HTML, CSS y JS sin build). **El repo no tiene datos de pacientes.** Para probar se usan pacientes inventados.
 
+**Diseño propio de la profesional, no el de Encastre:** crema y rosa pastel, con verde salvia para lo que está bien, en Fraunces (títulos) y DM Sans. Tiene esquinas redondeadas y modo claro y oscuro.
+- Su nombre y profesión se cargan en **Ajustes → Tu nombre**. Viajan por la planilla (op `perfil`) y aparecen arriba y en la pantalla del PIN. Para eso se guardan sin cifrar en `consultorio.perfil`, porque no son datos de pacientes.
+- Cada paciente tiene un círculo con sus iniciales y un color pastel fijo (`avatar()`), para reconocerlo de un vistazo.
+- Encastre solo figura como "Hecho por Encastre" al pie de Ajustes.
+
 ## Dónde se guardan los datos
 
 En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Documentos y Registro), a través del script [`apps-script/Codigo.gs`](apps-script/Codigo.gs). Cómo instalarlo: [`apps-script/INSTALAR.md`](apps-script/INSTALAR.md).

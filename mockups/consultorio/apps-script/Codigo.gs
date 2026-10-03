@@ -174,6 +174,9 @@ function aplicar_(ops) {
       const que = !vieja ? 'Sesión anotada' : op.s.anulada && !vieja.anulada ? 'Sesión anulada' : 'Sesión corregida';
       ts.guardar(op.s);
       registro.push([ahora, que, op.s.id, JSON.stringify(op.s)]);
+    } else if (op.op === 'perfil') {
+      // Nombre y profesión que muestra la app arriba (igual en todos los dispositivos).
+      PropertiesService.getScriptProperties().setProperty('PERFIL', JSON.stringify({ nombre: String(op.perfil.nombre || ''), profesion: String(op.perfil.profesion || '') }));
     } else if (op.op === 'documento') {
       // Solo los datos (título, profesional, fecha, de quién). El archivo no se cambia.
       td = td || tabla_(ss, H_DOC, COL_DOC);
@@ -253,6 +256,7 @@ function leerEstado_() {
     carpeta: c.raiz.getUrl(),
     carpetaPlantillas: c.plantillas.getUrl(),
     espacio: espacio_(),
+    perfil: JSON.parse(PropertiesService.getScriptProperties().getProperty('PERFIL') || 'null'),
   };
 }
 

@@ -10,6 +10,7 @@
 
   const COFRE = 'consultorio.cofre';      // { v, sal, iter, iv, ct }: db + conexión + cola, cifrados
   const INTENTOS = 'consultorio.intentos';
+  const PERFIL = 'consultorio.perfil';     // { nombre, profesion }: no es dato de pacientes, va sin cifrar
   const ITER = 310000;                     // PBKDF2-SHA256
   const BLOQUEO_OCULTA = 5 * 60e3;         // se bloquea si quedó en segundo plano 5 min
   const BLOQUEO_QUIETA = 20 * 60e3;        // o 20 min sin tocar nada
@@ -18,6 +19,7 @@
   const QR = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
   const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  const DIAS_LARGOS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
   const ASIST = { asistio: 'Asistió', falto: 'Faltó', aviso: 'Avisó' };
   const TIPOS_DOC = { propio: 'Mis informes', externo: 'De otros profesionales' };
   const MAX_MB = 25;              // por archivo (Apps Script recibe hasta ~50 MB por pedido)
@@ -54,6 +56,32 @@
     word: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M8.5 12l1.2 5 1.3-4 1.3 4 1.2-5"/>',
   };
   const ic = (n) => `<svg class="ic" viewBox="0 0 24 24">${ICONOS[n]}</svg>`;
+
+  /* ---------------------------------------------------------------- marca de la profesional */
+  let perfil = Object.assign({ nombre: '', profesion: '' }, leerJSON(PERFIL) || {});
+  const TITULOS = /^(lic|lic\.|licenciada|dra|dra\.|dr|dr\.|prof|prof\.|psp|psicop\.?)$/i;
+  const palabras = (n) => String(n || '').trim().split(/\s+/).filter((w) => w && !TITULOS.test(w));
+  const primerNombre = () => palabras(perfil.nombre)[0] || '';
+  function iniciales(n) { const w = palabras(n); return ((w[0] || '')[0] || '') + ((w.length > 1 ? w[w.length - 1][0] : '') || ''); }
+  function pintarMarca() {
+    const ini = (iniciales(perfil.nombre) || 'C').toUpperCase();
+    $$('[data-monograma]').forEach((el) => { el.textContent = ini; });
+    const m = $('#marca-nombre'); if (m) m.textContent = perfil.nombre || 'Consultorio';
+    const s = $('#marca-sub'); if (s) s.textContent = perfil.profesion || 'Consultorio';
+  }
+  function guardarPerfil(p, enviarlo) {
+    perfil = { nombre: String(p.nombre || '').trim(), profesion: String(p.profesion || '').trim() };
+    try { localStorage.setItem(PERFIL, JSON.stringify(perfil)); } catch (e) { /* sin lugar */ }
+    if (enviarlo) enviar({ op: 'perfil', perfil });
+    pintarMarca();
+  }
+  // Un color pastel fijo para cada paciente, para reconocerlo de un vistazo.
+  function avatar(p, clase = '') {
+    if (!p) return `<span class="av av-0 ${clase}">?</span>`;
+    let h = 0; for (const c of String(p.id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    const ini = ((p.nombre || '')[0] || '') + ((p.apellido || '')[0] || '');
+    return `<span class="av av-${h % 6} ${clase}" aria-hidden="true">${esc(ini.toUpperCase() || '?')}</span>`;
+  }
 
   /* ---------------------------------------------------------------- fechas */
   const dos = (n) => String(n).padStart(2, '0');
@@ -129,8 +157,8 @@
     const sinCripto = !(window.crypto && crypto.subtle);
     candado.hidden = false;
     candado.innerHTML = `<form class="candado-caja" autocomplete="on">
-      <svg class="logo grande" viewBox="2 3 20 18" aria-hidden="true"><path class="a" d="M2 3h9v4H7.5v4H11v2H7.5v4H11v4H2z"/><path class="b" d="M22 3h-9v4h3.5v4H13v2h3.5v4H13v4h9z"/></svg>
-      <h2>Consultorio</h2>
+      <span class="monograma grande" data-monograma></span>
+      <h2>${esc(perfil.nombre || 'Consultorio')}</h2>
       ${sinCripto ? '<p class="nota">Este navegador no permite cifrar los datos. Abrí la app desde la dirección https:// o actualizá el navegador.</p>' : hay ? `
         <p class="tinta-2">Ingresá tu PIN para ver las fichas.</p>
         <input type="text" name="usuario" value="consultorio" autocomplete="username" hidden>
@@ -147,6 +175,7 @@
         <button class="btn btn-oscuro btn-grande btn-bloque" id="pin-ok">Empezar</button>
         <button class="btn-texto chico" type="button" id="pin-letras">Prefiero una contraseña con letras</button>`}
     </form>`;
+    pintarMarca();
     if (sinCripto) return;
     const form = $('form', candado), msj = $('#pin-msj', candado), ok = $('#pin-ok', candado);
     $('#pin-letras', candado).onclick = () => { $$('.pin', candado).forEach((i) => i.setAttribute('inputmode', 'text')); $('#pin', candado).focus(); };
@@ -208,7 +237,8 @@
     candado.hidden = true; candado.innerHTML = '';
     document.body.classList.remove('bloqueado');
     tocado = Date.now();
-    render(); pintarSync(conexion ? 'ok' : ''); sincronizar();
+    pintarMarca(); render(); pintarSync(conexion ? 'ok' : ''); sincronizar();
+    if (!perfil.nombre) setTimeout(() => { if (!hojaAbierta) hojaPerfil(); }, 400);
   }
   let tocado = Date.now(), ocultaDesde = 0;
   ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => { tocado = Date.now(); }, true));
@@ -286,6 +316,7 @@
   }
   function aplicarEstado(r) {
     db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.plantillas = r.plantillas || [];
+    if (r.perfil && r.perfil.nombre && r.perfil.nombre !== perfil.nombre) guardarPerfil(r.perfil, false);
     Object.assign(db.meta, { planilla: r.planilla, carpeta: r.carpeta, carpetaPlantillas: r.carpetaPlantillas, espacio: r.espacio || null, sincro: new Date().toISOString() });
     guardar();
     const ocupado = hojaAbierta || (document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName));
@@ -332,6 +363,7 @@
             aplicarEstado(r);
             aviso(r.pacientes.length ? `Conectado: ${r.pacientes.length} pacientes en la planilla.` : 'Conectado. La planilla está vacía: importá tu Word o cargá un paciente.');
           }
+          if (perfil.nombre && !(r.perfil && r.perfil.nombre)) enviar({ op: 'perfil', perfil });
           pintarSync('ok'); ir('#/');
         } catch (e) {
           msj.textContent = e.message === 'Clave incorrecta' ? 'La clave no coincide con la de la planilla.' : e.message === 'Failed to fetch' ? 'No se pudo conectar. Revisá la dirección y que haya internet.' : e.message;
@@ -476,6 +508,7 @@
     $$('.barra [data-ruta]').forEach((a) => a.classList.toggle('activo', a.dataset.ruta === activa));
     const conVolver = ruta === 'p' && !esPC();
     $('#volver').hidden = !conVolver; $('#logo').style.display = conVolver ? 'none' : '';
+    pintarMarca();
     if (ruta === 'pacientes') return vPacientes(partes[1]);
     if (ruta === 'p') return vFicha(partes[1]);
     if (ruta === 'sesiones') return vSesiones(partes[1]);
@@ -483,7 +516,7 @@
     if (ruta === 'conectar') { let pre = null; try { pre = JSON.parse(atob((partes[1] || '').replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { /* link roto */ } history.replaceState(null, '', '#/'); vInicio(); hojaConectar(pre); return; }
     return vInicio();
   }
-  function titulo(t) { $('#titulo').textContent = t; document.title = t === 'Inicio' ? 'Consultorio' : `${t} · Consultorio`; }
+  function titulo(t) { const casa = perfil.nombre || 'Consultorio'; $('#titulo').textContent = t === 'Inicio' ? casa : t; document.title = t === 'Inicio' ? casa : `${t} · ${casa}`; }
 
   const activos = () => db.pacientes.filter((p) => p.estado !== 'alta');
   const paraRevisar = () => db.pacientes.filter((p) => (p.revisar || []).length);
@@ -514,7 +547,11 @@
     const deHoy = validas(db.sesiones).filter((s) => s.fecha === hoyISO());
     const ultimas = validas(db.sesiones).sort((a, b) => b.fecha.localeCompare(a.fecha) || String(b.creado).localeCompare(String(a.creado))).slice(0, 8);
     const rev = paraRevisar().length;
+    const hora = new Date().getHours();
+    const saludo = hora < 13 ? 'Buen día' : hora < 20 ? 'Buenas tardes' : 'Buenas noches';
+    const fechaHoy = fmtLarga(hoyISO());
     vista.innerHTML = `
+      <div class="saludo"><span class="etq">${DIAS_LARGOS[new Date().getDay()]} ${fechaHoy}</span><h2>${saludo}${primerNombre() ? `, ${esc(primerNombre())}` : ''}</h2></div>
       <div class="buscador">${ic('buscar')}<input class="entrada" id="q-inicio" type="search" placeholder="Buscar paciente por nombre, DNI o escuela" autocomplete="off"></div>
       <ul class="lista caja" id="res-inicio" hidden></ul>
       <div class="tareas">
@@ -550,7 +587,7 @@
 
   function itemPaciente(p) {
     const e = edad(p.fn);
-    return `<li><a class="item" href="#/p/${p.id}"><span class="txt"><span class="nom">${esc(nombreLista(p))}</span>
+    return `<li><a class="item" href="#/p/${p.id}">${avatar(p)}<span class="txt"><span class="nom">${esc(nombreLista(p))}</span>
       <span class="sub">${esc([fmtEdad(e), p.os, (p.dx || [])[0]].filter(Boolean).join(' · '))}</span></span>
       ${(p.revisar || []).length ? '<span class="badge b-aviso">revisar</span>' : p.estado === 'alta' ? '<span class="badge">alta</span>' : ''}</a></li>`;
   }
@@ -573,7 +610,7 @@
       if (!lista.length) { el.innerHTML = `<p class="vacio">${filtros.q ? 'No hay pacientes con esa búsqueda.' : 'No hay pacientes acá.'}</p>`; return; }
       if (!esPC()) { el.innerHTML = `<ul class="lista">${lista.map(itemPaciente).join('')}</ul>`; return; }
       el.innerHTML = `<table class="tabla"><thead><tr><th>Paciente</th><th>Edad</th><th>Obra social</th><th>Diagnóstico</th><th>Escuela</th><th>Última sesión</th></tr></thead><tbody>
-        ${lista.map((p) => { const u = ultimaSesion(p.id); return `<tr data-pid="${p.id}"><td class="nom">${esc(nombreLista(p))} ${(p.revisar || []).length ? '<span class="badge b-aviso">revisar</span>' : ''}</td><td class="mono">${esc(fmtEdad(edad(p.fn)))}</td><td>${esc(p.os || '')}</td><td>${esc((p.dx || []).join(' · '))}</td><td>${esc([p.escuela, p.grado].filter(Boolean).join(' · '))}</td><td class="mono">${u ? fmtCorta(u.fecha) : '<span class="tenue">—</span>'}</td></tr>`; }).join('')}
+        ${lista.map((p) => { const u = ultimaSesion(p.id); return `<tr data-pid="${p.id}"><td class="nom">${avatar(p)}${esc(nombreLista(p))} ${(p.revisar || []).length ? '<span class="badge b-aviso">revisar</span>' : ''}</td><td class="mono">${esc(fmtEdad(edad(p.fn)))}</td><td>${esc(p.os || '')}</td><td>${esc((p.dx || []).join(' · '))}</td><td>${esc([p.escuela, p.grado].filter(Boolean).join(' · '))}</td><td class="mono">${u ? fmtCorta(u.fecha) : '<span class="tenue">—</span>'}</td></tr>`; }).join('')}
       </tbody></table>`;
     };
     pintar();
@@ -603,12 +640,12 @@
     const asist = validas(ses).filter((s) => s.estado === 'asistio');
     const docs = documentosDe(p.id);
     vista.innerHTML = `<div class="ficha">
-      <div class="ficha-cab">
+      <div class="ficha-cab">${avatar(p, 'grande')}<div class="pila">
         <span class="etq">${esc(p.os || 'Paciente')}${p.estado === 'alta' ? ` · alta${p.alta ? ` ${fmtDMY(p.alta)}` : ''}` : ''}</span>
         <h2>${esc(nombreLista(p))}</h2>
         <p class="tinta-2">${esc([fmtEdadLarga(e), p.dni ? `DNI ${fmtDNI(p.dni)}` : ''].filter(Boolean).join(' · ')) || 'Faltan datos'}</p>
-        ${(p.dx || []).length ? `<div class="fila" style="flex-wrap:wrap;gap:6px">${p.dx.map((d) => `<span class="badge b-ok">${esc(d)}</span>`).join('')}</div>` : ''}
-      </div>
+        ${(p.dx || []).length ? `<div class="fila" style="flex-wrap:wrap;gap:6px">${p.dx.map((d) => `<span class="badge b-dx">${esc(d)}</span>`).join('')}</div>` : ''}
+      </div></div>
       ${(p.revisar || []).length ? `<div class="nota pila"><b>Para revisar</b><ul class="sin-vinetas">${p.revisar.map((r) => `<li>${esc(r)}</li>`).join('')}</ul><div class="fila"><button class="btn btn-chico" data-accion="editar">${ic('lapiz')}Corregir</button><button class="btn btn-chico" data-accion="revisado">Ya está bien</button></div></div>` : ''}
       <div class="acciones">
         <button class="btn btn-acento btn-grande" data-accion="sesion">${ic('sesion')}Anotar sesión</button>
@@ -659,8 +696,8 @@
     const p = paciente(s.pid);
     const est = s.anulada ? '<span class="badge">anulada</span>' : s.estado === 'asistio' ? '<span class="badge b-ok">asistió</span>' : `<span class="badge b-aviso">${s.estado === 'aviso' ? 'avisó' : 'faltó'}</span>`;
     return `<li><button class="sesion${s.anulada ? ' anulada' : ''}" data-sid="${s.id}">
-      <span class="fecha mono">${fmtDia(s.fecha)}</span>
-      <span class="txt">${conNombre ? `<span class="nom">${esc(p ? nombreLista(p) : s.paciente || 'Paciente')}</span>` : ''}
+      ${conNombre ? avatar(p) : `<span class="fecha mono">${fmtDia(s.fecha)}</span>`}
+      <span class="txt">${conNombre ? `<span class="nom">${esc(p ? nombreLista(p) : s.paciente || 'Paciente')}</span><span class="fecha-l">${fmtDia(s.fecha)}</span>` : ''}
         ${s.nota ? `<span class="nota-ses">${esc(s.nota)}</span>` : conNombre ? '' : '<span class="tenue chico">Sin nota</span>'}</span>
       ${est}</button></li>`;
   }
@@ -691,7 +728,7 @@
         <section class="caja">
           <div class="caja-cab"><span class="etq">Por paciente</span>${val.length ? `<button class="btn-texto chico" data-accion="exportar-mes" data-mes="${mes}">${ic('bajar')}Excel</button>` : ''}</div>
           ${filas.length ? `<table class="tabla"><thead><tr><th>Paciente</th><th>O. social</th><th class="num">Asistió</th><th class="num">Faltó</th></tr></thead><tbody>
-            ${filas.map((r) => `<tr data-pid="${r.pid}"><td class="nom">${esc(r.p ? nombreLista(r.p) : 'Paciente borrado')}</td><td>${esc(r.p ? r.p.os || '' : '')}</td><td class="num mono">${r.a}</td><td class="num mono">${r.f + r.v ? `${r.f + r.v}` : '<span class="tenue">0</span>'}</td></tr>`).join('')}
+            ${filas.map((r) => `<tr data-pid="${r.pid}"><td class="nom">${avatar(r.p)}${esc(r.p ? nombreLista(r.p) : 'Paciente borrado')}</td><td>${esc(r.p ? r.p.os || '' : '')}</td><td class="num mono">${r.a}</td><td class="num mono">${r.f + r.v ? `${r.f + r.v}` : '<span class="tenue">0</span>'}</td></tr>`).join('')}
           </tbody></table>` : '<p class="vacio chico">No hay sesiones en este mes.</p>'}
         </section>
         <section class="caja">
@@ -712,6 +749,10 @@
       ? `<li><a class="item" href="${esc(href)}" target="_blank" rel="noopener">${ic(icono)}<span class="txt"><span class="nom">${nom}</span><span class="sub">${sub}</span></span></a></li>`
       : `<li><button class="item" data-accion="${accion}">${ic(icono)}<span class="txt"><span class="nom">${nom}</span><span class="sub">${sub}</span></span></button></li>`;
     vista.innerHTML = `<div class="ajustes">
+      <section class="caja">
+        <div class="caja-cab"><span class="etq">Tu nombre</span></div>
+        <ul class="lista"><li><button class="item" data-accion="perfil"><span class="monograma" data-monograma></span><span class="txt"><span class="nom">${esc(perfil.nombre || 'Poné tu nombre')}</span><span class="sub">${esc(perfil.profesion || 'Aparece arriba en la app y en la pantalla del PIN')}</span></span>${ic('lapiz')}</button></li></ul>
+      </section>
       <section class="caja">
         <div class="caja-cab"><span class="etq">Planilla de Google</span>${conexion ? `<span class="sync sync-${estadoSync}">${{ ok: 'Al día', guardando: 'Guardando…', error: 'Sin conexión', clave: 'Clave incorrecta' }[estadoSync] || ''}</span>` : ''}</div>
         ${conexion ? `<ul class="lista">
@@ -787,7 +828,7 @@
       const q = $('#ep-q', hoja), lista = $('#ep-lista', hoja);
       const pintar = () => {
         const r = buscar(activos(), q.value).sort(ordenNombre);
-        lista.innerHTML = r.length ? r.map((p) => `<li><button class="item" data-elegir="${p.id}"><span class="txt"><span class="nom">${esc(nombreLista(p))}</span><span class="sub">${esc([fmtEdad(edad(p.fn)), p.os].filter(Boolean).join(' · '))}</span></span></button></li>`).join('') : '<li class="vacio chico">No hay pacientes activos con ese nombre.</li>';
+        lista.innerHTML = r.length ? r.map((p) => `<li><button class="item" data-elegir="${p.id}">${avatar(p)}<span class="txt"><span class="nom">${esc(nombreLista(p))}</span><span class="sub">${esc([fmtEdad(edad(p.fn)), p.os].filter(Boolean).join(' · '))}</span></span></button></li>`).join('') : '<li class="vacio chico">No hay pacientes activos con ese nombre.</li>';
       };
       pintar();
       q.addEventListener('input', pintar);
@@ -1030,6 +1071,18 @@
     });
   }
 
+  function hojaPerfil() {
+    abrirHoja(`
+      <div class="fila entre"><h3>Tu nombre</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      <p class="chico tinta-2">Aparece arriba en la app y en la pantalla del PIN, en todos tus dispositivos.</p>
+      <label class="campo"><span class="etq">Nombre</span><input class="entrada" id="pf-nombre" value="${esc(perfil.nombre)}" placeholder="Lic. Nombre Apellido" autocapitalize="words"></label>
+      <label class="campo"><span class="etq">Profesión</span><input class="entrada" id="pf-prof" value="${esc(perfil.profesion)}" placeholder="Psicopedagoga"></label>
+      <button class="btn btn-oscuro btn-grande btn-bloque" data-ok>Guardar</button>`, (hoja, cerrar) => {
+      $('[data-ok]', hoja).onclick = () => { guardarPerfil({ nombre: $('#pf-nombre', hoja).value, profesion: $('#pf-prof', hoja).value }, true); cerrar(); render(); };
+      setTimeout(() => $('#pf-nombre', hoja).focus(), 80);
+    });
+  }
+
   function hojaCambiarPIN() {
     abrirHoja(`
       <div class="fila entre"><h3>Cambiar el PIN</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
@@ -1094,6 +1147,7 @@
       case 'copia': guardarCopia(); break;
       case 'bloquear': bloquear(); break;
       case 'cambiar-pin': hojaCambiarPIN(); break;
+      case 'perfil': hojaPerfil(); break;
       case 'desconectar': hojaDesconectar(); break;
       case 'conectar': hojaConectar(); break;
       case 'compartir': hojaCompartir(); break;
