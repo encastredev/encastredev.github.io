@@ -23,7 +23,7 @@ En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Docu
   - Los nombres en mayúscula pasan a "Nombre Apellido". Las siglas cortas (TEA, TDAH) quedan igual.
   - Queda en **Para revisar**: el nombre sin coma, un dato entre paréntesis (se carga como adulto responsable), la edad escrita que no coincide con la fecha de nacimiento, y la falta de DNI o de escuela.
   - Si se importa de nuevo, se saltean los pacientes que ya están (mismo DNI).
-- **Ficha:** la edad se calcula sola (años y meses) y hay botones de llamar y WhatsApp para cada contacto. Debajo están las sesiones e informes del paciente, y se puede dar de alta o volver a activo.
+- **Ficha:** la edad se calcula sola (años y meses) y hay botones de llamar y WhatsApp para cada contacto. Debajo están sus sesiones y documentos, y se puede dar de alta o volver a activo.
 - **Sesiones:** fecha, asistencia (asistió, faltó o avisó) y nota. Lo que se escribe queda como borrador cifrado hasta guardarlo.
 - **Sesiones del mes:** totales y conteo por paciente (sirve para la planilla de la obra social). Se exporta a Excel.
 - **Documentos del paciente**, separados en **Mis informes** y **De otros profesionales**: PDF, Word o fotos de hasta 25 MB (`MAX_MB`). Necesitan internet, porque no pasan por la cola.
