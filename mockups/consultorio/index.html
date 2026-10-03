@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#f1f3ef" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1210" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Consultorio">
+  <title>Consultorio</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icono-180.png">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="cabecera">
+    <button class="volver" id="volver" type="button" aria-label="Volver" hidden><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <svg class="logo" id="logo" viewBox="2 3 20 18" aria-hidden="true"><path class="a" d="M2 3h9v4H7.5v4H11v2H7.5v4H11v4H2z"/><path class="b" d="M22 3h-9v4h3.5v4H13v2h3.5v4H13v4h9z"/></svg>
+    <h1 id="titulo">Consultorio</h1>
+    <button type="button" id="sync" class="sync" hidden title="Tocá para actualizar"></button>
+    <button type="button" id="bloquear" class="volver" aria-label="Bloquear" title="Bloquear"><svg class="ic" viewBox="0 0 24 24"><path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></svg></button>
+  </header>
+
+  <main id="vista"></main>
+
+  <aside class="barra">
+    <a class="marca solo-pc" href="#/"><svg class="logo" viewBox="2 3 20 18" aria-hidden="true"><path class="a" d="M2 3h9v4H7.5v4H11v2H7.5v4H11v4H2z"/><path class="b" d="M22 3h-9v4h3.5v4H13v2h3.5v4H13v4h9z"/></svg>Consultorio</a>
+    <nav>
+      <a href="#/" data-ruta="inicio"><svg class="ic" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg><span>Inicio</span></a>
+      <a href="#/pacientes" data-ruta="pacientes"><svg class="ic" viewBox="0 0 24 24"><path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14.5c1.8.9 3 2.9 3 5.5"/></svg><span>Pacientes</span></a>
+      <button type="button" class="escanear solo-cel" data-accion="sesion"><span class="bot"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><span>Sesión</span></button>
+      <a href="#/sesiones" data-ruta="sesiones"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M8 3v5M16 3v5"/></svg><span>Sesiones</span></a>
+      <a href="#/ajustes" data-ruta="ajustes"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Ajustes</span></a>
+    </nav>
+    <button type="button" class="btn btn-acento solo-pc" data-accion="sesion"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Anotar sesión</button>
+  </aside>
+
+  <input type="file" id="archivo-word" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+  <input type="file" id="archivo-copia" accept=".json,application/json" hidden>
+
+  <script src="importar-word.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
