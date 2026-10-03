@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Consultorio · fichas de pacientes, sesiones e informes
+   Consultorio · fichas de pacientes, sesiones y documentos
    Los datos viven en una planilla de Google de la profesional (ver apps-script/).
    Cada dispositivo guarda una copia local CIFRADA con su PIN (AES-GCM, clave derivada
    con PBKDF2) para abrir rápido y sin internet. Lo que se anota queda en una cola, también
@@ -19,6 +19,9 @@
   const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
   const ASIST = { asistio: 'Asistió', falto: 'Faltó', aviso: 'Avisó' };
+  const TIPOS_DOC = { propio: 'Mis informes', externo: 'De otros profesionales' };
+  const MAX_MB = 25;              // por archivo (Apps Script recibe hasta ~50 MB por pedido)
+  const FOTO_MAX = 2000;          // las fotos se achican a 2000 px de lado y JPEG 82 %
   const ROLES = ['Acompañante terapéutico', 'Psicopedagoga', 'Psicóloga', 'Gabinete escolar', 'Maestra', 'Escuela', 'Neurólogo/a', 'Fonoaudióloga', 'Terapista ocupacional', 'Pediatra', 'Otro'];
   const CAMPOS_INFORME = [
     ['nombre', 'Nombre y apellido'], ['apellido', 'Apellido'], ['nombres', 'Nombres'], ['dni', 'DNI'],
@@ -47,6 +50,7 @@
     tel: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/>',
     wa: '<path d="M4 20l1.3-4A8 8 0 1 1 8 18.7zM9 9c0 3 3 6 6 6l1-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z"/>',
     mail: '<path d="M3 6h18v12H3zM3 6l9 7 9-7"/>', izq: '<path d="M15 5l-7 7 7 7"/>', der: '<path d="M9 5l7 7-7 7"/>',
+    clip: '<path d="M16 7l-7.5 7.5a2 2 0 0 0 3 3L19 10a4 4 0 0 0-6-6l-7.5 7.5a6 6 0 0 0 8.5 8.5L20 14"/>',
     word: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M8.5 12l1.2 5 1.3-4 1.3 4 1.2-5"/>',
   };
   const ic = (n) => `<svg class="ic" viewBox="0 0 24 24">${ICONOS[n]}</svg>`;
@@ -96,7 +100,7 @@
   let llave = null, sal = null;   // CryptoKey y sal del cofre
   let db = null, conexion = null, cola = [];
 
-  function vacio() { return { pacientes: [], sesiones: [], informes: [], plantillas: [], borrador: null, meta: { creado: new Date().toISOString(), respaldo: null } }; }
+  function vacio() { return { pacientes: [], sesiones: [], documentos: [], plantillas: [], borrador: null, meta: { creado: new Date().toISOString(), respaldo: null } }; }
   let cadena = Promise.resolve();
   function guardar() {
     if (!llave) return cadena;
@@ -222,7 +226,9 @@
   const sesionesDe = (pid) => db.sesiones.filter((s) => s.pid === pid).sort((a, b) => b.fecha.localeCompare(a.fecha) || String(b.creado).localeCompare(String(a.creado)));
   const validas = (lista) => lista.filter((s) => !s.anulada);
   const ultimaSesion = (pid) => validas(sesionesDe(pid)).find((s) => s.estado === 'asistio');
-  const informesDe = (pid) => db.informes.filter((i) => i.pid === pid).sort((a, b) => String(b.creado).localeCompare(String(a.creado)));
+  const documentosDe = (pid) => db.documentos.filter((d) => d.pid === pid && !d.anulado).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || String(b.creado).localeCompare(String(a.creado)));
+  const fmtTam = (b) => !b ? '' : b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
+  const fmtGB = (b) => `${(b / 1024 ** 3).toFixed(1).replace('.', ',')} GB`;
   const ordenNombre = (a, b) => nombreLista(a).localeCompare(nombreLista(b), 'es');
 
   function guardarPaciente(p) {
@@ -279,8 +285,8 @@
     } finally { sincronizando = false; }
   }
   function aplicarEstado(r) {
-    db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.informes = r.informes || []; db.plantillas = r.plantillas || [];
-    Object.assign(db.meta, { planilla: r.planilla, carpeta: r.carpeta, carpetaPlantillas: r.carpetaPlantillas, sincro: new Date().toISOString() });
+    db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.plantillas = r.plantillas || [];
+    Object.assign(db.meta, { planilla: r.planilla, carpeta: r.carpeta, carpetaPlantillas: r.carpetaPlantillas, espacio: r.espacio || null, sincro: new Date().toISOString() });
     guardar();
     const ocupado = hojaAbierta || (document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName));
     if (!ocupado) render();
@@ -412,7 +418,7 @@
   }
   // La copia sale cifrada con el PIN actual: sin el PIN no se puede abrir.
   async function guardarCopia() {
-    const c = await cifrar({ pacientes: db.pacientes, sesiones: db.sesiones, informes: db.informes }, llave, sal, ITER);
+    const c = await cifrar({ pacientes: db.pacientes, sesiones: db.sesiones, documentos: db.documentos }, llave, sal, ITER);
     const blob = new Blob([JSON.stringify({ app: 'consultorio', ...c })], { type: 'application/json' });
     if (await entregar(blob, `consultorio-copia-${fechaArchivo()}.json`)) { db.meta.respaldo = new Date().toISOString(); guardar(); render(); }
   }
@@ -429,7 +435,7 @@
         try {
           const k = await derivar($('#rc-pin', hoja).value, deB64(c.sal), c.iter || ITER);
           const d = await descifrar(c, k);
-          db.pacientes = d.pacientes || []; db.sesiones = d.sesiones || []; db.informes = d.informes || [];
+          db.pacientes = d.pacientes || []; db.sesiones = d.sesiones || []; db.documentos = d.documentos || [];
           db.pacientes.forEach((p) => enviar({ op: 'paciente', p: datosPaciente(p) }));
           db.sesiones.forEach((s) => enviar({ op: 'sesion', s }));
           guardar(); cerrar(); ir('#/'); aviso(`Copia recuperada: ${db.pacientes.length} pacientes.`);
@@ -595,7 +601,7 @@
     const e = edad(p.fn);
     const ses = sesionesDe(p.id);
     const asist = validas(ses).filter((s) => s.estado === 'asistio');
-    const infs = informesDe(p.id);
+    const docs = documentosDe(p.id);
     vista.innerHTML = `<div class="ficha">
       <div class="ficha-cab">
         <span class="etq">${esc(p.os || 'Paciente')}${p.estado === 'alta' ? ` · alta${p.alta ? ` ${fmtDMY(p.alta)}` : ''}` : ''}</span>
@@ -606,7 +612,7 @@
       ${(p.revisar || []).length ? `<div class="nota pila"><b>Para revisar</b><ul class="sin-vinetas">${p.revisar.map((r) => `<li>${esc(r)}</li>`).join('')}</ul><div class="fila"><button class="btn btn-chico" data-accion="editar">${ic('lapiz')}Corregir</button><button class="btn btn-chico" data-accion="revisado">Ya está bien</button></div></div>` : ''}
       <div class="acciones">
         <button class="btn btn-acento btn-grande" data-accion="sesion">${ic('sesion')}Anotar sesión</button>
-        <button class="btn btn-grande" data-accion="informe">${ic('informe')}Hacer informe</button>
+        <button class="btn btn-grande" data-accion="subir">${ic('clip')}Subir documento</button>
       </div>
       <div class="ficha-grid">
         <div class="pila">
@@ -625,10 +631,11 @@
             <div class="caja-cab"><span class="etq">Equipo y contactos</span><button class="btn-texto chico" data-accion="editar">${ic('lapiz')}Editar</button></div>
             ${(p.equipo || []).length ? `<ul class="lista">${p.equipo.map((c) => `<li class="contacto"><span class="txt"><span class="nom">${esc(c.nombre || c.rol)}</span><span class="sub">${esc([c.nombre ? c.rol : '', c.contacto].filter(Boolean).join(' · '))}</span></span><span class="fila">${telLinks(c.contacto)}</span></li>`).join('')}</ul>` : '<p class="vacio chico">Sin contactos cargados.</p>'}
           </section>
-          <section class="caja">
-            <div class="caja-cab"><span class="etq">Informes</span>${db.meta.carpeta ? `<a class="btn-texto chico" href="${esc(db.meta.carpeta)}" target="_blank" rel="noopener">${ic('carpeta')}Drive</a>` : ''}</div>
-            ${infs.length ? `<ul class="lista">${infs.map((i) => `<li><a class="item" href="${esc(i.url)}" target="_blank" rel="noopener"><span class="txt"><span class="nom">${esc(i.plantilla)}</span><span class="sub">${fmtCorta(i.fecha)}</span></span>${ic('informe')}</a></li>`).join('')}</ul>` : '<p class="vacio chico">Todavía no hiciste informes.</p>'}
-          </section>
+          ${['propio', 'externo'].map((t) => { const l = docs.filter((d) => d.tipo === t); return `<section class="caja">
+            <div class="caja-cab"><span class="etq">${TIPOS_DOC[t]}</span><button class="btn-texto chico" data-accion="subir" data-tipo="${t}">${ic('mas')}Subir</button></div>
+            ${l.length ? `<ul class="lista">${l.map(docHTML).join('')}</ul>` : `<p class="vacio chico">${t === 'propio' ? 'Todavía no subiste informes tuyos.' : 'Acá van los informes del neurólogo, la escuela, la fonoaudióloga…'}</p>`}
+            ${t === 'propio' && conexion && db.plantillas.length ? `<div class="caja-cuerpo borde-arriba"><button class="btn-texto chico" data-accion="informe">${ic('informe')}Empezar uno en Google Docs con los datos de la ficha</button></div>` : ''}
+          </section>`; }).join('')}
         </div>
         <section class="caja">
           <div class="caja-cab"><span class="etq">Sesiones · ${asist.length} ${asist.length === 1 ? 'asistida' : 'asistidas'}</span><button class="btn-texto chico" data-accion="sesion">${ic('mas')}Anotar</button></div>
@@ -639,6 +646,13 @@
         ${p.estado === 'alta' ? `<button class="btn btn-chico" data-accion="reactivar">Volver a activo</button>` : `<button class="btn btn-chico" data-accion="alta">Dar de alta</button>`}
       </div>
     </div>`;
+  }
+
+  function docHTML(d) {
+    const foto = /^image\//.test(d.mime || '') || /\.(jpe?g|png|heic|webp)$/i.test(d.archivo || '');
+    return `<li class="doc"><a class="item" href="${esc(d.url)}" target="_blank" rel="noopener">${ic(foto ? 'copia' : 'informe')}<span class="txt"><span class="nom">${esc(d.titulo || d.archivo || 'Documento')}</span>
+      <span class="sub">${esc([d.fecha ? fmtCorta(d.fecha) : '', d.autor, fmtTam(d.tam)].filter(Boolean).join(' · '))}</span></span></a>
+      <button class="btn-texto" data-did="${d.id}" aria-label="Editar datos del documento">${ic('lapiz')}</button></li>`;
   }
 
   function sesionHTML(s, conNombre) {
@@ -701,12 +715,13 @@
       <section class="caja">
         <div class="caja-cab"><span class="etq">Planilla de Google</span>${conexion ? `<span class="sync sync-${estadoSync}">${{ ok: 'Al día', guardando: 'Guardando…', error: 'Sin conexión', clave: 'Clave incorrecta' }[estadoSync] || ''}</span>` : ''}</div>
         ${conexion ? `<ul class="lista">
-          ${d.planilla ? item('', 'copia', 'Abrir la planilla', 'Pacientes, sesiones, informes y el registro de cambios', d.planilla) : ''}
-          ${d.carpeta ? item('', 'carpeta', 'Abrir la carpeta en Drive', 'Informes de cada paciente', d.carpeta) : ''}
-          ${d.carpetaPlantillas ? item('', 'informe', 'Plantillas de informe', `${db.plantillas.length} ${db.plantillas.length === 1 ? 'plantilla' : 'plantillas'} · agregá las tuyas en esa carpeta`, d.carpetaPlantillas) : ''}
+          ${d.planilla ? item('', 'copia', 'Abrir la planilla', 'Pacientes, sesiones, documentos y el registro de cambios', d.planilla) : ''}
+          ${d.carpeta ? item('', 'carpeta', 'Abrir la carpeta en Drive', 'Una carpeta por paciente con sus documentos', d.carpeta) : ''}
+          ${d.carpetaPlantillas ? item('', 'informe', 'Plantillas para empezar informes', `${db.plantillas.length} ${db.plantillas.length === 1 ? 'plantilla' : 'plantillas'} · agregá las tuyas en esa carpeta`, d.carpetaPlantillas) : ''}
+          ${d.espacio && d.espacio.limite ? `<li class="item espacio"><span class="txt"><span class="nom">Espacio de tu Google</span><span class="sub">${fmtGB(d.espacio.usado)} de ${fmtGB(d.espacio.limite)} usados · los documentos de pacientes ocupan ${fmtTam(db.documentos.filter((x) => !x.anulado).reduce((a, x) => a + (Number(x.tam) || 0), 0)) || '0 KB'}</span><span class="barra-uso"><span style="width:${Math.min(100, Math.round(d.espacio.usado / d.espacio.limite * 100))}%"></span></span></span></li>` : ''}
           ${item('compartir', 'celular', 'Abrir en otro dispositivo', 'Código QR para el celular o link para la compu')}
           ${item('sincronizar', 'bajar', 'Actualizar ahora', cola.length ? `${cola.length} cambio(s) sin enviar` : d.sincro ? `Última vez: ${new Date(d.sincro).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}` : 'Traer lo último de la planilla')}
-        </ul>` : `<div class="caja-cuerpo pila chico"><p>Con la planilla, las fichas se ven igual en la compu y en el celular, quedan guardadas en tu cuenta de Google y los informes se arman como documentos de Google Docs.</p><button class="btn" data-accion="conectar" style="align-self:flex-start">Conectar con la planilla</button></div>`}
+        </ul>` : `<div class="caja-cuerpo pila chico"><p>Con la planilla, las fichas se ven igual en la compu y en el celular, quedan guardadas en tu cuenta de Google y podés subir los informes de cada paciente a tu Drive.</p><button class="btn" data-accion="conectar" style="align-self:flex-start">Conectar con la planilla</button></div>`}
       </section>
       <section class="caja">
         <div class="caja-cab"><span class="etq">Seguridad</span></div>
@@ -891,16 +906,16 @@
 
   function hojaInforme(p) {
     if (!conexion) {
-      abrirHoja(`<div class="fila entre"><h3>Hacer informe</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
-        <p>Los informes se arman como documentos de Google Docs, a partir de tus plantillas, y se guardan en la carpeta del paciente en tu Drive.</p>
+      abrirHoja(`<div class="fila entre"><h3>Conectá la planilla</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+        <p>Los documentos se guardan en la carpeta del paciente en tu Drive.</p>
         <p class="chico tinta-2">Para eso, primero conectá la app con tu planilla de Google.</p>
         <button class="btn btn-oscuro btn-grande btn-bloque" data-accion="conectar">Conectar con la planilla</button>`);
       return;
     }
     const pl = db.plantillas;
     abrirHoja(`
-      <div class="fila entre"><h3>Hacer informe</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
-      <p class="tinta-2"><b>${esc(nombreLista(p))}</b></p>
+      <div class="fila entre"><h3>Empezar un informe</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      <p class="tinta-2"><b>${esc(nombreLista(p))}</b> · se crea un documento de Google Docs en <b>Mis informes</b>, con los datos de la ficha ya escritos.</p>
       ${pl.length ? `<div class="campo"><span class="etq">Plantilla</span><div class="pila" id="i-pl">${pl.map((x, i) => `<label class="opcion"><input type="radio" name="pl" value="${esc(x.id)}" ${i === 0 ? 'checked' : ''}><span>${esc(x.nombre)}</span></label>`).join('')}</div></div>`
         : '<div class="nota">No hay plantillas en la carpeta <b>Consultorio → Plantillas</b> de tu Drive. Creá un documento de Google Docs ahí y tocá <b>Actualizar ahora</b> en Ajustes.</div>'}
       <label class="campo"><span class="etq">Fecha del informe</span><input class="entrada" type="date" id="i-fecha" value="${hoyISO()}"></label>
@@ -919,17 +934,99 @@
         try {
           await sincronizar();
           if (cola.length) throw new Error('Hay cambios sin enviar a la planilla. Revisá la conexión.');
-          const r = await llamar(conexion, { informe: { id: uid(), pid: p.id, plantilla, fecha, titulo: `${nomPl.replace(/\s*\(ejemplo\)\s*/i, '')} · ${nombreLista(p)} · ${fmtDMY(fecha).replace(/\//g, '-')}`, datos: datosInforme(p, fecha) } });
-          db.informes.push(r.informe); guardar();
+          const r = await llamar(conexion, { informe: { id: uid(), pid: p.id, plantilla, fecha, titulo: `Informe · ${nombreLista(p)} · ${fmtDMY(fecha).replace(/\//g, '-')}`, datos: datosInforme(p, fecha) } });
+          db.documentos.push(r.documento); guardar();
           hoja.innerHTML = `<div class="fila entre"><h3>Informe listo</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
             <p>Quedó guardado en la carpeta de <b>${esc(nombreLista(p))}</b> en tu Drive, con los datos de la ficha completos. Abrilo para escribir el resto.</p>
-            <a class="btn btn-acento btn-grande btn-bloque" href="${esc(r.informe.url)}" target="_blank" rel="noopener" data-cerrar>${ic('informe')}Abrir el informe</a>`;
+            <a class="btn btn-acento btn-grande btn-bloque" href="${esc(r.documento.url)}" target="_blank" rel="noopener" data-cerrar>${ic('informe')}Abrir el informe</a>`;
           if (ruta === 'p') render();
         } catch (e) {
           msj.textContent = e.message === 'Failed to fetch' ? 'No hay conexión. Probá de nuevo en un rato.' : e.message;
           ok.disabled = false; ok.textContent = 'Crear informe';
         }
       };
+    });
+  }
+
+  // Subir un informe propio o de otro profesional (PDF, Word, foto) a la carpeta del paciente.
+  function hojaSubir(p, tipo = 'propio') {
+    if (!conexion) { hojaInforme(p); return; }
+    const autores = [...new Set((p.equipo || []).map((c) => [c.nombre, c.rol].filter(Boolean).join(' · ')).concat(db.documentos.filter((d) => d.pid === p.id && d.autor).map((d) => d.autor)))];
+    abrirHoja(`
+      <div class="fila entre"><h3>Subir documento</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      <p class="tinta-2"><b>${esc(nombreLista(p))}</b></p>
+      <div class="campo"><span class="etq">¿De quién es?</span><div class="opciones dos">${Object.entries(TIPOS_DOC).map(([k, t]) => `<button type="button" class="chip${k === tipo ? ' si' : ''}" data-tipo-doc="${k}">${k === 'propio' ? 'Mío' : 'De otro profesional'}</button>`).join('')}</div></div>
+      <label class="archivo-elegir" id="d-elegir">${ic('clip')}<span id="d-nom">Elegir archivo o sacar una foto</span><input type="file" id="d-archivo" accept="application/pdf,image/*,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx"></label>
+      <p class="chico tenue">PDF, Word o fotos (cada página, una foto). Hasta ${MAX_MB} MB. Las fotos se achican solas.</p>
+      <label class="campo"><span class="etq">Título</span><input class="entrada" id="d-titulo" placeholder="Informe neurológico, evaluación inicial…"></label>
+      <label class="campo" id="d-autor-campo" ${tipo === 'propio' ? 'hidden' : ''}><span class="etq">Profesional o institución</span><input class="entrada" id="d-autor" list="d-autores" placeholder="Dra. …, CENEMI, escuela…"></label>
+      <datalist id="d-autores">${autores.map((a) => `<option value="${esc(a)}">`).join('')}</datalist>
+      <label class="campo"><span class="etq">Fecha del documento</span><input class="entrada" type="date" id="d-fecha" value="${hoyISO()}" max="${hoyISO()}"></label>
+      <p class="chico" id="d-msj" role="status"></p>
+      <button class="btn btn-oscuro btn-grande btn-bloque" data-ok disabled>Subir</button>`, (hoja, cerrar) => {
+      let archivo = null;
+      const ok = $('[data-ok]', hoja), msj = $('#d-msj', hoja), titulo = $('#d-titulo', hoja);
+      $$('[data-tipo-doc]', hoja).forEach((c) => { c.onclick = () => { tipo = c.dataset.tipoDoc; $$('[data-tipo-doc]', hoja).forEach((x) => x.classList.toggle('si', x === c)); $('#d-autor-campo', hoja).hidden = tipo === 'propio'; }; });
+      $('#d-archivo', hoja).onchange = async (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        msj.textContent = '';
+        archivo = /^image\/(jpeg|png|webp)$/.test(f.type) && f.size > 600 * 1024 ? await achicarFoto(f).catch(() => f) : f;
+        if (archivo.size > MAX_MB * 1024 * 1024) { msj.textContent = `Pesa ${fmtTam(archivo.size)}: el máximo es ${MAX_MB} MB.`; archivo = null; ok.disabled = true; return; }
+        $('#d-nom', hoja).textContent = `${f.name} · ${fmtTam(archivo.size)}`;
+        $('#d-elegir', hoja).classList.add('listo');
+        if (!titulo.value) titulo.value = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+        ok.disabled = false;
+      };
+      ok.onclick = async () => {
+        if (!archivo) return;
+        ok.disabled = true; ok.textContent = 'Subiendo…'; msj.textContent = '';
+        try {
+          await sincronizar();
+          if (cola.length) throw new Error('Hay cambios sin enviar a la planilla. Revisá la conexión.');
+          const datos = await aBase64(archivo);
+          const r = await llamar(conexion, { subir: { id: uid(), pid: p.id, tipo, titulo: titulo.value.trim() || archivo.name, autor: tipo === 'externo' ? $('#d-autor', hoja).value.trim() : '', fecha: $('#d-fecha', hoja).value || hoyISO(), nombre: archivo.name, mime: archivo.type, datos } });
+          db.documentos.push(Object.assign(r.documento, { mime: archivo.type })); guardar();
+          cerrar(); if (ruta === 'p') render(); aviso('Documento guardado en tu Drive.');
+        } catch (e) {
+          msj.textContent = e.message === 'Failed to fetch' ? 'No hay conexión. Probá de nuevo en un rato.' : e.message;
+          ok.disabled = false; ok.textContent = 'Subir';
+        }
+      };
+    });
+  }
+  const aBase64 = (f) => new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = mal; r.readAsDataURL(f); });
+  async function achicarFoto(f) {
+    const img = await createImageBitmap(f);
+    const k = Math.min(1, FOTO_MAX / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.82));
+    if (!blob || blob.size >= f.size) return f;
+    return new File([blob], f.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  }
+
+  // Corregir los datos de un documento o quitarlo (el archivo va a la papelera de Drive).
+  function hojaDocumento(d) {
+    abrirHoja(`
+      <div class="fila entre"><h3>Datos del documento</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      <p class="chico tenue">${esc(d.archivo || '')}${d.tam ? ` · ${fmtTam(d.tam)}` : ''}</p>
+      <div class="campo"><span class="etq">¿De quién es?</span><div class="opciones dos">${Object.keys(TIPOS_DOC).map((k) => `<button type="button" class="chip${k === d.tipo ? ' si' : ''}" data-tipo-doc="${k}">${k === 'propio' ? 'Mío' : 'De otro profesional'}</button>`).join('')}</div></div>
+      <label class="campo"><span class="etq">Título</span><input class="entrada" id="e-titulo" value="${esc(d.titulo || '')}"></label>
+      <label class="campo"><span class="etq">Profesional o institución</span><input class="entrada" id="e-autor" value="${esc(d.autor || '')}"></label>
+      <label class="campo"><span class="etq">Fecha del documento</span><input class="entrada" type="date" id="e-fecha" value="${esc(d.fecha || '')}"></label>
+      <a class="btn btn-bloque" href="${esc(d.url)}" target="_blank" rel="noopener">${ic('informe')}Abrir</a>
+      <button class="btn btn-oscuro btn-grande btn-bloque" data-ok>Guardar</button>
+      <p class="chico tenue">Los cambios de acá no modifican el archivo, solo cómo aparece en la lista. El archivo se cambia desde Drive.</p>
+      <button class="btn btn-chico btn-peligro" data-quitar style="align-self:flex-start">${ic('tacho')}Quitar documento</button>`, (hoja, cerrar) => {
+      let tipo = d.tipo;
+      $$('[data-tipo-doc]', hoja).forEach((c) => { c.onclick = () => { tipo = c.dataset.tipoDoc; $$('[data-tipo-doc]', hoja).forEach((x) => x.classList.toggle('si', x === c)); }; });
+      const guardarDoc = (cambios) => {
+        Object.assign(d, cambios);
+        enviar({ op: 'documento', d: { id: d.id, tipo: d.tipo, titulo: d.titulo, autor: d.autor, fecha: d.fecha, anulado: !!d.anulado } });
+        guardar(); render();
+      };
+      $('[data-ok]', hoja).onclick = () => { guardarDoc({ tipo, titulo: $('#e-titulo', hoja).value.trim(), autor: $('#e-autor', hoja).value.trim(), fecha: $('#e-fecha', hoja).value }); cerrar(); aviso('Datos guardados.'); };
+      $('[data-quitar]', hoja).onclick = () => confirmar('Quitar documento', `<b>${esc(d.titulo || d.archivo)}</b> deja de aparecer en la ficha y el archivo va a la papelera de tu Drive, donde queda 30 días por si te equivocaste.`, 'Quitar', () => { guardarDoc({ anulado: true }); aviso('Documento quitado.'); });
     });
   }
 
@@ -975,6 +1072,8 @@
   /* ------------------------------------------------------------ eventos */
   document.addEventListener('click', (e) => {
     if (!llave) return;
+    const doc = e.target.closest('[data-did]');
+    if (doc) { const d = db.documentos.find((x) => x.id === doc.dataset.did); if (d) hojaDocumento(d); return; }
     const ses = e.target.closest('[data-sid]');
     if (ses && !e.target.closest('.hoja')) { const s = db.sesiones.find((x) => x.id === ses.dataset.sid); if (s) hojaSesion(paciente(s.pid), s); return; }
     const b = e.target.closest('[data-accion]'); if (!b) return;
@@ -982,10 +1081,11 @@
     switch (b.dataset.accion) {
       case 'sesion': hojaSesion(p); break;
       case 'informe': if (p) hojaInforme(p); break;
+      case 'subir': if (p) hojaSubir(p, b.dataset.tipo || 'propio'); break;
       case 'nuevo-paciente': hojaPaciente(null); break;
       case 'editar': if (p) hojaPaciente(p); break;
       case 'revisado': if (p) { guardarPaciente(Object.assign({}, p, { revisar: [] })); render(); } break;
-      case 'alta': if (p) confirmar('Dar de alta', `<b>${esc(nombreLista(p))}</b> pasa a <b>De alta</b>. La ficha, las sesiones y los informes quedan guardados.`, 'Dar de alta', () => { guardarPaciente(Object.assign({}, p, { estado: 'alta', alta: hoyISO() })); render(); aviso('Paciente dado de alta.'); }); break;
+      case 'alta': if (p) confirmar('Dar de alta', `<b>${esc(nombreLista(p))}</b> pasa a <b>De alta</b>. La ficha, las sesiones y los documentos quedan guardados.`, 'Dar de alta', () => { guardarPaciente(Object.assign({}, p, { estado: 'alta', alta: hoyISO() })); render(); aviso('Paciente dado de alta.'); }); break;
       case 'reactivar': if (p) { guardarPaciente(Object.assign({}, p, { estado: 'activo', alta: '' })); render(); aviso('El paciente vuelve a estar activo.'); } break;
       case 'importar': $('#archivo-word').click(); break;
       case 'recuperar': $('#archivo-copia').click(); break;
