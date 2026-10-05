@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
   <meta name="referrer" content="no-referrer">
-  <meta name="theme-color" content="#fcf4f2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1d1618" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#fcf4f2" id="color-barra">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Consultorio">
   <title>Consultorio</title>
@@ -14,6 +13,10 @@
   <link rel="icon" href="icono.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icono-180.png">
   <link rel="stylesheet" href="app.css">
+  <script>
+    // Tema elegido en Ajustes (claro por defecto). Va acá para que no parpadee al abrir.
+    (function () { var t = 'claro'; try { t = localStorage.getItem('consultorio.tema') || 'claro'; } catch (e) {} document.documentElement.dataset.tema = t; })();
+  </script>
 </head>
 <body>
   <header class="cabecera">

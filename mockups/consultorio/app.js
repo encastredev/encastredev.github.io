@@ -10,6 +10,7 @@
 
   const COFRE = 'consultorio.cofre';      // { v, sal, iter, iv, ct }: db + conexión + cola, cifrados
   const INTENTOS = 'consultorio.intentos';
+  const TEMA = 'consultorio.tema';         // claro (por defecto), oscuro o auto
   const PERFIL = 'consultorio.perfil';     // { nombre, profesion }: no es dato de pacientes, va sin cifrar
   const ITER = 310000;                     // PBKDF2-SHA256
   const BLOQUEO_OCULTA = 5 * 60e3;         // se bloquea si quedó en segundo plano 5 min
@@ -75,6 +76,18 @@
     if (enviarlo) enviar({ op: 'perfil', perfil });
     pintarMarca();
   }
+  const TEMAS = { claro: 'Clara', oscuro: 'Oscura', auto: 'Según el dispositivo' };
+  const mqOscuro = matchMedia('(prefers-color-scheme: dark)');
+  function aplicarTema(t) {
+    if (!TEMAS[t]) t = 'claro';
+    document.documentElement.dataset.tema = t;
+    const oscuro = t === 'oscuro' || (t === 'auto' && mqOscuro.matches);
+    const m = document.getElementById('color-barra'); if (m) m.content = oscuro ? '#1d1618' : '#fcf4f2';
+  }
+  const temaActual = () => document.documentElement.dataset.tema || 'claro';
+  aplicarTema(temaActual());
+  mqOscuro.addEventListener('change', () => aplicarTema(temaActual()));
+
   // Un color pastel fijo para cada paciente, para reconocerlo de un vistazo.
   function avatar(p, clase = '') {
     if (!p) return `<span class="av av-0 ${clase}">?</span>`;
@@ -754,6 +767,10 @@
         <ul class="lista"><li><button class="item" data-accion="perfil"><span class="monograma" data-monograma></span><span class="txt"><span class="nom">${esc(perfil.nombre || 'Poné tu nombre')}</span><span class="sub">${esc(perfil.profesion || 'Aparece arriba en la app y en la pantalla del PIN')}</span></span>${ic('lapiz')}</button></li></ul>
       </section>
       <section class="caja">
+        <div class="caja-cab"><span class="etq">Apariencia</span></div>
+        <div class="caja-cuerpo"><div class="opciones">${Object.entries(TEMAS).map(([k, t]) => `<button type="button" class="chip${temaActual() === k ? ' si' : ''}" data-accion="tema" data-tema="${k}">${t}</button>`).join('')}</div></div>
+      </section>
+      <section class="caja">
         <div class="caja-cab"><span class="etq">Planilla de Google</span>${conexion ? `<span class="sync sync-${estadoSync}">${{ ok: 'Al día', guardando: 'Guardando…', error: 'Sin conexión', clave: 'Clave incorrecta' }[estadoSync] || ''}</span>` : ''}</div>
         ${conexion ? `<ul class="lista">
           ${d.planilla ? item('', 'copia', 'Abrir la planilla', 'Pacientes, sesiones, documentos y el registro de cambios', d.planilla) : ''}
@@ -1148,6 +1165,7 @@
       case 'bloquear': bloquear(); break;
       case 'cambiar-pin': hojaCambiarPIN(); break;
       case 'perfil': hojaPerfil(); break;
+      case 'tema': try { localStorage.setItem(TEMA, b.dataset.tema); } catch (e2) { /* sin lugar */ } aplicarTema(b.dataset.tema); render(); break;
       case 'desconectar': hojaDesconectar(); break;
       case 'conectar': hojaConectar(); break;
       case 'compartir': hojaCompartir(); break;

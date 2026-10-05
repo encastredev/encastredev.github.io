@@ -36,8 +36,22 @@
   --abajo: env(safe-area-inset-bottom, 0px);
   color-scheme: light;
 }
+/* Tema: claro por defecto (data-tema="claro"); "oscuro" fijo, o "auto" según el sistema. Se elige en Ajustes. */
+:root[data-tema="oscuro"] {
+  --fondo: #1d1618; --superficie: #261d20; --superficie-2: #2e2427;
+  --tinta: #f4e9e7; --tinta-2: #c4b1ae; --tenue: #8d7b78;
+  --linea: #382c2f; --linea-2: #4b3b3f;
+  --solido: #f4e9e7; --sobre-solido: #1d1618;
+  --acento: #f2a7bb; --acento-2: #f7c3d1; --sobre-acento: #3a1c25;
+  --acento-suave: #3a2329; --acento-suave-2: #4a2c34; --rosa-tinta: #f7c3d1;
+  --salvia-suave: #24302a; --salvia-tinta: #b5d2ad; --salvia: #8fb586;
+  --aviso-suave: #33291a; --aviso-tinta: #ecc98a; --aviso-borde: #8a6d3a;
+  --alerta-suave: #3a211e; --alerta-tinta: #f2a99d; --alerta-borde: #95493e;
+  --velo: rgba(0, 0, 0, .55);
+  color-scheme: dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root[data-tema="auto"] {
     --fondo: #1d1618; --superficie: #261d20; --superficie-2: #2e2427;
     --tinta: #f4e9e7; --tinta-2: #c4b1ae; --tenue: #8d7b78;
     --linea: #382c2f; --linea-2: #4b3b3f;
@@ -151,10 +165,13 @@ label.campo, .campo { display: flex; flex-direction: column; gap: 6px; }
 .av-0 { background: #f8dbe3; color: #8e3a53; } .av-1 { background: #f9e3d3; color: #8a4a26; }
 .av-2 { background: #e5ebdc; color: #4a6644; } .av-3 { background: #e8e1f3; color: #5b4a86; }
 .av-4 { background: #f6e8c9; color: #7a5a17; } .av-5 { background: #dcebec; color: #2f6468; }
+:root[data-tema="oscuro"] .av-0 { background: #4a2c34; color: #f7c3d1; } :root[data-tema="oscuro"] .av-1 { background: #47301f; color: #f3c7a6; }
+:root[data-tema="oscuro"] .av-2 { background: #2c3a29; color: #bcd6b3; } :root[data-tema="oscuro"] .av-3 { background: #352c48; color: #d3c6ee; }
+:root[data-tema="oscuro"] .av-4 { background: #45391b; color: #ecd398; } :root[data-tema="oscuro"] .av-5 { background: #233a3b; color: #acd6d8; }
 @media (prefers-color-scheme: dark) {
-  .av-0 { background: #4a2c34; color: #f7c3d1; } .av-1 { background: #47301f; color: #f3c7a6; }
-  .av-2 { background: #2c3a29; color: #bcd6b3; } .av-3 { background: #352c48; color: #d3c6ee; }
-  .av-4 { background: #45391b; color: #ecd398; } .av-5 { background: #233a3b; color: #acd6d8; }
+  :root[data-tema="auto"] .av-0 { background: #4a2c34; color: #f7c3d1; } :root[data-tema="auto"] .av-1 { background: #47301f; color: #f3c7a6; }
+  :root[data-tema="auto"] .av-2 { background: #2c3a29; color: #bcd6b3; } :root[data-tema="auto"] .av-3 { background: #352c48; color: #d3c6ee; }
+  :root[data-tema="auto"] .av-4 { background: #45391b; color: #ecd398; } :root[data-tema="auto"] .av-5 { background: #233a3b; color: #acd6d8; }
 }
 
 /* tablero */
