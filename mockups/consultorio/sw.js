@@ -1,5 +1,5 @@
 // Guarda la app (no los datos) para que abra sin internet. Subir VERSION al publicar cambios.
-const VERSION = 'consultorio-v2';
+const VERSION = 'consultorio-v3';
 const APP = ['./', 'index.html', 'app.css', 'app.js', 'importar-word.js', 'manifest.webmanifest', 'icono.svg', 'icono-192.png'];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(VERSION).then((c) => c.addAll(APP)).then(() => self.skipWaiting())); });

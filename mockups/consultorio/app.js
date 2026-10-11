@@ -26,11 +26,11 @@
   const FOTO_MAX = 2000;          // las fotos se achican a 2000 px de lado y JPEG 82 %
   const ROLES = ['Acompañante terapéutico', 'Psicopedagoga', 'Psicóloga', 'Gabinete escolar', 'Maestra', 'Escuela', 'Neurólogo/a', 'Fonoaudióloga', 'Terapista ocupacional', 'Pediatra', 'Otro'];
   const CAMPOS_INFORME = [
-    ['nombre', 'Nombre y apellido'], ['apellido', 'Apellido'], ['nombres', 'Nombres'], ['dni', 'DNI'],
+    ['nombre', 'Nombre y apellido'], ['apellido_nombre', 'APELLIDO, NOMBRES (en mayúscula)'], ['apellido', 'Apellido'], ['nombres', 'Nombres'], ['dni', 'DNI'],
     ['fecha_nacimiento', 'Fecha de nacimiento'], ['edad', 'Edad en años y meses'], ['edad_anios', 'Edad en años'],
     ['obra_social', 'Obra social'], ['afiliado', 'N° de afiliado'], ['diagnostico', 'Diagnóstico'],
     ['escuela', 'Escuela'], ['grado', 'Grado o año'], ['responsables', 'Adultos responsables'], ['equipo', 'Equipo externo'],
-    ['inicio_tratamiento', 'Primera sesión'], ['sesiones', 'Sesiones a las que asistió'], ['fecha', 'Fecha del informe'],
+    ['inicio_tratamiento', 'Primera sesión'], ['sesiones', 'Sesiones a las que asistió'], ['fecha', 'Fecha del informe'], ['mes_anio', 'Mes y año del informe'],
   ];
 
   const $ = (s, el = document) => el.querySelector(s);
@@ -936,12 +936,12 @@
     const asist = validas(sesionesDe(p.id)).filter((s) => s.estado === 'asistio' && s.fecha <= fecha);
     const primera = asist[asist.length - 1];
     return {
-      nombre: nombreCompleto(p), apellido: p.apellido, nombres: p.nombre, dni: fmtDNI(p.dni),
+      nombre: nombreCompleto(p), apellido_nombre: nombreLista(p).toLocaleUpperCase('es-AR'), apellido: p.apellido, nombres: p.nombre, dni: fmtDNI(p.dni),
       fecha_nacimiento: fmtDMY(p.fn), edad: fmtEdadLarga(edad(p.fn, fecha)), edad_anios: fmtEdad(edad(p.fn, fecha)),
       obra_social: p.os || '', afiliado: p.afiliado || '', diagnostico: (p.dx || []).join('. '),
       escuela: p.escuela || '', grado: p.grado || '', responsables: p.tutores || '',
       equipo: (p.equipo || []).map((c) => `${c.rol}: ${[c.nombre, c.contacto].filter(Boolean).join(' · ')}`).join('\n'),
-      inicio_tratamiento: primera ? fmtDMY(primera.fecha) : '', sesiones: String(asist.length), fecha: fmtLarga(fecha),
+      inicio_tratamiento: primera ? fmtDMY(primera.fecha) : '', sesiones: String(asist.length), fecha: fmtLarga(fecha), mes_anio: fmtMes(mesDe(fecha)),
     };
   }
 
