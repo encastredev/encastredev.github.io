@@ -30,7 +30,7 @@
     ['fecha_nacimiento', 'Fecha de nacimiento'], ['edad', 'Edad en años y meses'], ['edad_anios', 'Edad en años'],
     ['obra_social', 'Obra social'], ['afiliado', 'N° de afiliado'], ['diagnostico', 'Diagnóstico'],
     ['escuela', 'Escuela'], ['grado', 'Grado o año'], ['responsables', 'Adultos responsables'], ['equipo', 'Equipo externo'],
-    ['inicio_tratamiento', 'Primera sesión'], ['sesiones', 'Sesiones a las que asistió'], ['fecha', 'Fecha del informe'], ['mes_anio', 'Mes y año del informe'],
+    ['inicio_tratamiento', 'Primera sesión'], ['sesiones', 'Sesiones a las que asistió'], ['fecha', 'Fecha del informe'], ['mes_anio', 'Mes y año del informe'], ['anio', 'Año del informe'],
   ];
 
   const $ = (s, el = document) => el.querySelector(s);
@@ -941,7 +941,7 @@
       obra_social: p.os || '', afiliado: p.afiliado || '', diagnostico: (p.dx || []).join('. '),
       escuela: p.escuela || '', grado: p.grado || '', responsables: p.tutores || '',
       equipo: (p.equipo || []).map((c) => `${c.rol}: ${[c.nombre, c.contacto].filter(Boolean).join(' · ')}`).join('\n'),
-      inicio_tratamiento: primera ? fmtDMY(primera.fecha) : '', sesiones: String(asist.length), fecha: fmtLarga(fecha), mes_anio: fmtMes(mesDe(fecha)),
+      inicio_tratamiento: primera ? fmtDMY(primera.fecha) : '', sesiones: String(asist.length), fecha: fmtLarga(fecha), mes_anio: fmtMes(mesDe(fecha)), anio: fecha.slice(0, 4),
     };
   }
 
