@@ -10,7 +10,7 @@
 
   const COFRE = 'consultorio.cofre';      // { v, sal, iter, iv, ct }: db + conexión + cola, cifrados
   const INTENTOS = 'consultorio.intentos';
-  const PERFIL = 'consultorio.perfil';     // { nombre, profesion }: no es dato de pacientes, va sin cifrar
+  const PERFIL = 'consultorio.perfil';     // datos y logo de la profesional: no son datos de pacientes, van sin cifrar
   const ITER = 310000;                     // PBKDF2-SHA256
   const BLOQUEO_OCULTA = 5 * 60e3;         // se bloquea si quedó en segundo plano 5 min
   const BLOQUEO_QUIETA = 20 * 60e3;        // o 20 min sin tocar nada
@@ -21,6 +21,9 @@
   const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
   const DIAS_LARGOS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
   const ASIST = { asistio: 'Asistió', falto: 'Faltó', aviso: 'Avisó' };
+  // Códigos que pide a IPS en el recetario (código y cantidad de sesiones). El primero va marcado por defecto.
+  const CODIGOS = [{ cod: '450105', cant: 8 }, { cod: '450102', cant: 1 }];
+  const POR_HOJA = 4; // recetarios por hoja A4, para cortar
   const TIPOS_DOC = { propio: 'Mis informes', externo: 'De otros profesionales' };
   const MAX_MB = 25;              // por archivo (Apps Script recibe hasta ~50 MB por pedido)
   const FOTO_MAX = 2000;          // las fotos se achican a 2000 px de lado y JPEG 82 %
@@ -53,26 +56,37 @@
     wa: '<path d="M4 20l1.3-4A8 8 0 1 1 8 18.7zM9 9c0 3 3 6 6 6l1-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z"/>',
     mail: '<path d="M3 6h18v12H3zM3 6l9 7 9-7"/>', izq: '<path d="M15 5l-7 7 7 7"/>', der: '<path d="M9 5l7 7-7 7"/>',
     clip: '<path d="M16 7l-7.5 7.5a2 2 0 0 0 3 3L19 10a4 4 0 0 0-6-6l-7.5 7.5a6 6 0 0 0 8.5 8.5L20 14"/>',
+    receta: '<path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h3"/>', imprimir: '<path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z"/>',
     word: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M8.5 12l1.2 5 1.3-4 1.3 4 1.2-5"/>',
   };
   const ic = (n) => `<svg class="ic" viewBox="0 0 24 24">${ICONOS[n]}</svg>`;
 
   /* ---------------------------------------------------------------- marca de la profesional */
-  let perfil = Object.assign({ nombre: '', profesion: '' }, leerJSON(PERFIL) || {});
+  const PERFIL_VACIO = { nombre: '', profesion: '', matricula: '', email: '', telefono: '', direccion: '', logo: '', logoId: '' };
+  let perfil = Object.assign({}, PERFIL_VACIO, leerJSON(PERFIL) || {});
   const TITULOS = /^(lic|lic\.|licenciada|dra|dra\.|dr|dr\.|prof|prof\.|psp|psicop\.?)$/i;
   const palabras = (n) => String(n || '').trim().split(/\s+/).filter((w) => w && !TITULOS.test(w));
   const primerNombre = () => palabras(perfil.nombre)[0] || '';
   function iniciales(n) { const w = palabras(n); return ((w[0] || '')[0] || '') + ((w.length > 1 ? w[w.length - 1][0] : '') || ''); }
   function pintarMarca() {
     const ini = (iniciales(perfil.nombre) || 'C').toUpperCase();
-    $$('[data-monograma]').forEach((el) => { el.textContent = ini; });
+    $$('[data-monograma]').forEach((el) => {
+      el.classList.toggle('con-logo', !!perfil.logo);
+      if (perfil.logo) el.innerHTML = `<img src="${perfil.logo}" alt="">`; else el.textContent = ini;
+    });
     const m = $('#marca-nombre'); if (m) m.textContent = perfil.nombre || 'Consultorio';
     const s = $('#marca-sub'); if (s) s.textContent = perfil.profesion || 'Consultorio';
   }
-  function guardarPerfil(p, enviarlo) {
-    perfil = { nombre: String(p.nombre || '').trim(), profesion: String(p.profesion || '').trim() };
+  // conLogo: el logo cambió y hay que mandarlo (pesa; si no cambió, no viaja).
+  function guardarPerfil(p, enviarlo, conLogo) {
+    const nuevo = Object.assign({}, PERFIL_VACIO);
+    Object.keys(PERFIL_VACIO).forEach((k) => { nuevo[k] = String((p[k] ?? perfil[k]) || '').trim(); });
+    perfil = nuevo;
     try { localStorage.setItem(PERFIL, JSON.stringify(perfil)); } catch (e) { /* sin lugar */ }
-    if (enviarlo) enviar({ op: 'perfil', perfil });
+    if (enviarlo) {
+      const { logo, logoId, ...datos } = perfil;
+      enviar({ op: 'perfil', perfil: conLogo ? { ...datos, logo } : datos });
+    }
     pintarMarca();
   }
   // Un color pastel fijo para cada paciente, para reconocerlo de un vistazo.
@@ -128,7 +142,7 @@
   let llave = null, sal = null;   // CryptoKey y sal del cofre
   let db = null, conexion = null, cola = [];
 
-  function vacio() { return { pacientes: [], sesiones: [], documentos: [], plantillas: [], borrador: null, meta: { creado: new Date().toISOString(), respaldo: null } }; }
+  function vacio() { return { pacientes: [], sesiones: [], documentos: [], solicitudes: [], hoja: [], plantillas: [], borrador: null, meta: { creado: new Date().toISOString(), respaldo: null } }; }
   let cadena = Promise.resolve();
   function guardar() {
     if (!llave) return cadena;
@@ -256,6 +270,7 @@
   const sesionesDe = (pid) => db.sesiones.filter((s) => s.pid === pid).sort((a, b) => b.fecha.localeCompare(a.fecha) || String(b.creado).localeCompare(String(a.creado)));
   const validas = (lista) => lista.filter((s) => !s.anulada);
   const ultimaSesion = (pid) => validas(sesionesDe(pid)).find((s) => s.estado === 'asistio');
+  const solicitudesDe = (pid) => (db.solicitudes || []).filter((x) => x.pid === pid).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || String(b.creado).localeCompare(String(a.creado)));
   const documentosDe = (pid) => db.documentos.filter((d) => d.pid === pid && !d.anulado).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || String(b.creado).localeCompare(String(a.creado)));
   const fmtTam = (b) => !b ? '' : b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
   const fmtGB = (b) => `${(b / 1024 ** 3).toFixed(1).replace('.', ',')} GB`;
@@ -315,8 +330,16 @@
     } finally { sincronizando = false; }
   }
   function aplicarEstado(r) {
-    db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.plantillas = r.plantillas || [];
-    if (r.perfil && r.perfil.nombre && r.perfil.nombre !== perfil.nombre) guardarPerfil(r.perfil, false);
+    db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.solicitudes = r.solicitudes || []; db.plantillas = r.plantillas || [];
+    if (r.perfil && r.perfil.nombre) {
+      const distinto = Object.keys(PERFIL_VACIO).some((k) => k !== 'logo' && String(r.perfil[k] || '') !== String(perfil[k] || ''));
+      if (distinto) {
+        const logoNuevo = (r.perfil.logoId || '') !== (perfil.logoId || '');
+        guardarPerfil(Object.assign({}, r.perfil, { logo: r.perfil.logoId ? perfil.logo : '' }), false);
+        // El logo se baja aparte, solo si cambió en otro dispositivo.
+        if (logoNuevo && r.perfil.logoId) llamar(conexion, { logo: true }).then((x) => { if (x.logo) { guardarPerfil({ logo: x.logo }, false); if (!hojaAbierta) render(); } }).catch(() => {});
+      }
+    }
     Object.assign(db.meta, { planilla: r.planilla, carpeta: r.carpeta, carpetaPlantillas: r.carpetaPlantillas, espacio: r.espacio || null, sincro: new Date().toISOString() });
     guardar();
     const ocupado = hojaAbierta || (document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName));
@@ -450,7 +473,7 @@
   }
   // La copia sale cifrada con el PIN actual: sin el PIN no se puede abrir.
   async function guardarCopia() {
-    const c = await cifrar({ pacientes: db.pacientes, sesiones: db.sesiones, documentos: db.documentos }, llave, sal, ITER);
+    const c = await cifrar({ pacientes: db.pacientes, sesiones: db.sesiones, documentos: db.documentos, solicitudes: db.solicitudes }, llave, sal, ITER);
     const blob = new Blob([JSON.stringify({ app: 'consultorio', ...c })], { type: 'application/json' });
     if (await entregar(blob, `consultorio-copia-${fechaArchivo()}.json`)) { db.meta.respaldo = new Date().toISOString(); guardar(); render(); }
   }
@@ -467,9 +490,10 @@
         try {
           const k = await derivar($('#rc-pin', hoja).value, deB64(c.sal), c.iter || ITER);
           const d = await descifrar(c, k);
-          db.pacientes = d.pacientes || []; db.sesiones = d.sesiones || []; db.documentos = d.documentos || [];
+          db.pacientes = d.pacientes || []; db.sesiones = d.sesiones || []; db.documentos = d.documentos || []; db.solicitudes = d.solicitudes || [];
           db.pacientes.forEach((p) => enviar({ op: 'paciente', p: datosPaciente(p) }));
           db.sesiones.forEach((s) => enviar({ op: 'sesion', s }));
+          db.solicitudes.forEach((x) => enviar({ op: 'solicitud', s: x }));
           guardar(); cerrar(); ir('#/'); aviso(`Copia recuperada: ${db.pacientes.length} pacientes.`);
         } catch (e) { $('#rc-msj', hoja).textContent = 'PIN incorrecto.'; }
       };
@@ -554,6 +578,7 @@
       <div class="saludo"><span class="etq">${DIAS_LARGOS[new Date().getDay()]} ${fechaHoy}</span><h2>${saludo}${primerNombre() ? `, ${esc(primerNombre())}` : ''}</h2></div>
       <div class="buscador">${ic('buscar')}<input class="entrada" id="q-inicio" type="search" placeholder="Buscar paciente por nombre, DNI o escuela" autocomplete="off"></div>
       <ul class="lista caja" id="res-inicio" hidden></ul>
+      ${hojaPendiente()}
       <div class="tareas">
         <button class="tarea" data-accion="sesion"><span class="tarea-ic mas">${ic('sesion')}</span><span class="tarea-txt"><b>Anotar sesión</b><span>Asistencia y nota de evolución</span></span></button>
         <button class="tarea" data-accion="nuevo-paciente"><span class="tarea-ic menos">${ic('persona')}</span><span class="tarea-txt"><b>Paciente nuevo</b><span>Cargar la ficha</span></span></button>
@@ -668,6 +693,10 @@
             <div class="caja-cab"><span class="etq">Equipo y contactos</span><button class="btn-texto chico" data-accion="editar">${ic('lapiz')}Editar</button></div>
             ${(p.equipo || []).length ? `<ul class="lista">${p.equipo.map((c) => `<li class="contacto"><span class="txt"><span class="nom">${esc(c.nombre || c.rol)}</span><span class="sub">${esc([c.nombre ? c.rol : '', c.contacto].filter(Boolean).join(' · '))}</span></span><span class="fila">${telLinks(c.contacto)}</span></li>`).join('')}</ul>` : '<p class="vacio chico">Sin contactos cargados.</p>'}
           </section>
+          <section class="caja">
+            <div class="caja-cab"><span class="etq">Solicitudes a ${esc(p.os || 'la obra social')}</span><button class="btn-texto chico" data-accion="solicitud">${ic('mas')}Nueva</button></div>
+            ${solicitudesDe(p.id).length ? `<ul class="lista">${solicitudesDe(p.id).map(solicitudHTML).join('')}</ul>` : '<p class="vacio chico">El recetario con los códigos y las sesiones, listo para imprimir y firmar.</p>'}
+          </section>
           ${['propio', 'externo'].map((t) => { const l = docs.filter((d) => d.tipo === t); return `<section class="caja">
             <div class="caja-cab"><span class="etq">${TIPOS_DOC[t]}</span><button class="btn-texto chico" data-accion="subir" data-tipo="${t}">${ic('mas')}Subir</button></div>
             ${l.length ? `<ul class="lista">${l.map(docHTML).join('')}</ul>` : `<p class="vacio chico">${t === 'propio' ? 'Todavía no subiste informes tuyos.' : 'Acá van los informes del neurólogo, la escuela, la fonoaudióloga…'}</p>`}
@@ -683,6 +712,19 @@
         ${p.estado === 'alta' ? `<button class="btn btn-chico" data-accion="reactivar">Volver a activo</button>` : `<button class="btn btn-chico" data-accion="alta">Dar de alta</button>`}
       </div>
     </div>`;
+  }
+
+  const textoItems = (items) => (items || []).map((x) => `${x.cod} × ${x.cant}`).join(' · ');
+  function solicitudHTML(x) {
+    const enHoja = (db.hoja || []).includes(x.id);
+    return `<li><button class="item${x.anulada ? ' anulada' : ''}" data-solid="${x.id}">${ic('receta')}<span class="txt"><span class="nom">${esc(textoItems(x.items))}</span>
+      <span class="sub">${fmtCorta(x.fecha)}${x.dx ? ` · ${esc(x.dx)}` : ''}</span></span>${x.anulada ? '<span class="badge">anulada</span>' : enHoja ? '<span class="badge b-dx">en la hoja</span>' : ''}</button></li>`;
+  }
+  function hojaPendiente() {
+    const n = (db.hoja || []).length;
+    if (!n) return '';
+    return `<div class="nota fila entre" style="flex-wrap:wrap"><span>${ic('receta')} Hoja de solicitudes: <b>${n} de ${POR_HOJA}</b> lugares ocupados.</span>
+      <span class="fila"><button class="btn btn-chico" data-accion="vaciar-hoja">Vaciar</button><button class="btn btn-chico btn-acento" data-accion="imprimir-hoja">${ic('imprimir')}Imprimir</button></span></div>`;
   }
 
   function docHTML(d) {
@@ -750,8 +792,8 @@
       : `<li><button class="item" data-accion="${accion}">${ic(icono)}<span class="txt"><span class="nom">${nom}</span><span class="sub">${sub}</span></span></button></li>`;
     vista.innerHTML = `<div class="ajustes">
       <section class="caja">
-        <div class="caja-cab"><span class="etq">Tu nombre</span></div>
-        <ul class="lista"><li><button class="item" data-accion="perfil"><span class="monograma" data-monograma></span><span class="txt"><span class="nom">${esc(perfil.nombre || 'Poné tu nombre')}</span><span class="sub">${esc(perfil.profesion || 'Aparece arriba en la app y en la pantalla del PIN')}</span></span>${ic('lapiz')}</button></li></ul>
+        <div class="caja-cab"><span class="etq">Tus datos</span></div>
+        <ul class="lista"><li><button class="item" data-accion="perfil"><span class="monograma" data-monograma></span><span class="txt"><span class="nom">${esc(perfil.nombre || 'Poné tu nombre')}</span><span class="sub">${esc([perfil.profesion, perfil.matricula ? `Mat. ${perfil.matricula}` : ''].filter(Boolean).join(' · ') || 'Nombre, matrícula, contacto y logo para el recetario')}</span></span>${ic('lapiz')}</button></li></ul>
       </section>
       <section class="caja">
         <div class="caja-cab"><span class="etq">Planilla de Google</span>${conexion ? `<span class="sync sync-${estadoSync}">${{ ok: 'Al día', guardando: 'Guardando…', error: 'Sin conexión', clave: 'Clave incorrecta' }[estadoSync] || ''}</span>` : ''}</div>
@@ -1072,15 +1114,137 @@
   }
 
   function hojaPerfil() {
+    let logo = perfil.logo, logoCambio = false;
+    const campo = (id, et, v, extra = '') => `<label class="campo"><span class="etq">${et}</span><input class="entrada" id="${id}" value="${esc(v)}" ${extra}></label>`;
     abrirHoja(`
-      <div class="fila entre"><h3>Tu nombre</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
-      <p class="chico tinta-2">Aparece arriba en la app y en la pantalla del PIN, en todos tus dispositivos.</p>
-      <label class="campo"><span class="etq">Nombre</span><input class="entrada" id="pf-nombre" value="${esc(perfil.nombre)}" placeholder="Lic. Nombre Apellido" autocapitalize="words"></label>
-      <label class="campo"><span class="etq">Profesión</span><input class="entrada" id="pf-prof" value="${esc(perfil.profesion)}" placeholder="Psicopedagoga"></label>
+      <div class="fila entre"><h3>Tus datos</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      <p class="chico tinta-2">Tu nombre aparece arriba en la app y en la pantalla del PIN. Todo junto arma el membrete del recetario. Se guarda en tu planilla, así lo ves igual en todos tus dispositivos.</p>
+      <div class="fila"><span class="monograma grande logo-previa" id="pf-logo"></span>
+        <div class="pila" style="gap:6px"><label class="btn btn-chico" style="cursor:pointer">${ic('subir')}Elegir logo<input type="file" id="pf-logo-in" accept="image/*" hidden></label>
+        <button type="button" class="btn-texto chico" id="pf-logo-no">Quitar logo</button></div></div>
+      ${campo('pf-nombre', 'Nombre', perfil.nombre, 'placeholder="Mariela E. Barboza" autocapitalize="words"')}
+      ${campo('pf-prof', 'Profesión', perfil.profesion, 'placeholder="Lic. Psicopedagogía"')}
+      ${campo('pf-mat', 'Matrícula', perfil.matricula, 'placeholder="Mat. Prof. N° 261"')}
+      ${campo('pf-mail', 'Mail', perfil.email, 'type="email" autocapitalize="off"')}
+      ${campo('pf-tel', 'Teléfono', perfil.telefono, 'inputmode="tel"')}
+      ${campo('pf-dir', 'Dirección', perfil.direccion, 'placeholder="Calle 123, 4to piso, Posadas"')}
       <button class="btn btn-oscuro btn-grande btn-bloque" data-ok>Guardar</button>`, (hoja, cerrar) => {
-      $('[data-ok]', hoja).onclick = () => { guardarPerfil({ nombre: $('#pf-nombre', hoja).value, profesion: $('#pf-prof', hoja).value }, true); cerrar(); render(); };
-      setTimeout(() => $('#pf-nombre', hoja).focus(), 80);
+      const previa = () => { const el = $('#pf-logo', hoja); el.classList.toggle('con-logo', !!logo); el.innerHTML = logo ? `<img src="${logo}" alt="">` : esc((iniciales($('#pf-nombre', hoja).value) || 'C').toUpperCase()); };
+      previa();
+      $('#pf-nombre', hoja).addEventListener('input', previa);
+      $('#pf-logo-in', hoja).onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { logo = await logoChico(f); logoCambio = true; previa(); } catch (err) { aviso('No se pudo leer esa imagen.'); } };
+      $('#pf-logo-no', hoja).onclick = () => { logo = ''; logoCambio = true; previa(); };
+      $('[data-ok]', hoja).onclick = () => {
+        guardarPerfil({ nombre: $('#pf-nombre', hoja).value, profesion: $('#pf-prof', hoja).value, matricula: $('#pf-mat', hoja).value, email: $('#pf-mail', hoja).value, telefono: $('#pf-tel', hoja).value, direccion: $('#pf-dir', hoja).value, logo, logoId: logoCambio ? '' : perfil.logoId }, true, logoCambio);
+        cerrar(); render(); aviso('Datos guardados.');
+      };
+      if (!perfil.nombre) setTimeout(() => $('#pf-nombre', hoja).focus(), 80);
     });
+  }
+  // El logo se guarda chico (hasta 600 px) para que viaje rápido y entre en el celular.
+  async function logoChico(f) {
+    const img = await createImageBitmap(f);
+    const k = Math.min(1, 600 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.9);
+  }
+
+  /* ------------------------------------------------------------ solicitudes a la obra social (recetario) */
+  function hojaSolicitud(p, x) {
+    const nueva = !x;
+    const ultima = solicitudesDe(p.id).find((y) => !y.anulada);
+    const base = x || ultima;
+    const items = CODIGOS.map((c, i) => {
+      const prev = base && base.items.find((y) => y.cod === c.cod);
+      return { cod: c.cod, cant: prev ? prev.cant : c.cant, si: base ? !!prev : i === 0 };
+    });
+    const libres = POR_HOJA - (db.hoja || []).length;
+    abrirHoja(`
+      <div class="fila entre"><h3>${nueva ? 'Nueva solicitud' : 'Solicitud'}</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      <p class="tinta-2"><b>${esc(nombreLista(p).toLocaleUpperCase('es-AR'))}</b><br>${esc(p.os || 'Obra social')} N°: ${esc(p.afiliado || '—')}</p>
+      ${!p.afiliado ? '<div class="nota">Falta el n.° de afiliado en la ficha.</div>' : ''}
+      <div class="campo"><span class="etq">Solicito</span><div class="pila" id="sol-items">${items.map((it) => `
+        <div class="sol-item"><label class="opcion" style="flex:1"><input type="checkbox" data-cod="${it.cod}" ${it.si ? 'checked' : ''}><span>Cód. ${it.cod}</span></label>
+        <label class="sol-cant"><input class="entrada" type="number" min="1" max="99" inputmode="numeric" value="${it.cant}" data-cant="${it.cod}" aria-label="Sesiones del código ${it.cod}"><span class="chico tinta-2">sesiones</span></label></div>`).join('')}</div></div>
+      <label class="campo"><span class="etq">Diagnóstico</span><textarea class="entrada area" id="sol-dx" rows="2">${esc(x ? x.dx : (p.dx || []).join('. '))}</textarea></label>
+      <label class="campo"><span class="etq">Fecha</span><input class="entrada" type="date" id="sol-fecha" value="${x ? x.fecha : hoyISO()}"></label>
+      <p class="chico alerta-txt" id="sol-msj" role="status"></p>
+      <div class="acciones">
+        <button class="btn btn-grande" data-hoja ${libres ? '' : 'disabled'}>${(db.hoja || []).includes(x && x.id) ? 'Ya está en la hoja' : `Agregar a la hoja (${(db.hoja || []).length}/${POR_HOJA})`}</button>
+        <button class="btn btn-acento btn-grande" data-imprimir>${ic('imprimir')}Imprimir</button>
+      </div>
+      <p class="chico tenue">Se imprimen ${POR_HOJA} por hoja A4 para cortar. "Agregar a la hoja" junta varias solicitudes y las imprime todas juntas.</p>
+      ${nueva ? '' : x.anulada ? '' : '<button class="btn btn-chico btn-peligro" data-anular style="align-self:flex-start">Anular solicitud</button>'}`, (hoja, cerrar) => {
+      const leer = () => {
+        const its = CODIGOS.map((c) => ({ cod: c.cod, cant: parseInt($(`[data-cant="${c.cod}"]`, hoja).value, 10) || 0, si: $(`[data-cod="${c.cod}"]`, hoja).checked })).filter((y) => y.si && y.cant > 0).map(({ cod, cant }) => ({ cod, cant }));
+        if (!its.length) { $('#sol-msj', hoja).textContent = 'Marcá al menos un código con sus sesiones.'; return null; }
+        const datos = { fecha: $('#sol-fecha', hoja).value || hoyISO(), items: its, dx: $('#sol-dx', hoja).value.trim() };
+        const s2 = nueva ? Object.assign({ id: uid(), pid: p.id, anulada: false, creado: new Date().toISOString() }, datos) : Object.assign({}, x, datos);
+        Object.assign(s2, { paciente: nombreLista(p), os: p.os || '', afiliado: p.afiliado || '' });
+        guardarSolicitud(s2);
+        return s2;
+      };
+      $('[data-hoja]', hoja).onclick = () => { const s2 = leer(); if (!s2) return; agregarAHoja(s2.id); cerrar(); render(); aviso(`En la hoja: ${db.hoja.length} de ${POR_HOJA}.`); };
+      $('[data-imprimir]', hoja).onclick = () => { const s2 = leer(); if (!s2) return; agregarAHoja(s2.id); cerrar(); render(); imprimirHoja(); };
+      const an = $('[data-anular]', hoja);
+      if (an) an.onclick = () => confirmar('Anular solicitud', 'Queda en el historial como anulada. No se borra.', 'Anular', () => { guardarSolicitud(Object.assign({}, x, { anulada: true })); db.hoja = db.hoja.filter((id) => id !== x.id); guardar(); render(); });
+    });
+  }
+  function guardarSolicitud(x) {
+    db.solicitudes = db.solicitudes || [];
+    const i = db.solicitudes.findIndex((y) => y.id === x.id);
+    if (i >= 0) db.solicitudes[i] = x; else db.solicitudes.push(x);
+    enviar({ op: 'solicitud', s: x });
+    guardar();
+  }
+  function agregarAHoja(id) {
+    db.hoja = db.hoja || [];
+    if (!db.hoja.includes(id) && db.hoja.length < POR_HOJA) db.hoja.push(id);
+    guardar();
+  }
+
+  const ICO_PIE = {
+    mail: '<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM3 6l9 7 9-7"/></svg>',
+    tel: '<svg viewBox="0 0 24 24"><path d="M4 20l1.3-4A8 8 0 1 1 8 18.7zM9 9c0 3 3 6 6 6l1-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z"/></svg>',
+    dir: '<svg viewBox="0 0 24 24"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg>',
+  };
+  function recetaHTML(x) {
+    if (!x) return '<div class="receta vacia"></div>';
+    const p = paciente(x.pid) || { apellido: x.paciente, nombre: '', os: x.os, afiliado: x.afiliado };
+    return `<div class="receta">
+      <div class="r-cab">${perfil.logo ? `<img class="r-logo" src="${perfil.logo}" alt="">` : ''}
+        <div class="r-marca"><div class="r-nombre">${esc(perfil.nombre)}</div><div class="r-sub">${esc(perfil.profesion)}</div><div class="r-sub">${esc(perfil.matricula)}</div></div></div>
+      <div class="r-cuerpo">
+        <div class="r-paciente">${esc(nombreLista(p).toLocaleUpperCase('es-AR'))}</div>
+        <div>${esc(p.os || x.os || 'IPS')} N°: ${esc(p.afiliado || x.afiliado || '')}</div>
+        <div class="r-solicito">Solicito:</div>
+        ${x.items.map((it) => `<div>- Cód. ${esc(it.cod)} (x ${it.cant} ${it.cant === 1 ? 'sesión' : 'sesiones'})</div>`).join('')}
+        ${x.dx ? `<div class="r-dx"><u>Dx</u>: ${esc(x.dx)}</div>` : ''}
+        <div class="r-fecha">${fmtDMY(x.fecha)}</div>
+      </div>
+      <div class="r-pie">
+        ${perfil.email ? `<span>${ICO_PIE.mail}${esc(perfil.email)}</span>` : ''}${perfil.telefono ? `<span>${ICO_PIE.tel}${esc(perfil.telefono)}</span>` : ''}${perfil.direccion ? `<span>${ICO_PIE.dir}${esc(perfil.direccion)}</span>` : ''}
+      </div>
+    </div>`;
+  }
+  async function imprimirHoja() {
+    const ids = (db.hoja || []).filter((id) => db.solicitudes.some((x) => x.id === id));
+    if (!ids.length) { aviso('La hoja está vacía.'); return; }
+    if (!perfil.nombre || !perfil.matricula) { aviso('Completá tu nombre y matrícula para el membrete.'); hojaPerfil(); return; }
+    let el = $('#impresion');
+    if (!el) { el = document.createElement('div'); el.id = 'impresion'; document.body.appendChild(el); }
+    el.innerHTML = Array.from({ length: POR_HOJA }, (_, i) => recetaHTML(db.solicitudes.find((x) => x.id === ids[i]))).join('');
+    try { await Promise.all([document.fonts.load('600 15pt "Baloo 2"'), document.fonts.load('500 10pt "Baloo 2"'), document.fonts.load('11pt "DM Sans"')]); } catch (e) { /* imprime igual */ }
+    await Promise.all($$('img', el).map((im) => (im.complete ? 0 : new Promise((ok) => { im.onload = im.onerror = ok; }))));
+    document.body.classList.add('imprimiendo');
+    const fin = () => {
+      window.removeEventListener('afterprint', fin);
+      document.body.classList.remove('imprimiendo');
+      confirmar('¿Salió bien la impresión?', `Si ya imprimiste, vaciá la hoja para empezar una nueva. Las solicitudes quedan guardadas en la ficha de cada paciente.`, 'Vaciar la hoja', () => { db.hoja = []; guardar(); render(); });
+    };
+    window.addEventListener('afterprint', fin);
+    setTimeout(() => window.print(), 50);
   }
 
   function hojaCambiarPIN() {
@@ -1125,6 +1289,8 @@
   /* ------------------------------------------------------------ eventos */
   document.addEventListener('click', (e) => {
     if (!llave) return;
+    const sol = e.target.closest('[data-solid]');
+    if (sol) { const x = db.solicitudes.find((y) => y.id === sol.dataset.solid); if (x) hojaSolicitud(paciente(x.pid) || { id: x.pid, apellido: x.paciente, nombre: '', os: x.os, afiliado: x.afiliado, dx: [] }, x); return; }
     const doc = e.target.closest('[data-did]');
     if (doc) { const d = db.documentos.find((x) => x.id === doc.dataset.did); if (d) hojaDocumento(d); return; }
     const ses = e.target.closest('[data-sid]');
@@ -1148,6 +1314,9 @@
       case 'bloquear': bloquear(); break;
       case 'cambiar-pin': hojaCambiarPIN(); break;
       case 'perfil': hojaPerfil(); break;
+      case 'solicitud': if (p) hojaSolicitud(p); break;
+      case 'imprimir-hoja': imprimirHoja(); break;
+      case 'vaciar-hoja': confirmar('Vaciar la hoja', 'Se sacan las solicitudes de la hoja de impresión. Siguen guardadas en la ficha de cada paciente.', 'Vaciar', () => { db.hoja = []; guardar(); render(); }); break;
       case 'desconectar': hojaDesconectar(); break;
       case 'conectar': hojaConectar(); break;
       case 'compartir': hojaCompartir(); break;

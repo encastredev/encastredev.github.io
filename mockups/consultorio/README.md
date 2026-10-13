@@ -6,13 +6,13 @@ Reemplaza al Word de fichas, que se importa una vez.
 Archivos estáticos (HTML, CSS y JS sin build). **El repo no tiene datos de pacientes.** Para probar se usan pacientes inventados.
 
 **Diseño propio de la profesional, no el de Encastre:** crema y rosa pastel, con verde salvia para lo que está bien, en Fraunces (títulos) y DM Sans. Tiene esquinas redondeadas y modo claro y oscuro.
-- Su nombre y profesión se cargan en **Ajustes → Tu nombre**. Viajan por la planilla (op `perfil`) y aparecen arriba y en la pantalla del PIN. Para eso se guardan sin cifrar en `consultorio.perfil`, porque no son datos de pacientes.
+- Sus datos se cargan en **Ajustes → Tus datos**: nombre, profesión, matrícula, mail, teléfono, dirección y logo. Viajan por la planilla (op `perfil`; el logo, como archivo en la carpeta Consultorio) y aparecen arriba, en la pantalla del PIN y en el recetario. Se guardan sin cifrar en `consultorio.perfil`, porque no son datos de pacientes. **El repo no tiene sus datos ni su logo.**
 - Cada paciente tiene un círculo con sus iniciales y un color pastel fijo (`avatar()`), para reconocerlo de un vistazo.
 - Encastre solo figura como "Hecho por Encastre" al pie de Ajustes.
 
 ## Dónde se guardan los datos
 
-En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Documentos y Registro), a través del script [`apps-script/Codigo.gs`](apps-script/Codigo.gs). Cómo instalarlo: [`apps-script/INSTALAR.md`](apps-script/INSTALAR.md).
+En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Documentos, Solicitudes y Registro), a través del script [`apps-script/Codigo.gs`](apps-script/Codigo.gs). Cómo instalarlo: [`apps-script/INSTALAR.md`](apps-script/INSTALAR.md).
 
 - **Cada dispositivo guarda una copia cifrada** para abrir rápido y sin internet. La clave sale del PIN (PBKDF2-SHA256, 310 000 vueltas → AES-GCM 256) y solo vive en memoria mientras la app está abierta. En `localStorage` hay un único valor, `consultorio.cofre`, que contiene los datos, la conexión y la cola de envíos, todo cifrado.
 - **Se bloquea sola** a los 5 minutos en segundo plano o a los 20 sin tocarla (`BLOQUEO_OCULTA`, `BLOQUEO_QUIETA`), y con el candado de arriba. Con el PIN mal 5 veces, espera 30 s, 60 s, 120 s…
@@ -37,6 +37,7 @@ En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Docu
   - Se pueden corregir el título, el profesional, la fecha y de quién es. **Quitar** saca el documento de la ficha y manda el archivo a la papelera de Drive, donde queda 30 días.
   - En **Ajustes** se ve el espacio usado en la cuenta de Google. Lo que le comparten otros (por ejemplo, desde CENEMI) no ocupa su espacio.
 - **Empezar un informe en Google Docs** (opcional): copia una plantilla de `Consultorio/Plantillas` en **Mis informes** y reemplaza los `{{campos}}` con los datos de la ficha (lista en `CAMPOS_INFORME`, en `app.js`). La plantilla de ejemplo tiene solo el encabezado con los datos, porque cada informe lo escribe ella según el caso.
+- **Solicitudes a la obra social (recetario):** desde la ficha, **Solicitudes → Nueva**. Trae el paciente, el n.º de afiliado y el diagnóstico; se marcan los códigos (`CODIGOS`: 450105 y 450102) con la cantidad de sesiones. Se imprime con su membrete, **4 por hoja A4** para cortar (`POR_HOJA`): "Agregar a la hoja" junta varias y "Imprimir" las imprime todas. La firma y el sello van a mano. Cada solicitud queda en la ficha y en la hoja **Solicitudes**, y se puede anular. Funciona sin internet.
 - **Copia de seguridad** en JSON, cifrada con el PIN. **Exportar a Excel** con pacientes y sesiones.
 - Instalable (manifest + `sw.js`), abre sin internet. Al publicar cambios, subir `VERSION` en `sw.js`.
 

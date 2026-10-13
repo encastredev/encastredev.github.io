@@ -54,6 +54,12 @@ Se hace una vez por cuenta: primero con la tuya para probar y después con la de
 - **Para usar un Word que ya tiene:** subilo a la carpeta Plantillas, abrilo y tocá **Archivo → Guardar como documento de Google**. Después borrá el `.docx` y escribí los campos donde correspondan.
 - Después de agregar o renombrar una plantilla, en la app tocá **Ajustes → Actualizar ahora**.
 
+## Recetario (solicitudes a IPS)
+
+- En la app, **Ajustes → Tus datos**: nombre, profesión, matrícula, mail, teléfono, dirección y el logo. Con eso se arma el membrete.
+- Las solicitudes quedan en la hoja **Solicitudes** de la planilla, que se crea sola la primera vez.
+- Para imprimir desde el celular hace falta una impresora conectada al celular, o guardar como PDF y mandarlo a imprimir.
+
 ## Si cambiás el script
 
 Si se modifica `Codigo.gs`, hay que pegarlo de nuevo y publicarlo así: **Implementar → Administrar implementaciones → lápiz → Versión: Nueva versión → Implementar**. La dirección no cambia.

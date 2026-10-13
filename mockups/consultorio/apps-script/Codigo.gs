@@ -13,6 +13,7 @@ const CARPETA = 'Consultorio';
 const H_PAC = 'Pacientes';
 const H_SES = 'Sesiones';
 const H_DOC = 'Documentos';
+const H_SOL = 'Solicitudes';
 const H_REG = 'Registro';
 
 // [clave en la app, título de la columna, ancho, tipo]
@@ -38,6 +39,12 @@ const COL_DOC = [
   ['tam', 'TAMAÑO (KB)', 90, 'kb'], ['drive', 'ID DRIVE', 100, 'txt'], ['anulado', 'QUITADO', 75, 'si'],
   ['creado', 'SUBIDO', 130, 'momento'],
 ];
+const COL_SOL = [
+  ['id', 'ID', 100, 'txt'], ['fecha', 'FECHA', 95, 'fecha'], ['pid', 'ID PACIENTE', 100, 'txt'],
+  ['paciente', 'PACIENTE', 200, 'txt'], ['os', 'OBRA SOCIAL', 90, 'txt'], ['afiliado', 'N° AFILIADO', 120, 'txt'],
+  ['items', 'CÓDIGOS (CÓDIGO x SESIONES)', 200, 'items'], ['dx', 'DIAGNÓSTICO', 260, 'txt'],
+  ['anulada', 'ANULADA', 75, 'si'], ['creado', 'CREADA', 130, 'momento'],
+];
 const MAX_MB = 25; // tamaño máximo por archivo
 const COL_REG = [['t', 'FECHA', 130, 'momento'], ['op', 'OPERACIÓN', 120, 'txt'], ['id', 'ID', 100, 'txt'], ['detalle', 'DATOS', 600, 'txt']];
 
@@ -59,8 +66,9 @@ function configurar() {
   prepararHoja_(ss, H_PAC, COL_PAC);
   prepararHoja_(ss, H_SES, COL_SES);
   prepararHoja_(ss, H_DOC, COL_DOC);
+  prepararHoja_(ss, H_SOL, COL_SOL);
   prepararHoja_(ss, H_REG, COL_REG);
-  const vacia = ss.getSheets().find((h) => ![H_PAC, H_SES, H_DOC, H_REG].includes(h.getName()) && h.getLastRow() === 0);
+  const vacia = ss.getSheets().find((h) => ![H_PAC, H_SES, H_DOC, H_SOL, H_REG].includes(h.getName()) && h.getLastRow() === 0);
   if (vacia) ss.deleteSheet(vacia);
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('CLAVE')) props.setProperty('CLAVE', Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8));
@@ -145,6 +153,7 @@ function doPost(e) {
       if (body.ops && body.ops.length) aplicar_(body.ops);
       if (body.informe) res.documento = informe_(body.informe);
       if (body.subir) res.documento = subir_(body.subir);
+      if (body.logo) res.logo = leerLogo_();
       if (body.estado) Object.assign(res, leerEstado_());
     } finally {
       lock.releaseLock();
@@ -160,7 +169,7 @@ function aplicar_(ops) {
   const ss = SpreadsheetApp.getActive();
   const tp = tabla_(ss, H_PAC, COL_PAC);
   const ts = tabla_(ss, H_SES, COL_SES);
-  let td = null;
+  let td = null, tsol = null;
   const registro = [];
   const ahora = new Date().toISOString();
   for (const op of ops) {
@@ -175,8 +184,21 @@ function aplicar_(ops) {
       ts.guardar(op.s);
       registro.push([ahora, que, op.s.id, JSON.stringify(op.s)]);
     } else if (op.op === 'perfil') {
-      // Nombre y profesión que muestra la app arriba (igual en todos los dispositivos).
-      PropertiesService.getScriptProperties().setProperty('PERFIL', JSON.stringify({ nombre: String(op.perfil.nombre || ''), profesion: String(op.perfil.profesion || '') }));
+      // Datos de la profesional para la app y el recetario (iguales en todos los dispositivos).
+      // El logo viene solo cuando cambió; se guarda como archivo en la carpeta del consultorio.
+      const props = PropertiesService.getScriptProperties();
+      const viejo = JSON.parse(props.getProperty('PERFIL') || '{}');
+      const nuevo = {};
+      CAMPOS_PERFIL.forEach((k) => { nuevo[k] = String(op.perfil[k] || ''); });
+      nuevo.logoId = viejo.logoId || '';
+      if (typeof op.perfil.logo === 'string') nuevo.logoId = guardarLogo_(op.perfil.logo, viejo.logoId);
+      props.setProperty('PERFIL', JSON.stringify(nuevo));
+    } else if (op.op === 'solicitud') {
+      tsol = tsol || tabla_(ss, H_SOL, COL_SOL);
+      const vieja = tsol.porId(op.s.id);
+      const que = !vieja ? 'Solicitud hecha' : op.s.anulada && !vieja.anulada ? 'Solicitud anulada' : 'Solicitud corregida';
+      tsol.guardar(op.s);
+      registro.push([ahora, que, op.s.id, JSON.stringify(op.s)]);
     } else if (op.op === 'documento') {
       // Solo los datos (título, profesional, fecha, de quién). El archivo no se cambia.
       td = td || tabla_(ss, H_DOC, COL_DOC);
@@ -192,6 +214,7 @@ function aplicar_(ops) {
   tp.escribir();
   ts.escribir();
   if (td) td.escribir();
+  if (tsol) tsol.escribir();
   if (registro.length) agregarFilas_(tabla_(ss, H_REG, COL_REG), registro);
 }
 
@@ -239,6 +262,27 @@ function nuevoDocumento_(pedido, tipo, crear) {
   return d;
 }
 
+/* ---------------------------------------------------------------- perfil y logo */
+const CAMPOS_PERFIL = ['nombre', 'profesion', 'matricula', 'email', 'telefono', 'direccion'];
+
+// Guarda el logo (data:image/...;base64,...) como archivo y devuelve su ID. Vacío = sin logo.
+function guardarLogo_(dataUrl, idViejo) {
+  if (idViejo) try { DriveApp.getFileById(idViejo).setTrashed(true); } catch (e) { /* ya no estaba */ }
+  const m = String(dataUrl).match(/^data:(image\/[\w+.-]+);base64,(.+)$/);
+  if (!m) return '';
+  const f = carpetas_().raiz.createFile(Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], 'logo-recetario'));
+  return f.getId();
+}
+
+function leerLogo_() {
+  const pf = JSON.parse(PropertiesService.getScriptProperties().getProperty('PERFIL') || '{}');
+  if (!pf.logoId) return '';
+  try {
+    const b = DriveApp.getFileById(pf.logoId).getBlob();
+    return `data:${b.getContentType()};base64,${Utilities.base64Encode(b.getBytes())}`;
+  } catch (e) { return ''; }
+}
+
 /* ---------------------------------------------------------------- lectura y escritura */
 function leerEstado_() {
   const ss = SpreadsheetApp.getActive();
@@ -251,6 +295,7 @@ function leerEstado_() {
     pacientes: tabla_(ss, H_PAC, COL_PAC).todas(),
     sesiones: tabla_(ss, H_SES, COL_SES).todas(),
     documentos: tabla_(ss, H_DOC, COL_DOC).todas(),
+    solicitudes: tabla_(ss, H_SOL, COL_SOL).todas(),
     plantillas: plantillas,
     planilla: ss.getUrl(),
     carpeta: c.raiz.getUrl(),
@@ -324,6 +369,7 @@ function aCelda_(v, tipo) {
   if (tipo === 'asist') return ASIST[v] || v;
   if (tipo === 'estado') return ESTADOS[v] || v;
   if (tipo === 'tipodoc') return TIPOS_DOC[v] || v;
+  if (tipo === 'items') return (v || []).map((x) => `${x.cod} x ${x.cant}`).join('\n');
   if (tipo === 'kb') return Math.round(Number(v) / 1024);
   if (tipo === 'si') return v ? 'SI' : '';
   return String(v);
@@ -342,6 +388,7 @@ function deCelda_(v, tipo) {
   if (tipo === 'asist') { const k = Object.keys(ASIST).find((a) => ASIST[a].toLowerCase() === s.toLowerCase()); return k || (s ? s.toLowerCase() : 'asistio'); }
   if (tipo === 'estado') return s.toLowerCase() === 'alta' ? 'alta' : 'activo';
   if (tipo === 'tipodoc') return /otro/i.test(s) ? 'externo' : 'propio';
+  if (tipo === 'items') return s.split('\n').map((x) => x.match(/(\d+)\s*x\s*(\d+)/i)).filter(Boolean).map((m) => ({ cod: m[1], cant: Number(m[2]) }));
   if (tipo === 'kb') return (parseInt(s.replace(/\D/g, ''), 10) || 0) * 1024;
   if (tipo === 'si') return s.toUpperCase() === 'SI';
   return s;
