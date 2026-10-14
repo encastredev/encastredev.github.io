@@ -1633,7 +1633,6 @@
         <div class="sol-item"><label class="opcion" style="flex:1"><input type="checkbox" data-cod="${it.cod}" ${it.si ? 'checked' : ''}><span>Cód. ${it.cod}</span></label>
         <label class="sol-cant"><input class="entrada" type="number" min="1" max="99" inputmode="numeric" value="${it.cant}" data-cant="${it.cod}" aria-label="Sesiones del código ${it.cod}"><span class="chico tinta-2">sesiones</span></label></div>`).join('')}</div></div>
       <label class="campo"><span class="etq">Diagnóstico</span><textarea class="entrada area" id="sol-dx" rows="2">${esc(x ? x.dx : (p.dx || []).join('. '))}</textarea></label>
-      <label class="campo"><span class="etq">Fecha</span><input class="entrada" type="date" id="sol-fecha" value="${x ? x.fecha : hoyISO()}"></label>
       <p class="chico alerta-txt" id="sol-msj" role="status"></p>
       <div class="acciones">
         <button class="btn btn-grande" data-hoja ${libres ? '' : 'disabled'}>${(db.hoja || []).includes(x && x.id) ? 'Ya está en la hoja' : `Agregar a la hoja (${(db.hoja || []).length}/${POR_HOJA})`}</button>
@@ -1644,7 +1643,8 @@
       const leer = () => {
         const its = CODIGOS.map((c) => ({ cod: c.cod, cant: parseInt($(`[data-cant="${c.cod}"]`, hoja).value, 10) || 0, si: $(`[data-cod="${c.cod}"]`, hoja).checked })).filter((y) => y.si && y.cant > 0).map(({ cod, cant }) => ({ cod, cant }));
         if (!its.length) { $('#sol-msj', hoja).textContent = 'Marcá al menos un código con sus sesiones.'; return null; }
-        const datos = { fecha: $('#sol-fecha', hoja).value || hoyISO(), items: its, dx: $('#sol-dx', hoja).value.trim() };
+        // La fecha no se pide ni se imprime: queda la del día en que se hizo, para el registro.
+        const datos = { fecha: x ? x.fecha : hoyISO(), items: its, dx: $('#sol-dx', hoja).value.trim() };
         const s2 = nueva ? Object.assign({ id: uid(), pid: p.id, anulada: false, creado: new Date().toISOString() }, datos) : Object.assign({}, x, datos);
         Object.assign(s2, { paciente: nombreLista(p), os: p.os || '', afiliado: p.afiliado || '' });
         guardarSolicitud(s2);
