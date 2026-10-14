@@ -44,6 +44,6 @@ En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Docu
 - **Empezar un informe en Google Docs** (opcional): copia una plantilla de `Consultorio/Plantillas` en **Mis informes** y reemplaza los `{{campos}}` con los datos de la ficha (lista en `CAMPOS_INFORME`, en `app.js`). La plantilla de ejemplo tiene solo el encabezado con los datos, porque cada informe lo escribe ella según el caso.
 - **Solicitudes a la obra social (recetario):** desde la ficha, **Solicitudes → Nueva**. Trae el paciente, el n.º de afiliado y el diagnóstico; se marcan los códigos (`CODIGOS`: 450105 y 450102) con la cantidad de sesiones. Se imprime con su membrete, **4 por hoja A4** para cortar (`POR_HOJA`): "Agregar a la hoja" junta varias y "Imprimir" las imprime todas. La firma y el sello van a mano. Cada solicitud queda en la ficha y en la hoja **Solicitudes**, y se puede anular. Funciona sin internet.
 - **Copia de seguridad** en JSON, cifrada con el PIN. **Exportar a Excel** con pacientes y sesiones.
-- Instalable (manifest + `sw.js`), abre sin internet. Al publicar cambios, subir `VERSION` en `sw.js`.
+- Instalable (manifest + `sw.js`), abre sin internet. **Al publicar cambios, subir `VERSION` en `sw.js` y el `?v=` de `app.css`, `importar-word.js` y `app.js` en `index.html` (y en la lista `APP` del `sw.js`)**: así la página y el código siempre son de la misma versión, aunque el navegador tenga guardada una copia vieja (GitHub Pages las guarda 10 minutos).
 
 El cifrado necesita HTTPS (GitHub Pages) o `localhost`.

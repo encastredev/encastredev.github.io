@@ -1,15 +1,21 @@
-// Guarda la app (no los datos) para que abra sin internet. Subir VERSION al publicar cambios.
-const VERSION = 'consultorio-v7';
-const APP = ['./', 'index.html', 'app.css', 'app.js', 'importar-word.js', 'manifest.webmanifest', 'icono.svg', 'icono-192.png', 'logo-recetario.jpg'];
+// Guarda la app (no los datos) para que abra sin internet.
+// Al publicar cambios: subir VERSION acá y el ?v= de app.css, importar-word.js y app.js en index.html.
+const VERSION = 'consultorio-v8';
+const APP = ['./', 'index.html', 'app.css?v=8', 'app.js?v=8', 'importar-word.js?v=8', 'manifest.webmanifest', 'icono.svg', 'icono-192.png', 'logo-recetario.jpg'];
 
-self.addEventListener('install', (e) => { e.waitUntil(caches.open(VERSION).then((c) => c.addAll(APP)).then(() => self.skipWaiting())); });
+// cache: 'reload' para no guardar una copia vieja que tenga el navegador.
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(APP.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
+});
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
-// Primero la red (para recibir cambios); si no hay internet, lo guardado. La planilla de Google no se toca.
+// Primero la red, preguntando siempre si hay algo nuevo (cache: 'no-cache'); si no hay internet, lo guardado.
+// La planilla de Google no se toca.
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || /script\.google/.test(e.request.url)) return;
-  e.respondWith(fetch(e.request).then((r) => {
+  const propio = new URL(e.request.url).origin === location.origin;
+  e.respondWith(fetch(propio ? new Request(e.request, { cache: 'no-cache' }) : e.request).then((r) => {
     if (r.ok || r.type === 'opaque') { const copia = r.clone(); caches.open(VERSION).then((c) => c.put(e.request, copia)); }
     return r;
   }).catch(() => caches.match(e.request, { ignoreSearch: true })));
