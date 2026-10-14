@@ -1677,7 +1677,6 @@
         <div class="r-solicito">Solicito:</div>
         ${x.items.map((it) => `<div>- Cód. ${esc(it.cod)} (x ${it.cant} ${it.cant === 1 ? 'sesión' : 'sesiones'})</div>`).join('')}
         ${x.dx ? `<div class="r-dx"><u>Dx</u>: ${esc(x.dx)}</div>` : ''}
-        <div class="r-fecha">${fmtDMY(x.fecha)}</div>
       </div>
       <div class="r-pie">
         ${perfil.email ? `<span>${ICO_PIE.mail}${esc(perfil.email)}</span>` : ''}${perfil.telefono ? `<span>${ICO_PIE.tel}${esc(perfil.telefono)}</span>` : ''}${perfil.direccion ? `<span>${ICO_PIE.dir}${esc(perfil.direccion)}</span>` : ''}

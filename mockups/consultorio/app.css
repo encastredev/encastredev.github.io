@@ -328,7 +328,6 @@ body.bloqueado .cabecera, body.bloqueado .barra, body.bloqueado main { display: 
 .r-paciente { font-weight: 700; text-decoration: underline; text-underline-offset: 1mm; }
 .r-solicito { margin-top: 3mm; text-decoration: underline; text-underline-offset: 1mm; }
 .r-dx { margin-top: 3mm; }
-.r-fecha { margin-top: auto; font-size: 10pt; color: #444; }
 .r-pie { display: flex; justify-content: space-between; gap: 2mm; padding-top: 2mm; border-top: .7mm solid #f2bfa4; font-size: 6.8pt; line-height: 1.25; color: #333; }
 .r-pie span { display: flex; align-items: center; gap: 1mm; min-width: 0; }
 .r-pie svg { width: 3.4mm; height: 3.4mm; flex: none; fill: none; stroke: #333; stroke-width: 1.6; }
