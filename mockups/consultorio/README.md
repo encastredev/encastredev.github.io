@@ -6,7 +6,8 @@ Reemplaza al Word de fichas, que se importa una vez.
 Archivos estáticos (HTML, CSS y JS sin build). **El repo no tiene datos de pacientes.** Para probar se usan pacientes inventados.
 
 **Diseño propio de la profesional, no el de Encastre:** crema y rosa pastel, con verde salvia para lo que está bien, en Fraunces (títulos) y DM Sans. Tiene esquinas redondeadas y modo claro y oscuro.
-- Sus datos se cargan en **Ajustes → Tus datos**: nombre, profesión, matrícula, mail, teléfono, dirección y logo. Viajan por la planilla (op `perfil`; el logo, como archivo en la carpeta Consultorio) y aparecen arriba, en la pantalla del PIN y en el recetario. Se guardan sin cifrar en `consultorio.perfil`, porque no son datos de pacientes. **El repo no tiene sus datos ni su logo.**
+- Sus datos se cargan en **Ajustes → Tus datos**: nombre, profesión, matrícula, mail, teléfono y dirección. Viajan por la planilla (op `perfil`) y aparecen arriba, en la pantalla del PIN y en el recetario. Se guardan sin cifrar en `consultorio.perfil`, porque no son datos de pacientes. **El repo no tiene sus datos.**
+- Su logo va **solo en el recetario**, fijo en [`logo-recetario.jpg`](logo-recetario.jpg) (`LOGO_RECETARIO`), sacado de su recetario escaneado. Arriba en la app quedan sus iniciales. El script todavía acepta un logo por la planilla, pero la app ya no lo usa.
 - Cada paciente tiene un círculo con sus iniciales y un color pastel fijo (`avatar()`), para reconocerlo de un vistazo.
 - Encastre solo figura como "Hecho por Encastre" al pie de Ajustes.
 

@@ -10,7 +10,7 @@
 
   const COFRE = 'consultorio.cofre';      // { v, sal, iter, iv, ct }: db + conexión + cola, cifrados
   const INTENTOS = 'consultorio.intentos';
-  const PERFIL = 'consultorio.perfil';     // datos y logo de la profesional: no son datos de pacientes, van sin cifrar
+  const PERFIL = 'consultorio.perfil';     // datos de la profesional: no son datos de pacientes, van sin cifrar
   const ITER = 310000;                     // PBKDF2-SHA256
   const BLOQUEO_OCULTA = 5 * 60e3;         // se bloquea si quedó en segundo plano 5 min
   const BLOQUEO_QUIETA = 20 * 60e3;        // o 20 min sin tocar nada
@@ -24,6 +24,7 @@
   // Códigos que pide a IPS en el recetario (código y cantidad de sesiones). El primero va marcado por defecto.
   const CODIGOS = [{ cod: '450105', cant: 8 }, { cod: '450102', cant: 1 }];
   const POR_HOJA = 4; // recetarios por hoja A4, para cortar
+  const LOGO_RECETARIO = 'logo-recetario.jpg'; // va solo en el recetario impreso
   const TIPOS_DOC = { propio: 'Mis informes', externo: 'De otros profesionales' };
   const MAX_MB = 25;              // por archivo (Apps Script recibe hasta ~50 MB por pedido)
   const FOTO_MAX = 2000;          // las fotos se achican a 2000 px de lado y JPEG 82 %
@@ -62,7 +63,7 @@
   const ic = (n) => `<svg class="ic" viewBox="0 0 24 24">${ICONOS[n]}</svg>`;
 
   /* ---------------------------------------------------------------- marca de la profesional */
-  const PERFIL_VACIO = { nombre: '', profesion: '', matricula: '', email: '', telefono: '', direccion: '', logo: '', logoId: '' };
+  const PERFIL_VACIO = { nombre: '', profesion: '', matricula: '', email: '', telefono: '', direccion: '' };
   let perfil = Object.assign({}, PERFIL_VACIO, leerJSON(PERFIL) || {});
   const TITULOS = /^(lic|lic\.|licenciada|dra|dra\.|dr|dr\.|prof|prof\.|psp|psicop\.?)$/i;
   const palabras = (n) => String(n || '').trim().split(/\s+/).filter((w) => w && !TITULOS.test(w));
@@ -70,23 +71,16 @@
   function iniciales(n) { const w = palabras(n); return ((w[0] || '')[0] || '') + ((w.length > 1 ? w[w.length - 1][0] : '') || ''); }
   function pintarMarca() {
     const ini = (iniciales(perfil.nombre) || 'C').toUpperCase();
-    $$('[data-monograma]').forEach((el) => {
-      el.classList.toggle('con-logo', !!perfil.logo);
-      if (perfil.logo) el.innerHTML = `<img src="${perfil.logo}" alt="">`; else el.textContent = ini;
-    });
+    $$('[data-monograma]').forEach((el) => { el.textContent = ini; });
     const m = $('#marca-nombre'); if (m) m.textContent = perfil.nombre || 'Consultorio';
     const s = $('#marca-sub'); if (s) s.textContent = perfil.profesion || 'Consultorio';
   }
-  // conLogo: el logo cambió y hay que mandarlo (pesa; si no cambió, no viaja).
-  function guardarPerfil(p, enviarlo, conLogo) {
+  function guardarPerfil(p, enviarlo) {
     const nuevo = Object.assign({}, PERFIL_VACIO);
     Object.keys(PERFIL_VACIO).forEach((k) => { nuevo[k] = String((p[k] ?? perfil[k]) || '').trim(); });
     perfil = nuevo;
     try { localStorage.setItem(PERFIL, JSON.stringify(perfil)); } catch (e) { /* sin lugar */ }
-    if (enviarlo) {
-      const { logo, logoId, ...datos } = perfil;
-      enviar({ op: 'perfil', perfil: conLogo ? { ...datos, logo } : datos });
-    }
+    if (enviarlo) enviar({ op: 'perfil', perfil });
     pintarMarca();
   }
   // Un color pastel fijo para cada paciente, para reconocerlo de un vistazo.
@@ -332,13 +326,8 @@
   function aplicarEstado(r) {
     db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.solicitudes = r.solicitudes || []; db.plantillas = r.plantillas || [];
     if (r.perfil && r.perfil.nombre) {
-      const distinto = Object.keys(PERFIL_VACIO).some((k) => k !== 'logo' && String(r.perfil[k] || '') !== String(perfil[k] || ''));
-      if (distinto) {
-        const logoNuevo = (r.perfil.logoId || '') !== (perfil.logoId || '');
-        guardarPerfil(Object.assign({}, r.perfil, { logo: r.perfil.logoId ? perfil.logo : '' }), false);
-        // El logo se baja aparte, solo si cambió en otro dispositivo.
-        if (logoNuevo && r.perfil.logoId) llamar(conexion, { logo: true }).then((x) => { if (x.logo) { guardarPerfil({ logo: x.logo }, false); if (!hojaAbierta) render(); } }).catch(() => {});
-      }
+      const distinto = Object.keys(PERFIL_VACIO).some((k) => String(r.perfil[k] || '') !== String(perfil[k] || ''));
+      if (distinto) guardarPerfil(r.perfil, false);
     }
     Object.assign(db.meta, { planilla: r.planilla, carpeta: r.carpeta, carpetaPlantillas: r.carpetaPlantillas, espacio: r.espacio || null, sincro: new Date().toISOString() });
     guardar();
@@ -793,7 +782,7 @@
     vista.innerHTML = `<div class="ajustes">
       <section class="caja">
         <div class="caja-cab"><span class="etq">Tus datos</span></div>
-        <ul class="lista"><li><button class="item" data-accion="perfil"><span class="monograma" data-monograma></span><span class="txt"><span class="nom">${esc(perfil.nombre || 'Poné tu nombre')}</span><span class="sub">${esc([perfil.profesion, perfil.matricula ? `Mat. ${perfil.matricula}` : ''].filter(Boolean).join(' · ') || 'Nombre, matrícula, contacto y logo para el recetario')}</span></span>${ic('lapiz')}</button></li></ul>
+        <ul class="lista"><li><button class="item" data-accion="perfil"><span class="monograma" data-monograma></span><span class="txt"><span class="nom">${esc(perfil.nombre || 'Poné tu nombre')}</span><span class="sub">${esc([perfil.profesion, perfil.matricula ? `Mat. ${perfil.matricula}` : ''].filter(Boolean).join(' · ') || 'Nombre, matrícula y contacto para el recetario')}</span></span>${ic('lapiz')}</button></li></ul>
       </section>
       <section class="caja">
         <div class="caja-cab"><span class="etq">Planilla de Google</span>${conexion ? `<span class="sync sync-${estadoSync}">${{ ok: 'Al día', guardando: 'Guardando…', error: 'Sin conexión', clave: 'Clave incorrecta' }[estadoSync] || ''}</span>` : ''}</div>
@@ -1114,14 +1103,10 @@
   }
 
   function hojaPerfil() {
-    let logo = perfil.logo, logoCambio = false;
     const campo = (id, et, v, extra = '') => `<label class="campo"><span class="etq">${et}</span><input class="entrada" id="${id}" value="${esc(v)}" ${extra}></label>`;
     abrirHoja(`
       <div class="fila entre"><h3>Tus datos</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
-      <p class="chico tinta-2">Tu nombre aparece arriba en la app y en la pantalla del PIN. Todo junto arma el membrete del recetario. Se guarda en tu planilla, así lo ves igual en todos tus dispositivos.</p>
-      <div class="fila"><span class="monograma grande logo-previa" id="pf-logo"></span>
-        <div class="pila" style="gap:6px"><label class="btn btn-chico" style="cursor:pointer">${ic('subir')}Elegir logo<input type="file" id="pf-logo-in" accept="image/*" hidden></label>
-        <button type="button" class="btn-texto chico" id="pf-logo-no">Quitar logo</button></div></div>
+      <p class="chico tinta-2">Tu nombre aparece arriba en la app y en la pantalla del PIN. Con el resto se arma el membrete del recetario. Se guarda en tu planilla, así lo ves igual en todos tus dispositivos.</p>
       ${campo('pf-nombre', 'Nombre', perfil.nombre, 'placeholder="Mariela E. Barboza" autocapitalize="words"')}
       ${campo('pf-prof', 'Profesión', perfil.profesion, 'placeholder="Lic. Psicopedagogía"')}
       ${campo('pf-mat', 'Matrícula', perfil.matricula, 'placeholder="Mat. Prof. N° 261"')}
@@ -1129,27 +1114,13 @@
       ${campo('pf-tel', 'Teléfono', perfil.telefono, 'inputmode="tel"')}
       ${campo('pf-dir', 'Dirección', perfil.direccion, 'placeholder="Calle 123, 4to piso, Posadas"')}
       <button class="btn btn-oscuro btn-grande btn-bloque" data-ok>Guardar</button>`, (hoja, cerrar) => {
-      const previa = () => { const el = $('#pf-logo', hoja); el.classList.toggle('con-logo', !!logo); el.innerHTML = logo ? `<img src="${logo}" alt="">` : esc((iniciales($('#pf-nombre', hoja).value) || 'C').toUpperCase()); };
-      previa();
-      $('#pf-nombre', hoja).addEventListener('input', previa);
-      $('#pf-logo-in', hoja).onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { logo = await logoChico(f); logoCambio = true; previa(); } catch (err) { aviso('No se pudo leer esa imagen.'); } };
-      $('#pf-logo-no', hoja).onclick = () => { logo = ''; logoCambio = true; previa(); };
       $('[data-ok]', hoja).onclick = () => {
-        guardarPerfil({ nombre: $('#pf-nombre', hoja).value, profesion: $('#pf-prof', hoja).value, matricula: $('#pf-mat', hoja).value, email: $('#pf-mail', hoja).value, telefono: $('#pf-tel', hoja).value, direccion: $('#pf-dir', hoja).value, logo, logoId: logoCambio ? '' : perfil.logoId }, true, logoCambio);
+        guardarPerfil({ nombre: $('#pf-nombre', hoja).value, profesion: $('#pf-prof', hoja).value, matricula: $('#pf-mat', hoja).value, email: $('#pf-mail', hoja).value, telefono: $('#pf-tel', hoja).value, direccion: $('#pf-dir', hoja).value }, true);
         cerrar(); render(); aviso('Datos guardados.');
       };
       if (!perfil.nombre) setTimeout(() => $('#pf-nombre', hoja).focus(), 80);
     });
   }
-  // El logo se guarda chico (hasta 600 px) para que viaje rápido y entre en el celular.
-  async function logoChico(f) {
-    const img = await createImageBitmap(f);
-    const k = Math.min(1, 600 / Math.max(img.width, img.height));
-    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
-    return c.toDataURL('image/jpeg', 0.9);
-  }
-
   /* ------------------------------------------------------------ solicitudes a la obra social (recetario) */
   function hojaSolicitud(p, x) {
     const nueva = !x;
@@ -1213,7 +1184,7 @@
     if (!x) return '<div class="receta vacia"></div>';
     const p = paciente(x.pid) || { apellido: x.paciente, nombre: '', os: x.os, afiliado: x.afiliado };
     return `<div class="receta">
-      <div class="r-cab">${perfil.logo ? `<img class="r-logo" src="${perfil.logo}" alt="">` : ''}
+      <div class="r-cab"><img class="r-logo" src="${LOGO_RECETARIO}" alt="">
         <div class="r-marca"><div class="r-nombre">${esc(perfil.nombre)}</div><div class="r-sub">${esc(perfil.profesion)}</div><div class="r-sub">${esc(perfil.matricula)}</div></div></div>
       <div class="r-cuerpo">
         <div class="r-paciente">${esc(nombreLista(p).toLocaleUpperCase('es-AR'))}</div>

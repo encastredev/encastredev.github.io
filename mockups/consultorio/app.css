@@ -302,11 +302,6 @@ body.bloqueado .cabecera, body.bloqueado .barra, body.bloqueado main { display: 
 .candado-caja .btn-texto { align-self: center; }
 .entrada.pin { font-size: 22px; letter-spacing: .3em; text-align: center; height: 58px; border-radius: var(--r); }
 
-/* logo de la profesional */
-.monograma.con-logo { background: #fff; overflow: hidden; border: 1px solid var(--linea); }
-.monograma.con-logo img { width: 100%; height: 100%; object-fit: contain; }
-.logo-previa { flex: none; }
-
 /* solicitudes */
 .sol-item { display: flex; gap: 8px; align-items: center; }
 .sol-cant { display: flex; align-items: center; gap: 6px; }
