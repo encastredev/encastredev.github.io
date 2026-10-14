@@ -28,6 +28,30 @@
   // Agenda: avisos que se ofrecen (minutos antes; '' = sin aviso) y duración por defecto de un turno nuevo.
   const AVISOS = [['', 'Sin aviso'], ['0', 'A la hora'], ['15', '15 minutos antes'], ['30', '30 minutos antes'], ['60', '1 hora antes'], ['1440', '1 día antes']];
   const DUR_DEFECTO = 45;
+  // Tests para el informe. Escalas: etiqueta en la tabla e índice en el análisis; total = fila final en negrita.
+  // Los rangos y textos son de ejemplo hasta que ella cargue los suyos (Ajustes → Tests y rangos).
+  const RANGOS_EJEMPLO = [[130, 999, 'Muy superior'], [120, 129, 'Superior'], [110, 119, 'Promedio alto'], [90, 109, 'Promedio'], [80, 89, 'Promedio bajo'], [70, 79, 'Límite'], [0, 69, 'Muy bajo']].map(([min, max, cat]) => ({ min, max, cat }));
+  const E = (id, etiqueta, indice, total) => ({ id, etiqueta, indice, total: !!total });
+  const I_ICV = E('icv', 'Comprensión Verbal', 'ÍNDICE DE COMPRENSIÓN VERBAL (ICV)'), I_IMT = E('imt', 'Memoria de trabajo', 'ÍNDICE DE MEMORIA DE TRABAJO (IMT)');
+  const I_CIT = E('cit', 'ESCALA TOTAL', 'COEFICIENTE INTELECTUAL TOTAL (CIT)', true), I_ICG = E('icg', 'Capacidad General', 'ÍNDICE DE CAPACIDAD GENERAL (ICG)');
+  const I_INV = E('inv', 'No Verbal', 'ÍNDICE NO VERBAL (INV)'), I_ICC = E('icc', 'Competencia Cognitiva', 'ÍNDICE DE COMPETENCIA COGNITIVA (ICC)');
+  const PRIMARIO = (escalas) => ({ id: 'primario', titulo: 'ANÁLISIS PRIMARIO', tituloIndices: 'ANÁLISIS DE LOS ÍNDICES PRINCIPALES', escalas });
+  const SECUNDARIO = (escalas) => ({ id: 'secundario', titulo: 'ANÁLISIS SECUNDARIO', tituloIndices: 'ANÁLISIS DE LOS ÍNDICES SECUNDARIOS', escalas });
+  const TESTS_BASE = [
+    { id: 'wppsi4', nombre: 'WPPSI-IV', titulo: 'INTERPRETACIÓN TEST WPPSI IV', ejemplo: true, rangos: RANGOS_EJEMPLO, textos: {}, grupos: [
+      PRIMARIO([I_ICV, E('ive', 'Visoespacial', 'ÍNDICE VISOESPACIAL (IVE)'), E('irf', 'Razonamiento fluido', 'ÍNDICE DE RAZONAMIENTO FLUIDO (IRF)'), I_IMT, E('ivp', 'Velocidad de pensamiento', 'ÍNDICE DE VELOCIDAD DE PROCESAMIENTO (IVP)'), I_CIT]),
+      SECUNDARIO([E('iav', 'Adquisición de vocabulario', 'ÍNDICE DE ADQUISICIÓN DE VOCABULARIO (IAV)'), I_INV, I_ICG, I_ICC])] },
+    { id: 'wisc5', nombre: 'WISC-V', titulo: 'INTERPRETACIÓN TEST WISC V', ejemplo: true, rangos: RANGOS_EJEMPLO, textos: {}, grupos: [
+      PRIMARIO([I_ICV, E('ive', 'Visoespacial', 'ÍNDICE VISOESPACIAL (IVE)'), E('irf', 'Razonamiento fluido', 'ÍNDICE DE RAZONAMIENTO FLUIDO (IRF)'), I_IMT, E('ivp', 'Velocidad de procesamiento', 'ÍNDICE DE VELOCIDAD DE PROCESAMIENTO (IVP)'), I_CIT]),
+      SECUNDARIO([E('irc', 'Razonamiento cuantitativo', 'ÍNDICE DE RAZONAMIENTO CUANTITATIVO (IRC)'), E('imta', 'Memoria de trabajo auditiva', 'ÍNDICE DE MEMORIA DE TRABAJO AUDITIVA (IMTA)'), I_INV, I_ICG, I_ICC])] },
+    { id: 'wais4', nombre: 'WAIS-IV', titulo: 'INTERPRETACIÓN TEST WAIS IV', ejemplo: true, rangos: RANGOS_EJEMPLO, textos: {}, grupos: [
+      PRIMARIO([I_ICV, E('irp', 'Razonamiento perceptivo', 'ÍNDICE DE RAZONAMIENTO PERCEPTIVO (IRP)'), I_IMT, E('ivp', 'Velocidad de procesamiento', 'ÍNDICE DE VELOCIDAD DE PROCESAMIENTO (IVP)'), I_CIT]),
+      SECUNDARIO([I_ICG])] },
+  ];
+  const SECCIONES = [
+    ['motivo', 'Motivo de consulta'], ['entrevista', 'Entrevista con la madre'],
+    ['conducta', 'Descripción de estructura de la conducta del niño durante la evaluación, con relación a la tarea y la entrevistadora'],
+  ];
   const TIPOS_DOC = { propio: 'Mis informes', externo: 'De otros profesionales' };
   const MAX_MB = 25;              // por archivo (Apps Script recibe hasta ~50 MB por pedido)
   const FOTO_MAX = 2000;          // las fotos se achican a 2000 px de lado y JPEG 82 %
@@ -141,7 +165,7 @@
   let llave = null, sal = null;   // CryptoKey y sal del cofre
   let db = null, conexion = null, cola = [];
 
-  function vacio() { return { pacientes: [], sesiones: [], documentos: [], solicitudes: [], hoja: [], agenda: [], plantillas: [], borrador: null, meta: { creado: new Date().toISOString(), respaldo: null } }; }
+  function vacio() { return { pacientes: [], sesiones: [], documentos: [], solicitudes: [], hoja: [], agenda: [], informes: [], tests: [], plantillas: [], borrador: null, meta: { creado: new Date().toISOString(), respaldo: null } }; }
   let cadena = Promise.resolve();
   function guardar() {
     if (!llave) return cadena;
@@ -329,7 +353,7 @@
     } finally { sincronizando = false; }
   }
   function aplicarEstado(r) {
-    db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.solicitudes = r.solicitudes || []; db.agenda = r.agenda || []; db.plantillas = r.plantillas || [];
+    db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.solicitudes = r.solicitudes || []; db.agenda = r.agenda || []; db.informes = unirInformes(r.informes || []); db.tests = r.tests || []; db.plantillas = r.plantillas || [];
     if (r.perfil && r.perfil.nombre) {
       const distinto = Object.keys(PERFIL_VACIO).some((k) => String(r.perfil[k] || '') !== String(perfil[k] || ''));
       if (distinto) guardarPerfil(r.perfil, false);
@@ -338,6 +362,12 @@
     guardar();
     const ocupado = hojaAbierta || (document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName));
     if (!ocupado) render();
+  }
+  // Los borradores se mandan con unos segundos de demora: si el de este dispositivo es más nuevo, gana.
+  function unirInformes(remotos) {
+    const locales = db.informes || [];
+    const r = remotos.map((x) => { const l = locales.find((y) => y.id === x.id); return l && String(l.editado) > String(x.editado) ? l : x; });
+    return r.concat(locales.filter((l) => !remotos.some((x) => x.id === l.id)));
   }
   function pintarSync(e) {
     estadoSync = e;
@@ -468,7 +498,7 @@
   }
   // La copia sale cifrada con el PIN actual: sin el PIN no se puede abrir.
   async function guardarCopia() {
-    const c = await cifrar({ pacientes: db.pacientes, sesiones: db.sesiones, documentos: db.documentos, solicitudes: db.solicitudes, agenda: db.agenda }, llave, sal, ITER);
+    const c = await cifrar({ pacientes: db.pacientes, sesiones: db.sesiones, documentos: db.documentos, solicitudes: db.solicitudes, agenda: db.agenda, informes: db.informes, tests: db.tests }, llave, sal, ITER);
     const blob = new Blob([JSON.stringify({ app: 'consultorio', ...c })], { type: 'application/json' });
     if (await entregar(blob, `consultorio-copia-${fechaArchivo()}.json`)) { db.meta.respaldo = new Date().toISOString(); guardar(); render(); }
   }
@@ -485,11 +515,13 @@
         try {
           const k = await derivar($('#rc-pin', hoja).value, deB64(c.sal), c.iter || ITER);
           const d = await descifrar(c, k);
-          db.pacientes = d.pacientes || []; db.sesiones = d.sesiones || []; db.documentos = d.documentos || []; db.solicitudes = d.solicitudes || []; db.agenda = d.agenda || [];
+          db.pacientes = d.pacientes || []; db.sesiones = d.sesiones || []; db.documentos = d.documentos || []; db.solicitudes = d.solicitudes || []; db.agenda = d.agenda || []; db.informes = d.informes || []; db.tests = d.tests || [];
           db.pacientes.forEach((p) => enviar({ op: 'paciente', p: datosPaciente(p) }));
           db.sesiones.forEach((s) => enviar({ op: 'sesion', s }));
           db.solicitudes.forEach((x) => enviar({ op: 'solicitud', s: x }));
           db.agenda.forEach((a) => enviar({ op: 'agenda', a }));
+          db.informes.forEach((i) => enviar({ op: 'informe', i }));
+          db.tests.forEach((t) => enviar({ op: 'test', t }));
           guardar(); cerrar(); ir('#/'); aviso(`Copia recuperada: ${db.pacientes.length} pacientes.`);
         } catch (e) { $('#rc-msj', hoja).textContent = 'PIN incorrecto.'; }
       };
@@ -526,13 +558,15 @@
     ruta = partes[0] || 'inicio';
     const activa = ruta === 'p' ? 'pacientes' : ruta;
     $$('.barra [data-ruta]').forEach((a) => a.classList.toggle('activo', a.dataset.ruta === activa));
-    const conVolver = ruta === 'p' && !esPC();
+    const conVolver = ['p', 'informe', 'tests'].includes(ruta) && !esPC();
     $('#volver').hidden = !conVolver; $('#logo').style.display = conVolver ? 'none' : '';
     pintarMarca();
     if (ruta === 'pacientes') return vPacientes(partes[1]);
     if (ruta === 'p') return vFicha(partes[1]);
     if (ruta === 'sesiones') return vSesiones(partes[1]);
     if (ruta === 'agenda') return vAgenda(partes[1]);
+    if (ruta === 'informe') return vInforme(partes[1]);
+    if (ruta === 'tests') return vTests(partes[1]);
     if (ruta === 'ajustes') return vAjustes();
     if (ruta === 'conectar') { let pre = null; try { pre = JSON.parse(atob((partes[1] || '').replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { /* link roto */ } history.replaceState(null, '', '#/'); vInicio(); hojaConectar(pre); return; }
     return vInicio();
@@ -700,9 +734,10 @@
             ${solicitudesDe(p.id).length ? `<ul class="lista">${solicitudesDe(p.id).map(solicitudHTML).join('')}</ul>` : '<p class="vacio chico">El recetario con los códigos y las sesiones, listo para imprimir y firmar.</p>'}
           </section>
           ${['propio', 'externo'].map((t) => { const l = docs.filter((d) => d.tipo === t); return `<section class="caja">
-            <div class="caja-cab"><span class="etq">${TIPOS_DOC[t]}</span><button class="btn-texto chico" data-accion="subir" data-tipo="${t}">${ic('mas')}Subir</button></div>
+            <div class="caja-cab"><span class="etq">${TIPOS_DOC[t]}</span><span class="fila" style="gap:4px">${t === 'propio' ? `<button class="btn-texto chico" data-accion="nuevo-informe">${ic('lapiz')}Escribir</button>` : ''}<button class="btn-texto chico" data-accion="subir" data-tipo="${t}">${ic('mas')}Subir</button></span></div>
+            ${t === 'propio' && informesDe(p.id).length ? `<ul class="lista">${informesDe(p.id).map(informeHTML).join('')}</ul>` : ''}
             ${l.length ? `<ul class="lista">${l.map(docHTML).join('')}</ul>` : `<p class="vacio chico">${t === 'propio' ? 'Todavía no subiste informes tuyos.' : 'Acá van los informes del neurólogo, la escuela, la fonoaudióloga…'}</p>`}
-            ${t === 'propio' && conexion && db.plantillas.length ? `<div class="caja-cuerpo borde-arriba"><button class="btn-texto chico" data-accion="informe">${ic('informe')}Empezar uno en Google Docs con los datos de la ficha</button></div>` : ''}
+            ${t === 'propio' && conexion && db.plantillas.length ? `<div class="caja-cuerpo borde-arriba"><button class="btn-texto chico tenue" data-accion="informe">${ic('informe')}O empezar uno directo en Google Docs</button></div>` : ''}
           </section>`; }).join('')}
         </div>
         <section class="caja">
@@ -1010,6 +1045,10 @@
         </ul>
       </section>
       <section class="caja">
+        <div class="caja-cab"><span class="etq">Informes</span></div>
+        <ul class="lista">${testsActuales().map((t) => `<li><a class="item" href="#/tests/${t.id}">${ic('informe')}<span class="txt"><span class="nom">${esc(t.nombre)}</span><span class="sub">${t.ejemplo ? 'Rangos de ejemplo: cargá los tuyos' : `${t.rangos.length} rangos · ${Object.keys(t.textos || {}).length} textos guardados`}</span></span>${ic('der')}</a></li>`).join('')}</ul>
+      </section>
+      <section class="caja">
         <div class="caja-cab"><span class="etq">Word y Excel</span></div>
         <ul class="lista">
           ${item('importar', 'word', 'Importar fichas de un Word', `Agrega los pacientes que no estén cargados${d.archivo ? ` · último: ${esc(d.archivo)}` : ''}`)}
@@ -1169,6 +1208,244 @@
       };
       if (nuevo) setTimeout(() => $('#f-apellido', hoja).focus(), 80);
     });
+  }
+
+  /* ------------------------------------------------------------ informes escritos en la app */
+  const clonar = (x) => JSON.parse(JSON.stringify(x));
+  function testsActuales() { return TESTS_BASE.map((b) => (db.tests || []).find((t) => t.id === b.id) || b).concat((db.tests || []).filter((t) => !TESTS_BASE.some((b) => b.id === t.id))); }
+  const testDe = (id) => testsActuales().find((t) => t.id === id);
+  const categoriaDe = (t, n) => { const v = Number(n); if (!t || String(n).trim() === '' || isNaN(v)) return ''; const r = (t.rangos || []).find((x) => v >= Number(x.min) && v <= Number(x.max)); return r ? r.cat : ''; };
+  const informesDe = (pid) => (db.informes || []).filter((i) => i.pid === pid && i.estado !== 'borrado').sort((a, b) => String(b.editado || b.creado).localeCompare(String(a.editado || a.creado)));
+  function informeHTML(i) {
+    const t = testDe(i.contenido && i.contenido.test);
+    return `<li><a class="item" href="#/informe/${i.id}">${ic('lapiz')}<span class="txt"><span class="nom">Informe${t ? ` · ${esc(t.nombre)}` : ''}</span><span class="sub">${fmtCorta(i.fecha)}</span></span>${i.estado === 'generado' ? '<span class="badge b-ok">listo</span>' : '<span class="badge b-aviso">borrador</span>'}</a></li>`;
+  }
+  function nuevoInforme(p) {
+    const ultimo = (db.informes || []).filter((i) => i.contenido && i.contenido.test).sort((a, b) => String(b.creado).localeCompare(String(a.creado)))[0];
+    const i = {
+      id: uid(), pid: p.id, paciente: nombreLista(p), fecha: hoyISO(), estado: 'borrador', creado: new Date().toISOString(), editado: new Date().toISOString(),
+      contenido: { test: ultimo ? ultimo.contenido.test : 'wppsi4', escolaridad: [p.grado, p.escuela].filter(Boolean).join('. '), dx: (p.dx || []).join('. '), titulos: {}, secciones: {}, puntajes: {}, conclusion: '', sugerencias: '' },
+    };
+    i.test = i.contenido.test;
+    db.informes.push(i); enviar({ op: 'informe', i }); guardar();
+    ir(`#/informe/${i.id}`);
+  }
+  let tInforme;
+  function guardarInforme(i, ya) {
+    i.editado = new Date().toISOString(); i.test = i.contenido.test;
+    guardarPronto();
+    clearTimeout(tInforme);
+    const mandar = () => enviar({ op: 'informe', i: clonar(i) });
+    if (ya) mandar(); else tInforme = setTimeout(mandar, 2500);
+  }
+
+  function vInforme(id) {
+    const i = (db.informes || []).find((x) => x.id === id);
+    const p = i && paciente(i.pid);
+    if (!i || !p) { titulo('Informe'); vista.innerHTML = '<p class="vacio">No encontré ese informe.</p>'; return; }
+    titulo(`Informe · ${nombreLista(p)}`);
+    const c = i.contenido;
+    c.titulos = c.titulos || {}; c.secciones = c.secciones || {}; c.puntajes = c.puntajes || {};
+    const t = testDe(c.test);
+    const area = (k, v, ph = '', filas = 5) => `<textarea class="entrada area crece" data-k="${k}" rows="${filas}" placeholder="${esc(ph)}">${esc(v || '')}</textarea>`;
+    const e = edad(p.fn, i.fecha);
+    vista.innerHTML = `<div class="informe-editor">
+      <div class="fila entre" style="flex-wrap:wrap"><a class="btn-texto chico" href="#/p/${p.id}">${ic('izq')}${esc(nombreLista(p))}</a>
+        <span class="chico tenue" id="inf-estado">${i.estado === 'generado' ? 'Generado · si cambiás algo, generalo de nuevo' : 'Borrador · se guarda solo'}</span></div>
+      <section class="caja"><div class="caja-cab"><span class="etq">Datos</span></div><div class="caja-cuerpo pila">
+        <p class="chico tinta-2"><b>${esc(nombreLista(p).toLocaleUpperCase('es-AR'))}</b> · DNI ${esc(fmtDNI(p.dni) || '—')} · ${esc(fmtDMY(p.fn) || 'sin fecha de nac.')} · ${esc(fmtEdadLarga(e) || '')}</p>
+        <div class="form-grid"><label class="campo"><span class="etq">Fecha del informe</span><input class="entrada" type="date" data-k="fecha" value="${i.fecha}"></label>
+          <label class="campo"><span class="etq">Test</span><select class="entrada" data-k="test"><option value="">Sin test</option>${testsActuales().map((x) => `<option value="${x.id}"${x.id === c.test ? ' selected' : ''}>${esc(x.nombre)}</option>`).join('')}</select></label></div>
+        <label class="campo"><span class="etq">Escolaridad · un renglón por dato</span>${area('escolaridad', c.escolaridad, 'Sala de 5. Escuela…', 2)}</label>
+        <label class="campo"><span class="etq">Diagnóstico · un renglón por diagnóstico</span>${area('dx', c.dx, 'Diagnóstico neurología: …', 2)}</label>
+      </div></section>
+      ${SECCIONES.map(([k, tit]) => `<section class="caja"><div class="caja-cab"><input class="titulo-sec" data-titulo="${k}" value="${esc(c.titulos[k] || tit)}" aria-label="Título de la sección"></div><div class="caja-cuerpo">${area(`sec.${k}`, c.secciones[k])}</div></section>`).join('')}
+      ${t ? `<section class="caja"><div class="caja-cab"><span class="etq">${esc(t.titulo)}</span><a class="btn-texto chico" href="#/tests/${t.id}">${ic('lapiz')}Rangos y textos</a></div>
+        ${t.ejemplo ? '<div class="caja-cuerpo"><div class="nota chico">Las categorías se sugieren con rangos de ejemplo. Cargá tus rangos en <b>Ajustes → Informes</b>.</div></div>' : ''}
+        ${t.grupos.map((g) => `<div class="grupo-test"><div class="etq grupo-tit">${esc(g.titulo)}</div>
+          ${g.escalas.map((es) => { const v = c.puntajes[es.id] || {}; return `<div class="escala${es.total ? ' total' : ''}" data-esc="${es.id}">
+            <div class="escala-nom"><b>${esc(es.etiqueta)}</b><span class="chico tenue">${esc(es.indice)}</span></div>
+            <div class="escala-num"><label><span class="etq">Escalar</span><input class="entrada entrada-chica" inputmode="numeric" data-p="e" value="${esc(v.e || '')}"></label>
+              <label><span class="etq">Compuesta</span><input class="entrada entrada-chica" inputmode="numeric" data-p="c" value="${esc(v.c || '')}"></label>
+              <label class="cat"><span class="etq">Categoría</span><input class="entrada entrada-chica" list="cats-${t.id}" data-p="cat" value="${esc(v.cat || '')}"></label></div>
+            <label class="campo"><span class="etq">Significado</span><textarea class="entrada area crece" rows="2" data-p="sig">${esc(v.sig || '')}</textarea></label>
+            <button type="button" class="btn-texto chico" data-guardar-texto="${es.id}">${ic('copia')}Usar siempre este texto para esta categoría</button>
+          </div>`; }).join('')}</div>`).join('')}
+        <datalist id="cats-${t.id}">${[...new Set((t.rangos || []).map((r) => r.cat))].map((x) => `<option value="${esc(x)}">`).join('')}</datalist>
+      </section>` : ''}
+      <section class="caja"><div class="caja-cab"><span class="etq">Conclusión diagnóstica</span></div><div class="caja-cuerpo">${area('conclusion', c.conclusion, '', 6)}</div></section>
+      <section class="caja"><div class="caja-cab"><span class="etq">Sugerencias de trabajo · una por renglón</span></div><div class="caja-cuerpo">${area('sugerencias', c.sugerencias, 'Soporte visual constante: …', 6)}</div></section>
+      <div class="acciones">
+        <button class="btn btn-grande" data-accion="vista-informe">${ic('informe')}Vista previa</button>
+        <button class="btn btn-acento btn-grande" data-accion="generar-informe">${ic('copia')}Generar Word y PDF</button>
+      </div>
+      ${i.estado === 'generado' && i.pdfUrl ? `<div class="fila" style="flex-wrap:wrap"><a class="btn" href="${esc(i.pdfUrl)}" target="_blank" rel="noopener">${ic('bajar')}Abrir el PDF</a><a class="btn" href="${esc(i.docUrl)}" target="_blank" rel="noopener">${ic('lapiz')}Abrir en Google Docs</a></div>` : ''}
+      <button class="btn btn-chico btn-peligro" data-accion="borrar-informe" style="align-self:flex-start">${ic('tacho')}Borrar este informe</button>
+    </div>`;
+    vista.dataset.inf = i.id;
+    const ed = $('.informe-editor', vista);
+    ed.addEventListener('input', (ev) => {
+      const el = ev.target;
+      if (el.dataset.titulo) { c.titulos[el.dataset.titulo] = el.value; return guardarInforme(i); }
+      const k = el.dataset.k;
+      if (k === 'fecha') i.fecha = el.value;
+      else if (k === 'test') { c.test = el.value; guardarInforme(i, true); render(); return; }
+      else if (k && k.startsWith('sec.')) c.secciones[k.slice(4)] = el.value;
+      else if (k) c[k] = el.value;
+      const esc_ = el.closest('[data-esc]');
+      if (esc_ && el.dataset.p) {
+        const v = c.puntajes[esc_.dataset.esc] = c.puntajes[esc_.dataset.esc] || {};
+        v[el.dataset.p] = el.value;
+        if (el.dataset.p === 'cat') v.catAuto = false;
+        if (el.dataset.p === 'sig') v.sigAuto = false;
+        if (el.dataset.p === 'c' || el.dataset.p === 'cat') sugerir(t, esc_, v, el.dataset.p === 'c');
+      }
+      guardarInforme(i);
+    });
+    ed.addEventListener('change', (ev) => { if (ev.target.dataset.k === 'test') return; guardarInforme(i, true); });
+  }
+  // Con la compuesta sugiere la categoría (si no la escribió ella) y con la categoría, su texto guardado.
+  function sugerir(t, fila, v, porNumero) {
+    if (porNumero && (v.catAuto !== false || !v.cat)) { v.cat = categoriaDe(t, v.c); v.catAuto = true; $('[data-p="cat"]', fila).value = v.cat; }
+    const texto = (t.textos || {})[`${fila.dataset.esc}|${v.cat}`];
+    if (texto != null && (v.sigAuto !== false || !v.sig)) { v.sig = texto; v.sigAuto = true; $('[data-p="sig"]', fila).value = texto; }
+  }
+  function guardarTextoHabitual(escalaId) {
+    const i = db.informes.find((x) => x.id === vista.dataset.inf); if (!i) return;
+    const v = (i.contenido.puntajes || {})[escalaId] || {};
+    if (!v.cat || !v.sig) { aviso('Escribí la categoría y el significado primero.'); return; }
+    const t = clonar(testDe(i.contenido.test));
+    t.textos = t.textos || {}; t.textos[`${escalaId}|${v.cat}`] = v.sig;
+    guardarTest(t);
+    aviso(`Guardado: la próxima vez que salga "${v.cat}" se completa solo.`);
+  }
+  function guardarTest(t) {
+    db.tests = (db.tests || []).filter((x) => x.id !== t.id).concat([t]);
+    enviar({ op: 'test', t });
+    guardar();
+  }
+
+  // El informe como lista de bloques: lo usan la vista previa y el script que arma el documento.
+  function bloquesInforme(i) {
+    const p = paciente(i.pid) || {};
+    const c = i.contenido;
+    const t = testDe(c.test);
+    const lineas = (x) => String(x || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    const bl = [{ t: 'titulo', texto: 'INFORME PSICOPEDAGÓGICO' }, { t: 'espacio' }];
+    bl.push({ t: 'dato', etiqueta: 'Apellido y Nombre', valor: nombreLista(p).toLocaleUpperCase('es-AR') });
+    if (p.dni) bl.push({ t: 'dato', etiqueta: 'DNI', valor: fmtDNI(p.dni) });
+    if (p.fn) bl.push({ t: 'dato', etiqueta: 'Fecha de Nacimiento', valor: fmtDMY(p.fn) });
+    if (p.fn) bl.push({ t: 'dato', etiqueta: 'Edad', valor: fmtEdadLarga(edad(p.fn, i.fecha)) });
+    lineas(c.escolaridad).forEach((l, k) => bl.push(k === 0 ? { t: 'dato', etiqueta: 'Escolaridad', valor: l } : { t: 'lista', items: [l] }));
+    lineas(c.dx).forEach((l) => { const m = l.match(/^([^:]{3,40}):\s*(.+)$/); bl.push(m ? { t: 'dato', etiqueta: m[1], valor: m[2] } : { t: 'dato', etiqueta: 'Diagnóstico', valor: l }); });
+    bl.push({ t: 'dato', etiqueta: 'Fecha de Informe', valor: fmtMes(mesDe(i.fecha)) });
+    SECCIONES.forEach(([k, tit]) => { const txt = (c.secciones || {})[k]; if (!String(txt || '').trim()) return; bl.push({ t: 'espacio' }, { t: 'seccion', texto: `${(c.titulos || {})[k] || tit}:` }, { t: 'texto', texto: txt.trim() }); });
+    if (t) {
+      const pts = c.puntajes || {};
+      const usados = t.grupos.map((g) => ({ g, es: g.escalas.filter((e) => { const v = pts[e.id] || {}; return v.e || v.c || v.cat || v.sig; }) })).filter((x) => x.es.length);
+      if (usados.length) {
+        bl.push({ t: 'espacio' }, { t: 'seccion', texto: 'Resultados obtenidos de la evaluación neurocognitiva aplicada:' }, { t: 'subtitulo', texto: `${t.titulo}:` });
+        usados.forEach(({ g }) => {
+          const filas = [['ESCALAS', 'Puntuaciones escalares', 'Puntuación compuesta', 'CATEGORÍA']].concat(g.escalas.map((e) => { const v = pts[e.id] || {}; return [e.etiqueta, v.e || '', v.c || '', v.cat || '']; }));
+          bl.push({ t: 'espacio' }, { t: 'centro', texto: `${g.titulo}:` }, { t: 'tabla', filas, ultimaNegrita: g.escalas.some((e) => e.total) }, { t: 'espacio' }, { t: 'centro', texto: g.tituloIndices, negrita: true });
+          g.escalas.forEach((e) => {
+            const v = pts[e.id] || {};
+            if (!v.c && !v.cat && !v.sig) return;
+            bl.push({ t: 'espacio' }, { t: 'subtitulo', texto: `${e.indice}: ${v.c || ''}`.trim() });
+            bl.push({ t: 'lista', negrita: true, items: [v.cat ? `Categoría: ${v.cat}.` : '', v.sig ? `Significado: ${v.sig}` : ''] });
+          });
+        });
+      }
+    }
+    if (String(c.conclusion || '').trim()) bl.push({ t: 'espacio' }, { t: 'seccion', texto: 'CONCLUSION DIAGNÓSTICA:' }, { t: 'texto', texto: c.conclusion.trim() });
+    if (lineas(c.sugerencias).length) bl.push({ t: 'espacio' }, { t: 'seccion', texto: 'Sugerencias de trabajo:' }, { t: 'lista', items: lineas(c.sugerencias) });
+    return bl;
+  }
+  function bloquesHTML(bl) {
+    return bl.map((b) => {
+      if (b.t === 'espacio') return '<div class="b-esp"></div>';
+      if (b.t === 'titulo') return `<p class="b-titulo">${esc(b.texto)}</p>`;
+      if (b.t === 'centro') return `<p class="b-centro${b.negrita ? ' n' : ''}">${esc(b.texto)}</p>`;
+      if (b.t === 'seccion') return `<p class="b-sec">❖ <span>${esc(b.texto)}</span></p>`;
+      if (b.t === 'subtitulo') return `<p class="b-sec">➢ <span>${esc(b.texto)}</span></p>`;
+      if (b.t === 'dato') return `<p class="b-dato">• <span>${esc(b.etiqueta)}:</span> ${esc(b.valor)}</p>`;
+      if (b.t === 'texto') return b.texto.split('\n').map((l) => `<p class="b-texto">${esc(l) || '&nbsp;'}</p>`).join('');
+      if (b.t === 'lista') return b.items.filter(Boolean).map((l) => `<p class="b-dato${b.negrita ? ' n' : ''}">• ${esc(l)}</p>`).join('');
+      if (b.t === 'tabla') return `<table class="b-tabla">${b.filas.map((f, r) => `<tr>${f.map((x, k) => `<td class="${r === 0 || k === 0 || (b.ultimaNegrita && r === b.filas.length - 1) ? 'n' : ''}">${esc(x)}</td>`).join('')}</tr>`).join('')}</table>`;
+      return '';
+    }).join('');
+  }
+  function hojaVistaInforme(i) {
+    abrirHoja(`<div class="fila entre"><h3>Vista previa</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      <p class="chico tenue">Así queda el texto. El membrete, el pie y el número de página salen de tu plantilla cuando lo generás.</p>
+      <div class="papel">${bloquesHTML(bloquesInforme(i))}</div>`);
+  }
+  async function generarInforme(i) {
+    if (!conexion) { hojaInforme(paciente(i.pid)); return; }
+    const pl = db.plantillas.find((x) => /psicopedag/i.test(x.nombre)) || db.plantillas[0];
+    if (!pl) { aviso('No hay plantilla en la carpeta Consultorio → Plantillas de tu Drive.'); return; }
+    const p = paciente(i.pid);
+    const btn = $('[data-accion="generar-informe"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Armando el documento…'; }
+    try {
+      clearTimeout(tInforme); enviar({ op: 'informe', i: clonar(i) });
+      await sincronizar();
+      if (cola.length) throw new Error('Hay cambios sin enviar a la planilla. Revisá la conexión.');
+      const t = testDe(i.contenido.test);
+      const r = await llamar(conexion, { generar: { id: i.id, plantilla: pl.id, titulo: `Informe${t ? ` ${t.nombre}` : ''} · ${nombreLista(p)} · ${fmtDMY(i.fecha).replace(/\//g, '-')}`, datos: datosInforme(p, i.fecha), cuerpo: bloquesInforme(i) } });
+      Object.assign(i, { estado: 'generado', docUrl: r.informe.docUrl, pdfUrl: r.informe.pdfUrl });
+      db.documentos = db.documentos.filter((d) => d.id !== r.informe.docuId).concat([r.documento]);
+      guardar(); render();
+      abrirHoja(`<div class="fila entre"><h3>Informe listo</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+        <p>Quedó en la carpeta de <b>${esc(nombreLista(p))}</b>, en <b>Mis informes</b>, con tu membrete. Está en PDF para mandar o imprimir, y en Google Docs por si querés retocar algo.</p>
+        <a class="btn btn-acento btn-grande btn-bloque" href="${esc(i.pdfUrl)}" target="_blank" rel="noopener">${ic('bajar')}Abrir el PDF</a>
+        <a class="btn btn-grande btn-bloque" href="${esc(i.docUrl)}" target="_blank" rel="noopener">${ic('lapiz')}Abrir en Google Docs</a>`);
+    } catch (e) {
+      aviso(e.message === 'Failed to fetch' ? 'No hay conexión. Probá de nuevo en un rato.' : e.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Generar Word y PDF'; }
+    }
+  }
+
+  // Ajustes → Tests: rangos, escalas y textos guardados.
+  function vTests(id) {
+    const base_ = testDe(id);
+    if (!base_) { titulo('Tests'); vista.innerHTML = '<p class="vacio">No encontré ese test.</p>'; return; }
+    const t = clonar(base_);
+    titulo(t.nombre);
+    const filaRango = (r) => `<div class="rango"><input class="entrada entrada-chica" inputmode="numeric" data-r="min" value="${esc(r.min)}" aria-label="Desde"><span class="tenue">a</span><input class="entrada entrada-chica" inputmode="numeric" data-r="max" value="${esc(r.max)}" aria-label="Hasta"><input class="entrada entrada-chica" data-r="cat" value="${esc(r.cat)}" placeholder="Categoría" aria-label="Categoría"><button type="button" class="cerrar" data-quitar aria-label="Quitar">${ic('cerrar')}</button></div>`;
+    const filaEscala = (e) => `<div class="escala-cfg" data-id="${esc(e.id)}"><input class="entrada entrada-chica" data-e="etiqueta" value="${esc(e.etiqueta)}" placeholder="En la tabla" aria-label="Nombre en la tabla"><input class="entrada entrada-chica" data-e="indice" value="${esc(e.indice)}" placeholder="Nombre del índice" aria-label="Nombre del índice"><label class="chico"><input type="checkbox" data-e="total" ${e.total ? 'checked' : ''}> total</label><button type="button" class="cerrar" data-quitar aria-label="Quitar">${ic('cerrar')}</button></div>`;
+    const textos = Object.entries(t.textos || {});
+    const nombreEsc = (eid) => { for (const g of t.grupos) { const e = g.escalas.find((x) => x.id === eid); if (e) return e.etiqueta; } return eid; };
+    vista.innerHTML = `<div class="ajustes-test pila">
+      <a class="btn-texto chico" href="#/ajustes">${ic('izq')}Ajustes</a>
+      <section class="caja"><div class="caja-cab"><span class="etq">Rangos de puntuación compuesta</span></div><div class="caja-cuerpo pila">
+        ${t.ejemplo ? '<div class="nota chico">Estos rangos son de ejemplo. Cambialos por los que usás para este test.</div>' : ''}
+        <div id="rangos" class="pila">${t.rangos.map(filaRango).join('')}</div>
+        <button type="button" class="btn btn-chico" id="mas-rango" style="align-self:flex-start">${ic('mas')}Agregar rango</button></div></section>
+      ${t.grupos.map((g, gi) => `<section class="caja" data-g="${gi}"><div class="caja-cab"><input class="titulo-sec" data-gt="titulo" value="${esc(g.titulo)}" aria-label="Título del grupo"></div><div class="caja-cuerpo pila">
+        <label class="campo"><span class="etq">Título del análisis</span><input class="entrada" data-gt="tituloIndices" value="${esc(g.tituloIndices)}"></label>
+        <div class="pila escalas">${g.escalas.map(filaEscala).join('')}</div>
+        <button type="button" class="btn btn-chico" data-mas-escala style="align-self:flex-start">${ic('mas')}Agregar escala</button></div></section>`).join('')}
+      <section class="caja"><div class="caja-cab"><span class="etq">Textos guardados</span></div>
+        ${textos.length ? `<ul class="lista">${textos.map(([k, v]) => { const [eid, cat] = k.split('|'); return `<li class="texto-guardado" data-tk="${esc(k)}"><div class="caja-cuerpo pila"><b class="chico">${esc(nombreEsc(eid))} · ${esc(cat)}</b><textarea class="entrada area crece" rows="2">${esc(v)}</textarea><button type="button" class="btn-texto chico" data-quitar-texto>${ic('tacho')}Borrar</button></div></li>`; }).join('')}</ul>`
+          : '<p class="vacio chico">En el informe, tocá "Usar siempre este texto para esta categoría" y queda acá.</p>'}
+      </section>
+      <button class="btn btn-oscuro btn-grande btn-bloque" id="guardar-test">Guardar</button>
+    </div>`;
+    const v = $('.ajustes-test', vista);
+    $('#mas-rango', v).onclick = () => $('#rangos', v).insertAdjacentHTML('beforeend', filaRango({ min: '', max: '', cat: '' }));
+    v.addEventListener('click', (e) => {
+      const q = e.target.closest('[data-quitar]'); if (q) { q.parentElement.remove(); return; }
+      const qt = e.target.closest('[data-quitar-texto]'); if (qt) { qt.closest('[data-tk]').remove(); return; }
+      const me = e.target.closest('[data-mas-escala]'); if (me) me.previousElementSibling.insertAdjacentHTML('beforeend', filaEscala({ id: uid(), etiqueta: '', indice: '', total: false }));
+    });
+    $('#guardar-test', v).onclick = () => {
+      t.rangos = $$('.rango', v).map((f) => ({ min: Number($('[data-r="min"]', f).value), max: Number($('[data-r="max"]', f).value), cat: $('[data-r="cat"]', f).value.trim() })).filter((r) => r.cat && !isNaN(r.min) && !isNaN(r.max));
+      t.grupos = t.grupos.map((g, gi) => { const sec = $(`[data-g="${gi}"]`, v); return Object.assign({}, g, { titulo: $('[data-gt="titulo"]', sec).value.trim(), tituloIndices: $('[data-gt="tituloIndices"]', sec).value.trim(), escalas: $$('.escala-cfg', sec).map((f) => ({ id: f.dataset.id, etiqueta: $('[data-e="etiqueta"]', f).value.trim(), indice: $('[data-e="indice"]', f).value.trim(), total: $('[data-e="total"]', f).checked })).filter((x) => x.etiqueta) }); });
+      t.textos = {}; $$('[data-tk]', v).forEach((li) => { const tx = $('textarea', li).value.trim(); if (tx) t.textos[li.dataset.tk] = tx; });
+      t.ejemplo = false;
+      guardarTest(t); aviso('Test guardado.'); ir('#/ajustes');
+    };
   }
 
   function datosInforme(p, fecha) {
@@ -1484,6 +1761,8 @@
       }
       return;
     }
+    const gt = e.target.closest('[data-guardar-texto]');
+    if (gt) { guardarTextoHabitual(gt.dataset.guardarTexto); return; }
     const sol = e.target.closest('[data-solid]');
     if (sol) { const x = db.solicitudes.find((y) => y.id === sol.dataset.solid); if (x) hojaSolicitud(paciente(x.pid) || { id: x.pid, apellido: x.paciente, nombre: '', os: x.os, afiliado: x.afiliado, dx: [] }, x); return; }
     const doc = e.target.closest('[data-did]');
@@ -1513,6 +1792,10 @@
       case 'nuevo': hojaNuevo(); break;
       case 'turno': hojaTurno(null, { pid: p ? p.id : undefined, fecha: b.dataset.fecha }); break;
       case 'alerta': hojaAlerta(null, { fecha: b.dataset.fecha }); break;
+      case 'nuevo-informe': if (p) nuevoInforme(p); break;
+      case 'vista-informe': { const i = db.informes.find((x) => x.id === vista.dataset.inf); if (i) hojaVistaInforme(i); break; }
+      case 'generar-informe': { const i = db.informes.find((x) => x.id === vista.dataset.inf); if (i) generarInforme(i); break; }
+      case 'borrar-informe': { const i = db.informes.find((x) => x.id === vista.dataset.inf); if (i) confirmar('Borrar informe', 'Se saca de la ficha. Si ya lo habías generado, el PDF y el Docs siguen en tu Drive.', 'Borrar', () => { i.estado = 'borrado'; guardarInforme(i, true); ir(`#/p/${i.pid}`); }); break; }
       case 'imprimir-hoja': imprimirHoja(); break;
       case 'vaciar-hoja': confirmar('Vaciar la hoja', 'Se sacan las solicitudes de la hoja de impresión. Siguen guardadas en la ficha de cada paciente.', 'Vaciar', () => { db.hoja = []; guardar(); render(); }); break;
       case 'desconectar': hojaDesconectar(); break;

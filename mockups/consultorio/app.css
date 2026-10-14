@@ -353,6 +353,33 @@ body.bloqueado .cabecera, body.bloqueado .barra, body.bloqueado main { display: 
 .av-alerta { background: var(--aviso-suave); color: var(--aviso-tinta); }
 .av svg.ic { width: 18px; height: 18px; }
 
+/* editor de informes */
+.informe-editor { display: flex; flex-direction: column; gap: 16px; }
+textarea.crece { field-sizing: content; min-height: 88px; }
+.titulo-sec { width: 100%; border: 0; background: none; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--tinta-2); padding: 0; outline: none; }
+.titulo-sec:focus { color: var(--acento); }
+.grupo-test { border-top: 1px solid var(--linea); }
+.grupo-tit { padding: 10px 16px; background: var(--superficie-2); }
+.escala { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--linea); }
+.escala.total { background: var(--acento-suave); }
+.escala-nom { display: flex; flex-direction: column; }
+.escala-num { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 6px; }
+.escala-num label { display: flex; flex-direction: column; gap: 3px; }
+.escala-num .entrada { width: 100%; }
+.rango { display: grid; grid-template-columns: 64px auto 64px 1fr 34px; gap: 6px; align-items: center; }
+.escala-cfg { display: grid; grid-template-columns: 1fr 1.4fr auto 34px; gap: 6px; align-items: center; }
+.escala-cfg .entrada, .rango .entrada { width: 100%; }
+.papel { background: #fff; color: #222; border: 1px solid var(--linea); padding: 22px 22px 28px; font-family: "Times New Roman", Georgia, serif; font-size: 14px; line-height: 1.45; }
+.papel p { margin: 0; }
+.papel .b-esp { height: 10px; }
+.papel .b-titulo { text-align: center; font-weight: 700; text-decoration: underline; }
+.papel .b-centro { text-align: center; text-decoration: underline; }
+.papel .b-centro.n, .papel .n { font-weight: 700; }
+.papel .b-sec span, .papel .b-dato span { font-weight: 700; text-decoration: underline; }
+.papel .b-texto { text-align: justify; }
+.papel .b-tabla { border-collapse: collapse; width: 100%; margin: 4px 0; font-size: 13px; }
+.papel .b-tabla td { border: 1px solid #555; padding: 3px 6px; text-align: center; }
+
 /* ---------- compu ---------- */
 @media (min-width: 960px) {
   body { padding-left: 260px; }

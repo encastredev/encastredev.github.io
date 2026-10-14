@@ -54,6 +54,12 @@ Se hace una vez por cuenta: primero con la tuya para probar y después con la de
 - **Para usar un Word que ya tiene:** subilo a la carpeta Plantillas, abrilo y tocá **Archivo → Guardar como documento de Google**. Después borrá el `.docx` y escribí los campos donde correspondan.
 - Después de agregar o renombrar una plantilla, en la app tocá **Ajustes → Actualizar ahora**.
 
+## Informes escritos en la app
+
+- Los informes usan la plantilla de **Consultorio → Plantillas** (si hay varias, la que tenga "psicopedag" en el nombre). De ella se toman el membrete, el pie y el número de página: **el cuerpo de la plantilla se reemplaza** por lo que se escribe en la app.
+- Las hojas **Informes** y **Tests** se crean solas. No toques las columnas que dicen "NO TOCAR": guardan el contenido en un formato que lee la app.
+- Los rangos y textos de cada test se cargan en la app, en **Ajustes → Informes**.
+
 ## Agenda y avisos en Google Calendar
 
 - Después de pegar esta versión del script, en el editor elegí la función **configurar** y tocá **Ejecutar**. Google pide un permiso nuevo para usar el **Calendario**: hay que aceptarlo. Ahí se crea el calendario **"Consultorio"** en su Google Calendar.

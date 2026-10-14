@@ -17,6 +17,8 @@ const H_SES = 'Sesiones';
 const H_DOC = 'Documentos';
 const H_SOL = 'Solicitudes';
 const H_AGE = 'Agenda';
+const H_INF = 'Informes';
+const H_TST = 'Tests';
 const CALENDARIO = 'Consultorio';
 const H_REG = 'Registro';
 
@@ -50,6 +52,16 @@ const COL_SOL = [
   ['anulada', 'ANULADA', 75, 'si'], ['creado', 'CREADA', 130, 'momento'],
 ];
 // Turnos (tipo turno) y recordatorios (tipo alerta). Repite: '' o 'semanal'. Aviso: minutos antes, vacío = sin aviso.
+// Informes escritos en la app: el contenido (secciones y puntajes) va en JSON.
+const COL_INF = [
+  ['id', 'ID', 100, 'txt'], ['fecha', 'FECHA', 95, 'fecha'], ['pid', 'ID PACIENTE', 100, 'txt'],
+  ['paciente', 'PACIENTE', 200, 'txt'], ['test', 'TEST', 90, 'txt'], ['estado', 'ESTADO', 90, 'txt'],
+  ['contenido', 'CONTENIDO (NO TOCAR)', 300, 'txt'], ['docUrl', 'DOCUMENTO', 260, 'txt'], ['pdfUrl', 'PDF', 260, 'txt'],
+  ['docId', 'ID DOC', 100, 'txt'], ['pdfId', 'ID PDF', 100, 'txt'], ['docuId', 'ID EN DOCUMENTOS', 100, 'txt'],
+  ['creado', 'CREADO', 130, 'momento'], ['editado', 'EDITADO', 130, 'momento'],
+];
+// Configuración de cada test (escalas, rangos y textos), en JSON.
+const COL_TST = [['id', 'ID', 90, 'txt'], ['nombre', 'TEST', 120, 'txt'], ['config', 'CONFIGURACIÓN (NO TOCAR)', 500, 'txt']];
 const COL_AGE = [
   ['id', 'ID', 100, 'txt'], ['tipo', 'TIPO', 80, 'txt'], ['pid', 'ID PACIENTE', 100, 'txt'], ['titulo', 'TÍTULO', 220, 'txt'],
   ['fecha', 'FECHA', 95, 'fecha'], ['hora', 'HORA', 60, 'txt'], ['dur', 'DURACIÓN (MIN)', 90, 'txt'],
@@ -80,8 +92,10 @@ function configurar() {
   prepararHoja_(ss, H_DOC, COL_DOC);
   prepararHoja_(ss, H_SOL, COL_SOL);
   prepararHoja_(ss, H_AGE, COL_AGE);
+  prepararHoja_(ss, H_INF, COL_INF);
+  prepararHoja_(ss, H_TST, COL_TST);
   prepararHoja_(ss, H_REG, COL_REG);
-  const vacia = ss.getSheets().find((h) => ![H_PAC, H_SES, H_DOC, H_SOL, H_AGE, H_REG].includes(h.getName()) && h.getLastRow() === 0);
+  const vacia = ss.getSheets().find((h) => ![H_PAC, H_SES, H_DOC, H_SOL, H_AGE, H_INF, H_TST, H_REG].includes(h.getName()) && h.getLastRow() === 0);
   if (vacia) ss.deleteSheet(vacia);
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('CLAVE')) props.setProperty('CLAVE', Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8));
@@ -167,6 +181,7 @@ function doPost(e) {
       if (body.ops && body.ops.length) aplicar_(body.ops);
       if (body.informe) res.documento = informe_(body.informe);
       if (body.subir) res.documento = subir_(body.subir);
+      if (body.generar) Object.assign(res, generarInforme_(body.generar));
       if (body.logo) res.logo = leerLogo_();
       if (body.estado) Object.assign(res, leerEstado_());
     } finally {
@@ -183,7 +198,7 @@ function aplicar_(ops) {
   const ss = SpreadsheetApp.getActive();
   const tp = tabla_(ss, H_PAC, COL_PAC);
   const ts = tabla_(ss, H_SES, COL_SES);
-  let td = null, tsol = null, tage = null;
+  let td = null, tsol = null, tage = null, tinf = null, ttst = null;
   const registro = [];
   const ahora = new Date().toISOString();
   for (const op of ops) {
@@ -213,6 +228,18 @@ function aplicar_(ops) {
       const que = !vieja ? 'Solicitud hecha' : op.s.anulada && !vieja.anulada ? 'Solicitud anulada' : 'Solicitud corregida';
       tsol.guardar(op.s);
       registro.push([ahora, que, op.s.id, JSON.stringify(op.s)]);
+    } else if (op.op === 'informe') {
+      // El borrador se guarda seguido: no va al Registro cada vez, solo al crearlo.
+      tinf = tinf || tabla_(ss, H_INF, COL_INF);
+      const viejo = tinf.porId(op.i.id);
+      const i = Object.assign({}, op.i, { contenido: JSON.stringify(op.i.contenido || {}) });
+      ['docUrl', 'pdfUrl', 'docId', 'pdfId', 'docuId'].forEach((k) => { i[k] = viejo ? viejo[k] : ''; });
+      tinf.guardar(i);
+      if (!viejo) registro.push([ahora, 'Informe empezado', i.id, JSON.stringify({ pid: i.pid, test: i.test })]);
+    } else if (op.op === 'test') {
+      ttst = ttst || tabla_(ss, H_TST, COL_TST);
+      ttst.guardar({ id: op.t.id, nombre: op.t.nombre, config: JSON.stringify(op.t) });
+      registro.push([ahora, 'Test configurado', op.t.id, op.t.nombre]);
     } else if (op.op === 'agenda') {
       tage = tage || tabla_(ss, H_AGE, COL_AGE);
       const viejo = tage.porId(op.a.id);
@@ -240,6 +267,8 @@ function aplicar_(ops) {
   if (td) td.escribir();
   if (tsol) tsol.escribir();
   if (tage) tage.escribir();
+  if (tinf) tinf.escribir();
+  if (ttst) ttst.escribir();
   if (registro.length) agregarFilas_(tabla_(ss, H_REG, COL_REG), registro);
 }
 
@@ -257,6 +286,93 @@ function informe_(pedido) {
     doc.saveAndClose();
     return copia;
   });
+}
+
+// Arma el informe escrito en la app: copia la plantilla (membrete, pie y estilos), vacía el cuerpo
+// y lo escribe con el formato de su informe. Guarda el Google Docs y el PDF en "Mis informes".
+// Si ya se había generado, el anterior va a la papelera y se reemplaza.
+// pedido: { id, plantilla, titulo, datos, cuerpo }, donde cuerpo es la lista de bloques que arma la app.
+function generarInforme_(pedido) {
+  const ss = SpreadsheetApp.getActive();
+  const tinf = tabla_(ss, H_INF, COL_INF);
+  const inf = tinf.porId(pedido.id);
+  if (!inf) throw new Error('Ese informe todavía no llegó a la planilla. Probá de nuevo en un rato.');
+  const tp = tabla_(ss, H_PAC, COL_PAC);
+  const p = tp.porId(inf.pid);
+  if (!p) throw new Error('Ese paciente todavía no llegó a la planilla.');
+  const carpeta = carpetaPaciente_(p, carpetas_(), 'propio');
+  tp.guardar({ id: p.id, carpeta: p.carpeta });
+  tp.escribir();
+  [inf.docId, inf.pdfId].forEach((id) => { if (id) try { DriveApp.getFileById(id).setTrashed(true); } catch (e) { /* ya no estaba */ } });
+
+  const copia = DriveApp.getFileById(pedido.plantilla).makeCopy(pedido.titulo, carpeta);
+  const doc = DocumentApp.openById(copia.getId());
+  const datos = pedido.datos || {};
+  [doc.getHeader(), doc.getFooter()].filter(Boolean).forEach((parte) => {
+    Object.keys(datos).forEach((k) => parte.replaceText(`\\{\\{\\s*${k}\\s*\\}\\}`, String(datos[k] == null ? '' : datos[k]).replace(/\$/g, '$$$$')));
+  });
+  const b = doc.getBody();
+  b.clear();
+  (pedido.cuerpo || []).forEach((bl) => escribirBloque_(b, bl));
+  const primero = b.getChild(0);
+  if (b.getNumChildren() > 1 && primero.getType() === DocumentApp.ElementType.PARAGRAPH && !primero.asParagraph().getText()) primero.removeFromParent();
+  doc.saveAndClose();
+  const pdf = carpeta.createFile(copia.getAs('application/pdf')).setName(pedido.titulo + '.pdf');
+
+  // En Documentos queda el PDF (el anterior, si había, se marca como quitado).
+  const td = tabla_(ss, H_DOC, COL_DOC);
+  if (inf.docuId && td.porId(inf.docuId)) td.guardar({ id: inf.docuId, anulado: true });
+  const ahora = new Date().toISOString();
+  const d = {
+    id: Utilities.getUuid().slice(0, 12), fecha: inf.fecha, pid: p.id, paciente: `${p.apellido}, ${p.nombre}`, tipo: 'propio',
+    titulo: pedido.titulo, autor: '', url: pdf.getUrl(), archivo: pdf.getName(), tam: pdf.getSize(), drive: pdf.getId(), anulado: false, creado: ahora,
+  };
+  td.guardar(d);
+  td.escribir();
+  tinf.guardar({ id: inf.id, estado: 'generado', docUrl: copia.getUrl(), pdfUrl: pdf.getUrl(), docId: copia.getId(), pdfId: pdf.getId(), docuId: d.id, editado: ahora });
+  tinf.escribir();
+  agregarFilas_(tabla_(ss, H_REG, COL_REG), [[ahora, 'Informe generado', inf.id, JSON.stringify({ pid: p.id, doc: copia.getUrl(), pdf: pdf.getUrl() })]]);
+  const i2 = tinf.porId(inf.id);
+  return { informe: Object.assign({}, i2, { contenido: JSON.parse(i2.contenido || '{}') }), documento: d };
+}
+
+// Un bloque del cuerpo. Tipos: titulo, dato (etiqueta + valor, con viñeta), seccion (título con ❖),
+// subtitulo (➢), centro (título centrado), texto (párrafo justificado), lista (viñetas), tabla, espacio.
+function escribirBloque_(b, bl) {
+  const G = DocumentApp.GlyphType, A = DocumentApp.HorizontalAlignment;
+  const marcar = (el, desde, hasta, f) => { if (hasta >= desde) { const t = el.editAsText(); if (f.b != null) t.setBold(desde, hasta, f.b); if (f.u != null) t.setUnderline(desde, hasta, f.u); } };
+  const parrafo = (txt) => { const el = b.appendParagraph(txt || ''); if (txt) marcar(el, 0, txt.length - 1, { b: false, u: false }); return el; };
+  if (bl.t === 'espacio') { parrafo(''); return; }
+  if (bl.t === 'titulo') { const el = parrafo(bl.texto); el.setAlignment(A.CENTER); marcar(el, 0, bl.texto.length - 1, { b: true, u: true }); return; }
+  if (bl.t === 'centro') { const el = parrafo(bl.texto); el.setAlignment(A.CENTER); marcar(el, 0, bl.texto.length - 1, { b: !!bl.negrita, u: true }); return; }
+  if (bl.t === 'seccion' || bl.t === 'subtitulo') {
+    const txt = `${bl.t === 'seccion' ? '❖' : '➢'} ${bl.texto}`;
+    const el = parrafo(txt); marcar(el, 2, txt.length - 1, { b: true, u: true }); return;
+  }
+  if (bl.t === 'dato') {
+    const etq = `${bl.etiqueta}:`, txt = `${etq} ${bl.valor || ''}`;
+    const el = b.appendListItem(txt); el.setGlyphType(G.BULLET);
+    marcar(el, 0, txt.length - 1, { b: !!bl.negrita, u: false }); marcar(el, 0, etq.length - 1, { b: true, u: true });
+    return;
+  }
+  if (bl.t === 'texto') { (bl.texto || '').split('\n').forEach((linea) => { const el = parrafo(linea); el.setAlignment(A.JUSTIFY); if (bl.negrita && linea) marcar(el, 0, linea.length - 1, { b: true }); }); return; }
+  if (bl.t === 'lista') {
+    (bl.items || []).filter(Boolean).forEach((it) => { const el = b.appendListItem(it); el.setGlyphType(G.BULLET); el.setAlignment(A.JUSTIFY); marcar(el, 0, it.length - 1, { b: !!bl.negrita, u: false }); });
+    return;
+  }
+  if (bl.t === 'tabla') {
+    const tabla = b.appendTable(bl.filas.map((f) => f.map((c) => String(c == null ? '' : c))));
+    for (let r = 0; r < tabla.getNumRows(); r++) {
+      const fila = tabla.getRow(r);
+      for (let c = 0; c < fila.getNumCells(); c++) {
+        const celda = fila.getCell(c);
+        const par = celda.getChild(0).asParagraph();
+        par.setAlignment(A.CENTER);
+        const txt = par.getText();
+        if (txt) marcar(par, 0, txt.length - 1, { b: r === 0 || c === 0 || (bl.ultimaNegrita && r === tabla.getNumRows() - 1), u: false });
+      }
+    }
+  }
 }
 
 // Un archivo que manda la app (PDF, Word, foto), en base64.
@@ -371,6 +487,8 @@ function leerEstado_() {
     documentos: tabla_(ss, H_DOC, COL_DOC).todas(),
     solicitudes: tabla_(ss, H_SOL, COL_SOL).todas(),
     agenda: tabla_(ss, H_AGE, COL_AGE).todas(),
+    informes: tabla_(ss, H_INF, COL_INF).todas().map((i) => Object.assign(i, { contenido: JSON.parse(i.contenido || '{}') })),
+    tests: tabla_(ss, H_TST, COL_TST).todas().map((t) => JSON.parse(t.config || 'null')).filter(Boolean),
     plantillas: plantillas,
     planilla: ss.getUrl(),
     carpeta: c.raiz.getUrl(),

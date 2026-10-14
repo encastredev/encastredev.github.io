@@ -1,7 +1,7 @@
 // Guarda la app (no los datos) para que abra sin internet.
 // Al publicar cambios: subir VERSION acá y el ?v= de app.css, importar-word.js y app.js en index.html.
-const VERSION = 'consultorio-v8';
-const APP = ['./', 'index.html', 'app.css?v=8', 'app.js?v=8', 'importar-word.js?v=8', 'manifest.webmanifest', 'icono.svg', 'icono-192.png', 'logo-recetario.jpg'];
+const VERSION = 'consultorio-v9';
+const APP = ['./', 'index.html', 'app.css?v=9', 'app.js?v=9', 'importar-word.js?v=9', 'manifest.webmanifest', 'icono.svg', 'icono-192.png', 'logo-recetario.jpg'];
 
 // cache: 'reload' para no guardar una copia vieja que tenga el navegador.
 self.addEventListener('install', (e) => {
