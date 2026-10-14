@@ -54,6 +54,13 @@ Se hace una vez por cuenta: primero con la tuya para probar y después con la de
 - **Para usar un Word que ya tiene:** subilo a la carpeta Plantillas, abrilo y tocá **Archivo → Guardar como documento de Google**. Después borrá el `.docx` y escribí los campos donde correspondan.
 - Después de agregar o renombrar una plantilla, en la app tocá **Ajustes → Actualizar ahora**.
 
+## Agenda y avisos en Google Calendar
+
+- Después de pegar esta versión del script, en el editor elegí la función **configurar** y tocá **Ejecutar**. Google pide un permiso nuevo para usar el **Calendario**: hay que aceptarlo. Ahí se crea el calendario **"Consultorio"** en su Google Calendar.
+- Después: **Implementar → Administrar implementaciones → lápiz → Nueva versión**.
+- Para que le lleguen los avisos al celular: tener la app **Google Calendar** con su cuenta, el calendario "Consultorio" visible (tildado) y las notificaciones de Google Calendar activadas en el celular.
+- Los turnos se cargan y se cambian **desde la app**. Si se cambian directo en Google Calendar, la app no se entera y la próxima vez que se toque ese turno se pisa.
+
 ## Recetario (solicitudes a IPS)
 
 - En la app, **Ajustes → Tus datos**: nombre, profesión, matrícula, mail, teléfono, dirección y el logo. Con eso se arma el membrete.

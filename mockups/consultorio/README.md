@@ -13,7 +13,7 @@ Archivos estáticos (HTML, CSS y JS sin build). **El repo no tiene datos de paci
 
 ## Dónde se guardan los datos
 
-En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Documentos, Solicitudes y Registro), a través del script [`apps-script/Codigo.gs`](apps-script/Codigo.gs). Cómo instalarlo: [`apps-script/INSTALAR.md`](apps-script/INSTALAR.md).
+En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Documentos, Solicitudes, Agenda y Registro), a través del script [`apps-script/Codigo.gs`](apps-script/Codigo.gs). Cómo instalarlo: [`apps-script/INSTALAR.md`](apps-script/INSTALAR.md).
 
 - **Cada dispositivo guarda una copia cifrada** para abrir rápido y sin internet. La clave sale del PIN (PBKDF2-SHA256, 310 000 vueltas → AES-GCM 256) y solo vive en memoria mientras la app está abierta. En `localStorage` hay un único valor, `consultorio.cofre`, que contiene los datos, la conexión y la cola de envíos, todo cifrado.
 - **Se bloquea sola** a los 5 minutos en segundo plano o a los 20 sin tocarla (`BLOQUEO_OCULTA`, `BLOQUEO_QUIETA`), y con el candado de arriba. Con el PIN mal 5 veces, espera 30 s, 60 s, 120 s…
@@ -30,6 +30,10 @@ En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Docu
   - Queda en **Para revisar**: el nombre sin coma, un dato entre paréntesis (se carga como adulto responsable), la edad escrita que no coincide con la fecha de nacimiento, y la falta de DNI o de escuela.
   - Si se importa de nuevo, se saltean los pacientes que ya están (mismo DNI).
 - **Ficha:** la edad se calcula sola (años y meses) y hay botones de llamar y WhatsApp para cada contacto. Debajo están sus sesiones y documentos, y se puede dar de alta o volver a activo.
+- **Agenda** (`#/agenda`): vista de la semana y del día. **Turnos** con un paciente o con otro motivo (reunión, entrevista), con fecha, hora, duración (la elige ella y se recuerda por paciente), aviso y opción de **repetirse todas las semanas** hasta una fecha. Al cambiar o cancelar uno que se repite, se elige "solo este día" (queda como excepción) o "este y los que siguen" (corta la serie y arranca otra). En los turnos de hoy o pasados se marca **Asistió / Faltó / Avisó** con un toque y queda la sesión anotada, ligada al turno.
+  - **Alertas:** recordatorios sueltos con fecha, hora y aviso; se marcan como hechas.
+  - **Google Calendar:** el script copia cada turno y alerta a un calendario **"Consultorio"** de su cuenta (serie semanal con excepciones, aviso emergente), así le llegan las notificaciones al celular aunque la app esté cerrada. Cada cambio borra y vuelve a crear el evento. Si el calendario falla, el turno se guarda igual y queda anotado en el Registro.
+  - En el celular, la barra es Inicio · Pacientes · **Nuevo** (sesión, turno o alerta) · Agenda · Ajustes. "Sesiones del mes" se abre desde la Agenda y desde el inicio. En la compu, la barra lateral muestra Agenda y Sesiones.
 - **Sesiones:** fecha, asistencia (asistió, faltó o avisó) y nota. Lo que se escribe queda como borrador cifrado hasta guardarlo.
 - **Sesiones del mes:** totales y conteo por paciente (sirve para la planilla de la obra social). Se exporta a Excel.
 - **Documentos del paciente**, separados en **Mis informes** y **De otros profesionales**: PDF, Word o fotos de hasta 25 MB (`MAX_MB`). Necesitan internet, porque no pasan por la cola.

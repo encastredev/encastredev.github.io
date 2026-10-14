@@ -7,6 +7,8 @@
  * Los documentos del paciente (informes propios y de otros profesionales: PDF, Word, fotos)
  * se suben a su carpeta en Drive y quedan listados en la hoja "Documentos". También se puede
  * empezar un informe en Google Docs desde una plantilla de la carpeta "Plantillas".
+ * Los turnos y alertas de la hoja "Agenda" se copian a un calendario "Consultorio" de su
+ * Google Calendar, con aviso, para que le lleguen las notificaciones al celular.
  * Instalación: ver INSTALAR.md.
  */
 const CARPETA = 'Consultorio';
@@ -14,6 +16,8 @@ const H_PAC = 'Pacientes';
 const H_SES = 'Sesiones';
 const H_DOC = 'Documentos';
 const H_SOL = 'Solicitudes';
+const H_AGE = 'Agenda';
+const CALENDARIO = 'Consultorio';
 const H_REG = 'Registro';
 
 // [clave en la app, título de la columna, ancho, tipo]
@@ -30,7 +34,7 @@ const COL_SES = [
   ['id', 'ID', 100, 'txt'], ['fecha', 'FECHA', 95, 'fecha'], ['pid', 'ID PACIENTE', 100, 'txt'],
   ['paciente', 'PACIENTE', 200, 'txt'], ['os', 'OBRA SOCIAL', 90, 'txt'], ['estado', 'ASISTENCIA', 100, 'asist'],
   ['nota', 'NOTA DE LA SESIÓN', 420, 'txt'], ['anulada', 'ANULADA', 75, 'si'],
-  ['creado', 'ANOTADA', 130, 'momento'], ['editado', 'CORREGIDA', 130, 'momento'],
+  ['creado', 'ANOTADA', 130, 'momento'], ['editado', 'CORREGIDA', 130, 'momento'], ['turno', 'ID TURNO', 100, 'txt'],
 ];
 const COL_DOC = [
   ['id', 'ID', 100, 'txt'], ['fecha', 'FECHA', 95, 'fecha'], ['pid', 'ID PACIENTE', 100, 'txt'],
@@ -44,6 +48,14 @@ const COL_SOL = [
   ['paciente', 'PACIENTE', 200, 'txt'], ['os', 'OBRA SOCIAL', 90, 'txt'], ['afiliado', 'N° AFILIADO', 120, 'txt'],
   ['items', 'CÓDIGOS (CÓDIGO x SESIONES)', 200, 'items'], ['dx', 'DIAGNÓSTICO', 260, 'txt'],
   ['anulada', 'ANULADA', 75, 'si'], ['creado', 'CREADA', 130, 'momento'],
+];
+// Turnos (tipo turno) y recordatorios (tipo alerta). Repite: '' o 'semanal'. Aviso: minutos antes, vacío = sin aviso.
+const COL_AGE = [
+  ['id', 'ID', 100, 'txt'], ['tipo', 'TIPO', 80, 'txt'], ['pid', 'ID PACIENTE', 100, 'txt'], ['titulo', 'TÍTULO', 220, 'txt'],
+  ['fecha', 'FECHA', 95, 'fecha'], ['hora', 'HORA', 60, 'txt'], ['dur', 'DURACIÓN (MIN)', 90, 'txt'],
+  ['repite', 'REPITE', 80, 'txt'], ['hasta', 'HASTA', 95, 'fecha'], ['excepciones', 'NO VA (FECHAS)', 120, 'fechas'],
+  ['aviso', 'AVISO (MIN ANTES)', 90, 'txt'], ['nota', 'NOTA', 220, 'txt'], ['hecha', 'HECHA', 70, 'si'],
+  ['anulado', 'CANCELADO', 80, 'si'], ['ev', 'ID CALENDARIO', 120, 'txt'], ['creado', 'CREADO', 130, 'momento'],
 ];
 const MAX_MB = 25; // tamaño máximo por archivo
 const COL_REG = [['t', 'FECHA', 130, 'momento'], ['op', 'OPERACIÓN', 120, 'txt'], ['id', 'ID', 100, 'txt'], ['detalle', 'DATOS', 600, 'txt']];
@@ -67,8 +79,9 @@ function configurar() {
   prepararHoja_(ss, H_SES, COL_SES);
   prepararHoja_(ss, H_DOC, COL_DOC);
   prepararHoja_(ss, H_SOL, COL_SOL);
+  prepararHoja_(ss, H_AGE, COL_AGE);
   prepararHoja_(ss, H_REG, COL_REG);
-  const vacia = ss.getSheets().find((h) => ![H_PAC, H_SES, H_DOC, H_SOL, H_REG].includes(h.getName()) && h.getLastRow() === 0);
+  const vacia = ss.getSheets().find((h) => ![H_PAC, H_SES, H_DOC, H_SOL, H_AGE, H_REG].includes(h.getName()) && h.getLastRow() === 0);
   if (vacia) ss.deleteSheet(vacia);
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('CLAVE')) props.setProperty('CLAVE', Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8));
@@ -76,6 +89,7 @@ function configurar() {
   // La planilla también va a la carpeta del consultorio.
   try { DriveApp.getFileById(ss.getId()).moveTo(c.raiz); } catch (e) { /* ya estaba */ }
   if (!c.plantillas.getFilesByType(MimeType.GOOGLE_DOCS).hasNext()) plantillaEjemplo_(c.plantillas);
+  calendario_(); // crea el calendario y pide el permiso
   verConexion();
 }
 
@@ -169,7 +183,7 @@ function aplicar_(ops) {
   const ss = SpreadsheetApp.getActive();
   const tp = tabla_(ss, H_PAC, COL_PAC);
   const ts = tabla_(ss, H_SES, COL_SES);
-  let td = null, tsol = null;
+  let td = null, tsol = null, tage = null;
   const registro = [];
   const ahora = new Date().toISOString();
   for (const op of ops) {
@@ -199,6 +213,16 @@ function aplicar_(ops) {
       const que = !vieja ? 'Solicitud hecha' : op.s.anulada && !vieja.anulada ? 'Solicitud anulada' : 'Solicitud corregida';
       tsol.guardar(op.s);
       registro.push([ahora, que, op.s.id, JSON.stringify(op.s)]);
+    } else if (op.op === 'agenda') {
+      tage = tage || tabla_(ss, H_AGE, COL_AGE);
+      const viejo = tage.porId(op.a.id);
+      const que = (op.a.tipo === 'alerta' ? 'Alerta' : 'Turno') + (!viejo ? ' nuevo' : op.a.anulado && !viejo.anulado ? ' cancelado' : ' cambiado');
+      const a = Object.assign({}, op.a, { ev: viejo ? viejo.ev : '' });
+      try { a.ev = sincronizarEvento_(a); } catch (e) {
+        registro.push([ahora, 'Calendario: no se pudo copiar', a.id, String((e && e.message) || e)]);
+      }
+      tage.guardar(a);
+      registro.push([ahora, que, a.id, JSON.stringify(op.a)]);
     } else if (op.op === 'documento') {
       // Solo los datos (título, profesional, fecha, de quién). El archivo no se cambia.
       td = td || tabla_(ss, H_DOC, COL_DOC);
@@ -215,6 +239,7 @@ function aplicar_(ops) {
   ts.escribir();
   if (td) td.escribir();
   if (tsol) tsol.escribir();
+  if (tage) tage.escribir();
   if (registro.length) agregarFilas_(tabla_(ss, H_REG, COL_REG), registro);
 }
 
@@ -262,6 +287,55 @@ function nuevoDocumento_(pedido, tipo, crear) {
   return d;
 }
 
+/* ---------------------------------------------------------------- Google Calendar */
+function calendario_() {
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('CALENDARIO');
+  let cal = id ? CalendarApp.getCalendarById(id) : null;
+  if (!cal) {
+    cal = CalendarApp.createCalendar(CALENDARIO, { color: CalendarApp.Color.PINK });
+    props.setProperty('CALENDARIO', cal.getId());
+  }
+  return cal;
+}
+
+function aFecha_(iso, hora) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  const [hh, mm] = String(hora || '09:00').split(':').map(Number);
+  return new Date(y, m - 1, d, hh || 0, mm || 0);
+}
+
+// Borra el evento anterior (si había) y crea uno nuevo con los datos actuales. Devuelve su ID.
+// "e:<id>" es un evento suelto y "s:<id>" una serie semanal.
+function sincronizarEvento_(a) {
+  const cal = calendario_();
+  if (a.ev) {
+    try {
+      const [k, id] = [a.ev.slice(0, 1), a.ev.slice(2)];
+      const viejo = k === 's' ? cal.getEventSeriesById(id) : cal.getEventById(id);
+      if (viejo) { if (k === 's') viejo.deleteEventSeries(); else viejo.deleteEvent(); }
+    } catch (e) { /* ya no estaba */ }
+  }
+  if (a.anulado || a.hecha) return '';
+  const inicio = aFecha_(a.fecha, a.hora);
+  const fin = new Date(inicio.getTime() + (Number(a.dur) || (a.tipo === 'alerta' ? 15 : 45)) * 60000);
+  const opciones = { description: a.nota || '' };
+  let ev, clave;
+  if (a.repite === 'semanal') {
+    const regla = CalendarApp.newRecurrence().addWeeklyRule();
+    if (a.hasta) regla.until(aFecha_(a.hasta, '23:59'));
+    (a.excepciones || []).forEach((f) => regla.addDateExclusion(aFecha_(f, a.hora)));
+    ev = cal.createEventSeries(a.titulo, inicio, fin, regla, opciones);
+    clave = 's:' + ev.getId();
+  } else {
+    ev = cal.createEvent(a.titulo, inicio, fin, opciones);
+    clave = 'e:' + ev.getId();
+  }
+  ev.removeAllReminders();
+  if (a.aviso !== '' && a.aviso != null) ev.addPopupReminder(Number(a.aviso) || 0);
+  return clave;
+}
+
 /* ---------------------------------------------------------------- perfil y logo */
 const CAMPOS_PERFIL = ['nombre', 'profesion', 'matricula', 'email', 'telefono', 'direccion'];
 
@@ -296,6 +370,7 @@ function leerEstado_() {
     sesiones: tabla_(ss, H_SES, COL_SES).todas(),
     documentos: tabla_(ss, H_DOC, COL_DOC).todas(),
     solicitudes: tabla_(ss, H_SOL, COL_SOL).todas(),
+    agenda: tabla_(ss, H_AGE, COL_AGE).todas(),
     plantillas: plantillas,
     planilla: ss.getUrl(),
     carpeta: c.raiz.getUrl(),
@@ -313,6 +388,8 @@ function espacio_() {
 // Una hoja leída como lista de objetos, con guardar (agrega o reemplaza por ID) y escribir.
 function tabla_(ss, nombre, cols) {
   const h = ss.getSheetByName(nombre) || prepararHoja_(ss, nombre, cols);
+  const cab = h.getRange(1, 1, 1, cols.length).getValues()[0];
+  if (cols.some((c, i) => cab[i] !== c[1])) prepararHoja_(ss, nombre, cols);
   const n = h.getLastRow() - 1;
   const filas = n > 0 ? h.getRange(2, 1, n, cols.length).getDisplayValues() : [];
   let filasId = null;
@@ -370,6 +447,7 @@ function aCelda_(v, tipo) {
   if (tipo === 'estado') return ESTADOS[v] || v;
   if (tipo === 'tipodoc') return TIPOS_DOC[v] || v;
   if (tipo === 'items') return (v || []).map((x) => `${x.cod} x ${x.cant}`).join('\n');
+  if (tipo === 'fechas') return (v || []).map((f) => String(f).split('-').reverse().join('/')).join('\n');
   if (tipo === 'kb') return Math.round(Number(v) / 1024);
   if (tipo === 'si') return v ? 'SI' : '';
   return String(v);
@@ -388,6 +466,7 @@ function deCelda_(v, tipo) {
   if (tipo === 'asist') { const k = Object.keys(ASIST).find((a) => ASIST[a].toLowerCase() === s.toLowerCase()); return k || (s ? s.toLowerCase() : 'asistio'); }
   if (tipo === 'estado') return s.toLowerCase() === 'alta' ? 'alta' : 'activo';
   if (tipo === 'tipodoc') return /otro/i.test(s) ? 'externo' : 'propio';
+  if (tipo === 'fechas') return s.split('\n').map((x) => x.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)).filter(Boolean).map((m) => `${m[3]}-${('0' + m[2]).slice(-2)}-${('0' + m[1]).slice(-2)}`);
   if (tipo === 'items') return s.split('\n').map((x) => x.match(/(\d+)\s*x\s*(\d+)/i)).filter(Boolean).map((m) => ({ cod: m[1], cant: Number(m[2]) }));
   if (tipo === 'kb') return (parseInt(s.replace(/\D/g, ''), 10) || 0) * 1024;
   if (tipo === 'si') return s.toUpperCase() === 'SI';

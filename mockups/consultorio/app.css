@@ -333,6 +333,26 @@ body.bloqueado .cabecera, body.bloqueado .barra, body.bloqueado main { display: 
 .r-pie span { display: flex; align-items: center; gap: 1mm; min-width: 0; }
 .r-pie svg { width: 3.4mm; height: 3.4mm; flex: none; fill: none; stroke: #333; stroke-width: 1.6; }
 
+/* agenda */
+.semana { display: flex; align-items: center; gap: 6px; }
+.semana > .btn { width: 40px; padding: 0; border-radius: 50%; flex: none; }
+.dias { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.dia-sem { display: flex; flex-direction: column; align-items: center; padding: 6px 0 4px; border-radius: var(--r-chico); text-decoration: none; color: var(--tinta-2); border: 1px solid transparent; }
+.dia-sem span { font-size: 11.5px; font-weight: 500; }
+.dia-sem b { font-size: 17px; font-weight: 600; color: var(--tinta); line-height: 1.3; }
+.dia-sem i { font-style: normal; color: var(--acento); font-size: 12px; line-height: .8; min-height: 10px; letter-spacing: 1px; }
+.dia-sem.hoy b { color: var(--acento); }
+.dia-sem.si { background: var(--acento-suave); border-color: var(--acento-2); }
+.dia-titulo { font-size: 21px; }
+.ocurrencia .hora { min-width: 46px; font-size: 13.5px; font-weight: 600; color: var(--tinta); line-height: 1.25; }
+.ocurrencia .hora small { display: block; font-size: 11.5px; font-weight: 400; color: var(--tenue); }
+.ocurrencia .sub svg.ic { width: 14px; height: 14px; color: var(--tenue); }
+.ocurrencia.hecha .nom { text-decoration: line-through; opacity: .6; }
+.ocurrencia .rapido { display: flex; gap: 6px; padding: 0 16px 12px 74px; flex-wrap: wrap; }
+.ocurrencia .rapido .chip { min-height: 32px; font-size: 12.5px; }
+.av-alerta { background: var(--aviso-suave); color: var(--aviso-tinta); }
+.av svg.ic { width: 18px; height: 18px; }
+
 /* ---------- compu ---------- */
 @media (min-width: 960px) {
   body { padding-left: 260px; }

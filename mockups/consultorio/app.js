@@ -25,6 +25,9 @@
   const CODIGOS = [{ cod: '450105', cant: 8 }, { cod: '450102', cant: 1 }];
   const POR_HOJA = 4; // recetarios por hoja A4, para cortar
   const LOGO_RECETARIO = 'logo-recetario.jpg'; // va solo en el recetario impreso
+  // Agenda: avisos que se ofrecen (minutos antes; '' = sin aviso) y duración por defecto de un turno nuevo.
+  const AVISOS = [['', 'Sin aviso'], ['0', 'A la hora'], ['15', '15 minutos antes'], ['30', '30 minutos antes'], ['60', '1 hora antes'], ['1440', '1 día antes']];
+  const DUR_DEFECTO = 45;
   const TIPOS_DOC = { propio: 'Mis informes', externo: 'De otros profesionales' };
   const MAX_MB = 25;              // por archivo (Apps Script recibe hasta ~50 MB por pedido)
   const FOTO_MAX = 2000;          // las fotos se achican a 2000 px de lado y JPEG 82 %
@@ -58,6 +61,8 @@
     mail: '<path d="M3 6h18v12H3zM3 6l9 7 9-7"/>', izq: '<path d="M15 5l-7 7 7 7"/>', der: '<path d="M9 5l7 7-7 7"/>',
     clip: '<path d="M16 7l-7.5 7.5a2 2 0 0 0 3 3L19 10a4 4 0 0 0-6-6l-7.5 7.5a6 6 0 0 0 8.5 8.5L20 14"/>',
     receta: '<path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h3"/>', imprimir: '<path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z"/>',
+    agenda: '<path d="M4 6h16v14H4zM4 10h16M8 3v5M16 3v5"/>', campana: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0"/>',
+    reloj: '<path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2"/>', repetir: '<path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"/>',
     word: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M8.5 12l1.2 5 1.3-4 1.3 4 1.2-5"/>',
   };
   const ic = (n) => `<svg class="ic" viewBox="0 0 24 24">${ICONOS[n]}</svg>`;
@@ -136,7 +141,7 @@
   let llave = null, sal = null;   // CryptoKey y sal del cofre
   let db = null, conexion = null, cola = [];
 
-  function vacio() { return { pacientes: [], sesiones: [], documentos: [], solicitudes: [], hoja: [], plantillas: [], borrador: null, meta: { creado: new Date().toISOString(), respaldo: null } }; }
+  function vacio() { return { pacientes: [], sesiones: [], documentos: [], solicitudes: [], hoja: [], agenda: [], plantillas: [], borrador: null, meta: { creado: new Date().toISOString(), respaldo: null } }; }
   let cadena = Promise.resolve();
   function guardar() {
     if (!llave) return cadena;
@@ -324,7 +329,7 @@
     } finally { sincronizando = false; }
   }
   function aplicarEstado(r) {
-    db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.solicitudes = r.solicitudes || []; db.plantillas = r.plantillas || [];
+    db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.solicitudes = r.solicitudes || []; db.agenda = r.agenda || []; db.plantillas = r.plantillas || [];
     if (r.perfil && r.perfil.nombre) {
       const distinto = Object.keys(PERFIL_VACIO).some((k) => String(r.perfil[k] || '') !== String(perfil[k] || ''));
       if (distinto) guardarPerfil(r.perfil, false);
@@ -369,6 +374,7 @@
             // Planilla nueva y datos en este dispositivo: se suben.
             locales.pacientes.forEach((p) => cola.push({ op: 'paciente', p: datosPaciente(p) }));
             locales.sesiones.forEach((s) => cola.push({ op: 'sesion', s }));
+            (db.agenda || []).forEach((a) => cola.push({ op: 'agenda', a }));
             version++; guardar(); sincronizar();
             aviso(`Conectado. Subiendo ${locales.pacientes.length} pacientes a la planilla…`);
           } else {
@@ -462,7 +468,7 @@
   }
   // La copia sale cifrada con el PIN actual: sin el PIN no se puede abrir.
   async function guardarCopia() {
-    const c = await cifrar({ pacientes: db.pacientes, sesiones: db.sesiones, documentos: db.documentos, solicitudes: db.solicitudes }, llave, sal, ITER);
+    const c = await cifrar({ pacientes: db.pacientes, sesiones: db.sesiones, documentos: db.documentos, solicitudes: db.solicitudes, agenda: db.agenda }, llave, sal, ITER);
     const blob = new Blob([JSON.stringify({ app: 'consultorio', ...c })], { type: 'application/json' });
     if (await entregar(blob, `consultorio-copia-${fechaArchivo()}.json`)) { db.meta.respaldo = new Date().toISOString(); guardar(); render(); }
   }
@@ -479,10 +485,11 @@
         try {
           const k = await derivar($('#rc-pin', hoja).value, deB64(c.sal), c.iter || ITER);
           const d = await descifrar(c, k);
-          db.pacientes = d.pacientes || []; db.sesiones = d.sesiones || []; db.documentos = d.documentos || []; db.solicitudes = d.solicitudes || [];
+          db.pacientes = d.pacientes || []; db.sesiones = d.sesiones || []; db.documentos = d.documentos || []; db.solicitudes = d.solicitudes || []; db.agenda = d.agenda || [];
           db.pacientes.forEach((p) => enviar({ op: 'paciente', p: datosPaciente(p) }));
           db.sesiones.forEach((s) => enviar({ op: 'sesion', s }));
           db.solicitudes.forEach((x) => enviar({ op: 'solicitud', s: x }));
+          db.agenda.forEach((a) => enviar({ op: 'agenda', a }));
           guardar(); cerrar(); ir('#/'); aviso(`Copia recuperada: ${db.pacientes.length} pacientes.`);
         } catch (e) { $('#rc-msj', hoja).textContent = 'PIN incorrecto.'; }
       };
@@ -525,6 +532,7 @@
     if (ruta === 'pacientes') return vPacientes(partes[1]);
     if (ruta === 'p') return vFicha(partes[1]);
     if (ruta === 'sesiones') return vSesiones(partes[1]);
+    if (ruta === 'agenda') return vAgenda(partes[1]);
     if (ruta === 'ajustes') return vAjustes();
     if (ruta === 'conectar') { let pre = null; try { pre = JSON.parse(atob((partes[1] || '').replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { /* link roto */ } history.replaceState(null, '', '#/'); vInicio(); hojaConectar(pre); return; }
     return vInicio();
@@ -557,7 +565,8 @@
     const delMes = validas(db.sesiones).filter((s) => mesDe(s.fecha) === mes);
     const asistidas = delMes.filter((s) => s.estado === 'asistio').length;
     const faltas = delMes.length - asistidas;
-    const deHoy = validas(db.sesiones).filter((s) => s.fecha === hoyISO());
+    const turnosHoy = ocurrenciasDia(hoyISO());
+    const deHoy = validas(db.sesiones).filter((s) => s.fecha === hoyISO() && !(s.turno && turnosHoy.some((o) => o.a.id === s.turno)));
     const ultimas = validas(db.sesiones).sort((a, b) => b.fecha.localeCompare(a.fecha) || String(b.creado).localeCompare(String(a.creado))).slice(0, 8);
     const rev = paraRevisar().length;
     const hora = new Date().getHours();
@@ -580,8 +589,8 @@
       </div>
       <div class="dos-col">
         <section class="caja">
-          <div class="caja-cab"><span class="etq">Hoy · ${fmtDia(hoyISO())}</span><button class="btn-texto chico" data-accion="sesion">${ic('mas')}Anotar</button></div>
-          ${deHoy.length ? `<ul class="lista">${deHoy.map((s) => sesionHTML(s, true)).join('')}</ul>` : '<p class="vacio chico">Todavía no anotaste sesiones hoy.</p>'}
+          <div class="caja-cab"><span class="etq">Hoy · ${fmtDia(hoyISO())}</span><a class="btn-texto chico" href="#/agenda">${ic('agenda')}Agenda</a></div>
+          ${turnosHoy.length || deHoy.length ? `<ul class="lista">${turnosHoy.map((o) => ocurrenciaHTML(o)).join('')}${deHoy.map((s) => sesionHTML(s, true)).join('')}</ul>` : '<p class="vacio chico">No tenés turnos hoy.</p>'}
         </section>
         <section class="caja">
           <div class="caja-cab"><span class="etq">Últimas sesiones</span><a class="btn-texto chico" href="#/sesiones">Ver todas</a></div>
@@ -683,6 +692,10 @@
             ${(p.equipo || []).length ? `<ul class="lista">${p.equipo.map((c) => `<li class="contacto"><span class="txt"><span class="nom">${esc(c.nombre || c.rol)}</span><span class="sub">${esc([c.nombre ? c.rol : '', c.contacto].filter(Boolean).join(' · '))}</span></span><span class="fila">${telLinks(c.contacto)}</span></li>`).join('')}</ul>` : '<p class="vacio chico">Sin contactos cargados.</p>'}
           </section>
           <section class="caja">
+            <div class="caja-cab"><span class="etq">Próximos turnos</span><button class="btn-texto chico" data-accion="turno">${ic('mas')}Nuevo</button></div>
+            ${(() => { const prox = proximosDe(p.id, 4); return prox.length ? `<ul class="lista">${prox.map((o) => ocurrenciaHTML(o, true)).join('')}</ul>` : '<p class="vacio chico">Sin turnos agendados.</p>'; })()}
+          </section>
+          <section class="caja">
             <div class="caja-cab"><span class="etq">Solicitudes a ${esc(p.os || 'la obra social')}</span><button class="btn-texto chico" data-accion="solicitud">${ic('mas')}Nueva</button></div>
             ${solicitudesDe(p.id).length ? `<ul class="lista">${solicitudesDe(p.id).map(solicitudHTML).join('')}</ul>` : '<p class="vacio chico">El recetario con los códigos y las sesiones, listo para imprimir y firmar.</p>'}
           </section>
@@ -733,6 +746,199 @@
       ${est}</button></li>`;
   }
 
+  /* ------------------------------------------------------------ agenda */
+  const sumarDias = (iso, n) => { const d = deISO(iso); d.setDate(d.getDate() + n); return isoDe(d); };
+  const lunesDe = (iso) => { const d = deISO(iso); return sumarDias(iso, -((d.getDay() + 6) % 7)); };
+  const finTurno = (a) => { const [h, m] = (a.hora || '00:00').split(':').map(Number); const t = h * 60 + m + (Number(a.dur) || 0); return `${dos(Math.floor(t / 60) % 24)}:${dos(t % 60)}`; };
+  const vigentes = () => (db.agenda || []).filter((a) => !a.anulado);
+  // ¿El turno (o alerta) cae en esa fecha? Semanal: mismo día de la semana desde su fecha, hasta "hasta", sin las excepciones.
+  function caeEn(a, iso) {
+    if (a.repite !== 'semanal') return a.fecha === iso;
+    if (iso < a.fecha || (a.hasta && iso > a.hasta) || (a.excepciones || []).includes(iso)) return false;
+    return Math.round((deISO(iso) - deISO(a.fecha)) / 864e5) % 7 === 0;
+  }
+  const ocurrenciasDia = (iso) => vigentes().filter((a) => caeEn(a, iso)).map((a) => ({ a, fecha: iso })).sort((x, y) => (x.a.hora || '').localeCompare(y.a.hora || ''));
+  function proximosDe(pid, n) {
+    const r = []; const hoy = hoyISO();
+    for (let i = 0; i < 120 && r.length < n; i++) { const f = sumarDias(hoy, i); vigentes().filter((a) => a.pid === pid && caeEn(a, f)).forEach((a) => r.push({ a, fecha: f })); }
+    return r.slice(0, n);
+  }
+  const sesionDeTurno = (o) => db.sesiones.find((s) => s.turno === o.a.id && s.fecha === o.fecha && !s.anulada);
+  const tituloTurno = (a) => { if (a.tipo === 'alerta') return a.titulo; const p = a.pid && paciente(a.pid); return p ? `Sesión · ${nombreCompleto(p)}` : a.titulo || 'Turno'; };
+
+  function ocurrenciaHTML(o, conFecha) {
+    const { a } = o;
+    const p = a.pid && paciente(a.pid);
+    const ses = a.tipo === 'turno' && p ? sesionDeTurno(o) : null;
+    const pasado = o.fecha <= hoyISO();
+    const estado = ses ? `<span class="badge ${ses.estado === 'asistio' ? 'b-ok' : 'b-aviso'}">${ASIST[ses.estado].toLowerCase()}</span>`
+      : a.tipo === 'alerta' ? (a.hecha ? '<span class="badge b-ok">hecha</span>' : '') : '';
+    const rapido = !ses && pasado && a.tipo === 'turno' && p ? `<span class="rapido">${Object.entries(ASIST).map(([k, t]) => `<button type="button" class="chip" data-marcar="${k}" data-ag="${a.id}" data-f="${o.fecha}">${t}</button>`).join('')}</span>` : '';
+    return `<li class="ocurrencia${a.tipo === 'alerta' ? ' es-alerta' : ''}${a.hecha ? ' hecha' : ''}"><button class="item" data-ag="${a.id}" data-f="${o.fecha}">
+      <span class="hora mono">${conFecha ? `${fmtDia(o.fecha)}<br>` : ''}${esc(a.hora || '')}${a.tipo === 'turno' && a.dur ? `<small>${finTurno(a)}</small>` : ''}</span>
+      ${a.tipo === 'alerta' ? `<span class="av av-alerta">${ic('campana')}</span>` : p ? avatar(p) : `<span class="av av-3">${ic('agenda')}</span>`}
+      <span class="txt"><span class="nom">${esc(p ? nombreLista(p) : a.titulo || 'Turno')}</span>
+        <span class="sub">${a.repite === 'semanal' ? `${ic('repetir')}cada ${DIAS_LARGOS[deISO(a.fecha).getDay()].toLowerCase()}` : ''}${a.aviso !== '' && a.aviso != null ? `${ic('campana')}${esc((AVISOS.find((x) => x[0] === String(a.aviso)) || ['', `${a.aviso} min antes`])[1].toLowerCase())}` : ''}${a.nota ? ` · ${esc(a.nota)}` : ''}</span></span>
+      ${estado}</button>${rapido}</li>`;
+  }
+
+  function vAgenda(diaRuta) {
+    titulo('Agenda');
+    const dia = /^\d{4}-\d{2}-\d{2}$/.test(diaRuta || '') ? diaRuta : hoyISO();
+    const lunes = lunesDe(dia);
+    const semana = Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i));
+    const lista = ocurrenciasDia(dia);
+    const sueltas = validas(db.sesiones).filter((s) => s.fecha === dia && !(s.turno && lista.some((o) => o.a.id === s.turno)));
+    vista.innerHTML = `
+      <div class="fila entre"><a class="btn-texto chico" href="#/sesiones">${ic('sesion')}Sesiones del mes</a>${dia !== hoyISO() ? `<a class="btn btn-chico" href="#/agenda">Hoy</a>` : ''}</div>
+      <div class="semana">
+        <a class="btn" href="#/agenda/${sumarDias(lunes, -7)}" aria-label="Semana anterior">${ic('izq')}</a>
+        <div class="dias">${semana.map((f) => { const n = ocurrenciasDia(f).length; const d = deISO(f); return `<a class="dia-sem${f === dia ? ' si' : ''}${f === hoyISO() ? ' hoy' : ''}" href="#/agenda/${f}"><span>${DIAS[d.getDay()]}</span><b>${d.getDate()}</b><i>${n ? '•'.repeat(Math.min(n, 3)) : ''}</i></a>`; }).join('')}</div>
+        <a class="btn" href="#/agenda/${sumarDias(lunes, 7)}" aria-label="Semana siguiente">${ic('der')}</a>
+      </div>
+      <div class="fila entre"><h2 class="dia-titulo">${DIAS_LARGOS[deISO(dia).getDay()]} ${fmtLarga(dia)}</h2></div>
+      <section class="caja">
+        ${lista.length || sueltas.length ? `<ul class="lista">${lista.map((o) => ocurrenciaHTML(o)).join('')}${sueltas.map((x) => sesionHTML(x, true)).join('')}</ul>` : '<p class="vacio">Nada agendado este día.</p>'}
+      </section>
+      <div class="acciones">
+        <button class="btn btn-acento btn-grande" data-accion="turno" data-fecha="${dia}">${ic('agenda')}Nuevo turno</button>
+        <button class="btn btn-grande" data-accion="alerta" data-fecha="${dia}">${ic('campana')}Nueva alerta</button>
+      </div>
+      ${conexion ? '<p class="chico tenue">Los turnos y alertas se copian a tu Google Calendar, en el calendario "Consultorio", con el aviso que elijas.</p>' : '<p class="chico tenue">Conectá la planilla para que los turnos y alertas te avisen desde Google Calendar.</p>'}`;
+  }
+
+  function guardarAgenda(a) {
+    db.agenda = db.agenda || [];
+    a.titulo = tituloTurno(a);
+    const i = db.agenda.findIndex((x) => x.id === a.id);
+    if (i >= 0) db.agenda[i] = a; else db.agenda.push(a);
+    enviar({ op: 'agenda', a });
+    guardar();
+  }
+  const opcionesAviso = (v) => AVISOS.map(([k, t]) => `<option value="${k}"${String(v ?? '') === k ? ' selected' : ''}>${t}</option>`).join('');
+
+  // Turno nuevo o cambiar uno. o = { a, fecha } si se abre desde un día puntual de un turno que se repite.
+  function hojaTurno(o, pre = {}) {
+    const a = o ? o.a : null;
+    const nuevo = !a;
+    const conPac = nuevo ? pre.pid !== '' : !!a.pid;
+    const ultimo = (pid) => (db.agenda || []).filter((x) => x.tipo === 'turno' && (!pid || x.pid === pid)).sort((x, y) => String(y.creado).localeCompare(String(x.creado)))[0];
+    const base = a || { tipo: 'turno', pid: pre.pid || '', fecha: pre.fecha || hoyISO(), hora: '', dur: (ultimo(pre.pid) || {}).dur || DUR_DEFECTO, repite: '', hasta: '', aviso: (ultimo() || { aviso: '60' }).aviso, nota: '', titulo: '' };
+    const fechaVista = o ? o.fecha : base.fecha;
+    abrirHoja(`
+      <div class="fila entre"><h3>${nuevo ? 'Nuevo turno' : 'Turno'}</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      <div class="opciones dos"><button type="button" class="chip${conPac ? ' si' : ''}" data-con="1">Con un paciente</button><button type="button" class="chip${conPac ? '' : ' si'}" data-con="0">Otro (reunión, entrevista…)</button></div>
+      <label class="campo" id="t-pac-c" ${conPac ? '' : 'hidden'}><span class="etq">Paciente</span><select class="entrada" id="t-pac"><option value="">Elegí un paciente</option>${activos().sort(ordenNombre).map((x) => `<option value="${x.id}"${x.id === base.pid ? ' selected' : ''}>${esc(nombreLista(x))}</option>`).join('')}</select></label>
+      <label class="campo" id="t-tit-c" ${conPac ? 'hidden' : ''}><span class="etq">Qué es</span><input class="entrada" id="t-tit" value="${esc(base.pid ? '' : base.titulo)}" placeholder="Reunión con la escuela de…"></label>
+      <div class="form-grid">
+        <label class="campo"><span class="etq">Fecha</span><input class="entrada" type="date" id="t-fecha" value="${fechaVista}"></label>
+        <label class="campo"><span class="etq">Hora</span><input class="entrada" type="time" id="t-hora" value="${esc(base.hora)}"></label>
+        <label class="campo"><span class="etq">Duración (minutos)</span><input class="entrada" type="number" min="5" max="480" step="5" inputmode="numeric" id="t-dur" value="${esc(base.dur)}"></label>
+        <label class="campo"><span class="etq">Aviso</span><select class="entrada" id="t-aviso">${opcionesAviso(base.aviso)}</select></label>
+      </div>
+      <label class="opcion"><input type="checkbox" id="t-rep" ${base.repite === 'semanal' ? 'checked' : ''}><span>Se repite todas las semanas</span></label>
+      <label class="campo" id="t-hasta-c" ${base.repite === 'semanal' ? '' : 'hidden'}><span class="etq">Hasta (opcional)</span><input class="entrada" type="date" id="t-hasta" value="${esc(base.hasta)}"></label>
+      <label class="campo"><span class="etq">Nota</span><input class="entrada" id="t-nota" value="${esc(base.nota)}"></label>
+      <p class="chico alerta-txt" id="t-msj" role="status"></p>
+      <button class="btn btn-oscuro btn-grande btn-bloque" data-ok>${nuevo ? 'Agendar' : 'Guardar cambios'}</button>
+      ${nuevo ? '' : `<div class="acciones">${a.pid && fechaVista <= hoyISO() && !sesionDeTurno(o) ? '<button class="btn" data-ses>Anotar la sesión</button>' : '<span></span>'}<button class="btn btn-peligro" data-cancelar>Cancelar turno</button></div>`}`, (hoja, cerrar) => {
+      let con = conPac;
+      $$('[data-con]', hoja).forEach((c) => { c.onclick = () => { con = c.dataset.con === '1'; $$('[data-con]', hoja).forEach((x) => x.classList.toggle('si', x === c)); $('#t-pac-c', hoja).hidden = !con; $('#t-tit-c', hoja).hidden = con; }; });
+      $('#t-rep', hoja).onchange = (e) => { $('#t-hasta-c', hoja).hidden = !e.target.checked; };
+      $('#t-pac', hoja).onchange = (e) => { const u = ultimo(e.target.value); if (u && nuevo) { $('#t-dur', hoja).value = u.dur; if (u.hora && !$('#t-hora', hoja).value) $('#t-hora', hoja).value = u.hora; } };
+      const leer = () => {
+        const d = { tipo: 'turno', pid: con ? $('#t-pac', hoja).value : '', titulo: con ? '' : $('#t-tit', hoja).value.trim(), fecha: $('#t-fecha', hoja).value, hora: $('#t-hora', hoja).value, dur: String(parseInt($('#t-dur', hoja).value, 10) || DUR_DEFECTO), aviso: $('#t-aviso', hoja).value, repite: $('#t-rep', hoja).checked ? 'semanal' : '', hasta: $('#t-rep', hoja).checked ? $('#t-hasta', hoja).value : '', nota: $('#t-nota', hoja).value.trim() };
+        const msj = $('#t-msj', hoja);
+        if (con && !d.pid) { msj.textContent = 'Elegí el paciente.'; return null; }
+        if (!con && !d.titulo) { msj.textContent = 'Escribí qué es.'; return null; }
+        if (!d.fecha || !d.hora) { msj.textContent = 'Falta la fecha o la hora.'; return null; }
+        if (d.hasta && d.hasta < d.fecha) { msj.textContent = 'La fecha "hasta" es anterior al turno.'; return null; }
+        return d;
+      };
+      $('[data-ok]', hoja).onclick = () => {
+        const d = leer(); if (!d) return;
+        if (nuevo) { guardarAgenda(Object.assign({ id: uid(), excepciones: [], hecha: false, anulado: false, creado: new Date().toISOString() }, d)); cerrar(); ir(`#/agenda/${d.fecha}`); aviso(d.repite ? 'Turno agendado todas las semanas.' : 'Turno agendado.'); return; }
+        if (a.repite === 'semanal') { cerrar(); preguntarAlcance('Cambiar el turno', (alcance) => cambiarSerie(a, fechaVista, d, alcance)); return; }
+        guardarAgenda(Object.assign({}, a, d)); cerrar(); render(); aviso('Turno cambiado.');
+      };
+      const ses = $('[data-ses]', hoja);
+      if (ses) ses.onclick = () => { const p = paciente(a.pid); cerrar(); hojaSesion(p, null, { fecha: fechaVista, turno: a.id }); };
+      const can = $('[data-cancelar]', hoja);
+      if (can) can.onclick = () => {
+        cerrar();
+        if (a.repite === 'semanal') preguntarAlcance('Cancelar el turno', (alcance) => cancelarSerie(a, fechaVista, alcance));
+        else confirmar('Cancelar turno', 'Se saca de la agenda y de tu Google Calendar. Queda en el registro.', 'Cancelar turno', () => { guardarAgenda(Object.assign({}, a, { anulado: true })); render(); aviso('Turno cancelado.'); });
+      };
+    });
+  }
+  function preguntarAlcance(tituloH, fn) {
+    abrirHoja(`<div class="fila entre"><h3>${tituloH}</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      <p>Este turno se repite todas las semanas.</p>
+      <button class="btn btn-grande btn-bloque" data-al="uno">Solo este día</button>
+      <button class="btn btn-oscuro btn-grande btn-bloque" data-al="siguientes">Este y los que siguen</button>`, (hoja, cerrar) => {
+      $$('[data-al]', hoja).forEach((b) => { b.onclick = () => { cerrar(); fn(b.dataset.al); }; });
+    });
+  }
+  function cambiarSerie(a, dia, d, alcance) {
+    if (alcance === 'uno') {
+      guardarAgenda(Object.assign({}, a, { excepciones: [...new Set([...(a.excepciones || []), dia])] }));
+      guardarAgenda(Object.assign({ id: uid(), excepciones: [], hecha: false, anulado: false, creado: new Date().toISOString() }, d, { repite: '', hasta: '' }));
+    } else if (dia <= a.fecha) {
+      guardarAgenda(Object.assign({}, a, d, { excepciones: (a.excepciones || []).filter((f) => f >= d.fecha) }));
+    } else {
+      guardarAgenda(Object.assign({}, a, { hasta: sumarDias(dia, -1) }));
+      guardarAgenda(Object.assign({ id: uid(), hecha: false, anulado: false, creado: new Date().toISOString() }, d, { excepciones: (a.excepciones || []).filter((f) => f > dia), hasta: d.hasta || a.hasta || '' }));
+    }
+    render(); aviso('Turno cambiado.');
+  }
+  function cancelarSerie(a, dia, alcance) {
+    if (alcance === 'uno') guardarAgenda(Object.assign({}, a, { excepciones: [...new Set([...(a.excepciones || []), dia])] }));
+    else if (dia <= a.fecha) guardarAgenda(Object.assign({}, a, { anulado: true }));
+    else guardarAgenda(Object.assign({}, a, { hasta: sumarDias(dia, -1) }));
+    render(); aviso(alcance === 'uno' ? 'Turno de ese día cancelado.' : 'Turnos cancelados desde ese día.');
+  }
+
+  function hojaAlerta(a, pre = {}) {
+    const nueva = !a;
+    const v = a || { titulo: '', fecha: pre.fecha || hoyISO(), hora: '09:00', aviso: '0', nota: '' };
+    abrirHoja(`
+      <div class="fila entre"><h3>${nueva ? 'Nueva alerta' : 'Alerta'}</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      <label class="campo"><span class="etq">Qué te recuerdo</span><input class="entrada" id="al-tit" value="${esc(v.titulo)}" placeholder="Mandar el informe a la escuela"></label>
+      <div class="form-grid">
+        <label class="campo"><span class="etq">Fecha</span><input class="entrada" type="date" id="al-fecha" value="${v.fecha}"></label>
+        <label class="campo"><span class="etq">Hora</span><input class="entrada" type="time" id="al-hora" value="${esc(v.hora)}"></label>
+      </div>
+      <label class="campo"><span class="etq">Aviso</span><select class="entrada" id="al-aviso">${opcionesAviso(v.aviso)}</select></label>
+      <label class="campo"><span class="etq">Nota</span><input class="entrada" id="al-nota" value="${esc(v.nota)}"></label>
+      <p class="chico alerta-txt" id="al-msj" role="status"></p>
+      <button class="btn btn-oscuro btn-grande btn-bloque" data-ok>${nueva ? 'Crear alerta' : 'Guardar cambios'}</button>
+      ${nueva ? '' : `<div class="acciones"><button class="btn" data-hecha>${a.hecha ? 'Marcar pendiente' : 'Ya está hecha'}</button><button class="btn btn-peligro" data-borrar>Borrar alerta</button></div>`}`, (hoja, cerrar) => {
+      $('[data-ok]', hoja).onclick = () => {
+        const d = { tipo: 'alerta', pid: '', titulo: $('#al-tit', hoja).value.trim(), fecha: $('#al-fecha', hoja).value, hora: $('#al-hora', hoja).value, aviso: $('#al-aviso', hoja).value, nota: $('#al-nota', hoja).value.trim(), dur: '15', repite: '', hasta: '' };
+        if (!d.titulo) { $('#al-msj', hoja).textContent = 'Escribí qué te recuerdo.'; return; }
+        if (!d.fecha || !d.hora) { $('#al-msj', hoja).textContent = 'Falta la fecha o la hora.'; return; }
+        guardarAgenda(nueva ? Object.assign({ id: uid(), excepciones: [], hecha: false, anulado: false, creado: new Date().toISOString() }, d) : Object.assign({}, a, d));
+        cerrar(); if (ruta === 'agenda') ir(`#/agenda/${d.fecha}`); else render(); aviso(nueva ? 'Alerta creada.' : 'Alerta guardada.');
+      };
+      const h = $('[data-hecha]', hoja);
+      if (h) h.onclick = () => { guardarAgenda(Object.assign({}, a, { hecha: !a.hecha })); cerrar(); render(); };
+      const b = $('[data-borrar]', hoja);
+      if (b) b.onclick = () => { cerrar(); confirmar('Borrar alerta', 'Se saca de la agenda y de tu Google Calendar.', 'Borrar', () => { guardarAgenda(Object.assign({}, a, { anulado: true })); render(); }); };
+      if (nueva) setTimeout(() => $('#al-tit', hoja).focus(), 80);
+    });
+  }
+
+  function hojaNuevo() {
+    abrirHoja(`<div class="fila entre"><h3>¿Qué querés cargar?</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      <ul class="lista caja">
+        <li><button class="item" data-n="sesion">${ic('sesion')}<span class="txt"><span class="nom">Anotar sesión</span><span class="sub">Asistencia y nota de evolución</span></span></button></li>
+        <li><button class="item" data-n="turno">${ic('agenda')}<span class="txt"><span class="nom">Nuevo turno</span><span class="sub">Agendar una sesión o una reunión</span></span></button></li>
+        <li><button class="item" data-n="alerta">${ic('campana')}<span class="txt"><span class="nom">Nueva alerta</span><span class="sub">Un recordatorio con aviso en el celular</span></span></button></li>
+      </ul>`, (hoja, cerrar) => {
+      $$('[data-n]', hoja).forEach((b) => { b.onclick = () => { cerrar(); const p = ruta === 'p' ? paciente(vista.dataset.pid) : null; if (b.dataset.n === 'sesion') hojaSesion(p); else if (b.dataset.n === 'turno') hojaTurno(null, { pid: p ? p.id : undefined, fecha: ruta === 'agenda' ? ($('[data-accion="turno"]') || {}).dataset?.fecha : undefined }); else hojaAlerta(null); }; });
+    });
+  }
+
   /* ------------------------------------------------------------ sesiones del mes */
   function vSesiones(mesRuta) {
     titulo('Sesiones');
@@ -749,6 +955,7 @@
     const dias = []; for (const s of delMes) { const d = dias[dias.length - 1]; if (d && d.f === s.fecha) d.l.push(s); else dias.push({ f: s.fecha, l: [s] }); }
     const tot = { a: val.filter((s) => s.estado === 'asistio').length, f: val.filter((s) => s.estado === 'falto').length, v: val.filter((s) => s.estado === 'aviso').length };
     vista.innerHTML = `
+      <div class="fila entre solo-cel"><a class="btn-texto chico" href="#/agenda">${ic('izq')}Agenda</a></div>
       <div class="mes"><a class="btn" href="#/sesiones/${sumarMes(mes, -1)}" aria-label="Mes anterior">${ic('izq')}</a><h2>${fmtMes(mes)}</h2><a class="btn" href="#/sesiones/${sumarMes(mes, 1)}" aria-label="Mes siguiente">${ic('der')}</a></div>
       <div class="tablero tres">
         <div class="cuadro"><span class="etq">Asistió</span><b>${tot.a}</b></div>
@@ -870,11 +1077,12 @@
   }
 
   // Anotar o corregir una sesión. Lo que se escribe queda como borrador (cifrado) hasta guardar.
-  function hojaSesion(p, s) {
+  // pre: { fecha, turno } cuando la sesión sale de un turno de la agenda.
+  function hojaSesion(p, s, pre) {
     if (!p) { if (!activos().length) { aviso('Primero cargá un paciente.'); return; } hojaElegirPaciente((x) => hojaSesion(x)); return; }
     const nueva = !s;
     const b = db.borrador && db.borrador.pid === p.id && (db.borrador.sid || null) === (s ? s.id : null) ? db.borrador : null;
-    const v = Object.assign({ fecha: hoyISO(), estado: 'asistio', nota: '' }, s || {}, b || {});
+    const v = Object.assign({ fecha: (pre && pre.fecha) || hoyISO(), estado: 'asistio', nota: '' }, s || {}, b || {});
     abrirHoja(`
       <div class="fila entre"><h3>${nueva ? 'Anotar sesión' : 'Corregir sesión'}</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
       <p class="tinta-2"><b>${esc(nombreLista(p))}</b>${p.os ? ` · ${esc(p.os)}` : ''}</p>
@@ -893,7 +1101,7 @@
         const fecha = $('#s-fecha', hoja).value;
         if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) { aviso('Falta la fecha.'); return; }
         const ahora = new Date().toISOString();
-        const nuevaS = nueva ? { id: uid(), pid: p.id, creado: ahora, anulada: false, editado: '' } : Object.assign({}, s, { editado: ahora });
+        const nuevaS = nueva ? { id: uid(), pid: p.id, creado: ahora, anulada: false, editado: '', turno: (pre && pre.turno) || '' } : Object.assign({}, s, { editado: ahora });
         Object.assign(nuevaS, { fecha, estado, nota: $('#s-nota', hoja).value.trim() });
         db.borrador = null;
         guardarSesion(nuevaS);
@@ -1260,6 +1468,22 @@
   /* ------------------------------------------------------------ eventos */
   document.addEventListener('click', (e) => {
     if (!llave) return;
+    const marcar = e.target.closest('[data-marcar]');
+    if (marcar) {
+      const a = db.agenda.find((x) => x.id === marcar.dataset.ag);
+      if (a) { guardarSesion({ id: uid(), pid: a.pid, fecha: marcar.dataset.f, estado: marcar.dataset.marcar, nota: '', anulada: false, creado: new Date().toISOString(), editado: '', turno: a.id }); render(); aviso(`Sesión anotada: ${ASIST[marcar.dataset.marcar].toLowerCase()}. Tocá el turno para agregar la nota.`); }
+      return;
+    }
+    const ag = e.target.closest('button[data-ag]');
+    if (ag && !e.target.closest('.hoja')) {
+      const a = db.agenda.find((x) => x.id === ag.dataset.ag);
+      if (a) {
+        const o = { a, fecha: ag.dataset.f };
+        const ses = a.tipo === 'turno' && a.pid ? sesionDeTurno(o) : null;
+        if (ses) hojaSesion(paciente(a.pid), ses); else if (a.tipo === 'alerta') hojaAlerta(a); else hojaTurno(o);
+      }
+      return;
+    }
     const sol = e.target.closest('[data-solid]');
     if (sol) { const x = db.solicitudes.find((y) => y.id === sol.dataset.solid); if (x) hojaSolicitud(paciente(x.pid) || { id: x.pid, apellido: x.paciente, nombre: '', os: x.os, afiliado: x.afiliado, dx: [] }, x); return; }
     const doc = e.target.closest('[data-did]');
@@ -1286,6 +1510,9 @@
       case 'cambiar-pin': hojaCambiarPIN(); break;
       case 'perfil': hojaPerfil(); break;
       case 'solicitud': if (p) hojaSolicitud(p); break;
+      case 'nuevo': hojaNuevo(); break;
+      case 'turno': hojaTurno(null, { pid: p ? p.id : undefined, fecha: b.dataset.fecha }); break;
+      case 'alerta': hojaAlerta(null, { fecha: b.dataset.fecha }); break;
       case 'imprimir-hoja': imprimirHoja(); break;
       case 'vaciar-hoja': confirmar('Vaciar la hoja', 'Se sacan las solicitudes de la hoja de impresión. Siguen guardadas en la ficha de cada paciente.', 'Vaciar', () => { db.hoja = []; guardar(); render(); }); break;
       case 'desconectar': hojaDesconectar(); break;
