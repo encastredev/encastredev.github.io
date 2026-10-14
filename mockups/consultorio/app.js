@@ -319,7 +319,7 @@
   }
 
   /* ------------------------------------------------ planilla de Google */
-  let version = 0, sincronizando = false, estadoSync = '', reintento;
+  let version = 0, enCurso = null, ultimoError = '', estadoSync = '', reintento;
   function enviar(op) {
     if (!conexion) return;
     cola.push(op); version++;
@@ -331,9 +331,19 @@
     if (!j.ok) throw new Error(j.error || 'Error de la planilla');
     return j;
   }
-  async function sincronizar() {
-    if (!llave || !conexion || sincronizando) return;
-    sincronizando = true; clearTimeout(reintento);
+  // Si ya hay un envío en curso, devuelve ese mismo (así quien espera, espera de verdad).
+  function sincronizar() {
+    if (!llave || !conexion) return Promise.resolve();
+    if (!enCurso) enCurso = enviarCola().finally(() => { enCurso = null; });
+    return enCurso;
+  }
+  // Antes de pedirle algo a la planilla (armar un informe, subir un archivo) espera a que no quede nada sin enviar.
+  async function vaciarCola() {
+    for (let k = 0; k < 5 && cola.length; k++) { await sincronizar(); if (cola.length && ultimoError) break; }
+    if (cola.length) throw new Error(ultimoError ? `No se pudo guardar en la planilla: ${ultimoError}` : 'Hay cambios sin enviar a la planilla. Revisá la conexión.');
+  }
+  async function enviarCola() {
+    clearTimeout(reintento);
     pintarSync(cola.length ? 'guardando' : estadoSync);
     const cx = conexion;
     try {
@@ -346,11 +356,12 @@
         if (r.pacientes && version === v0) aplicarEstado(r);
         break;
       }
-      pintarSync('ok');
+      ultimoError = ''; pintarSync('ok');
     } catch (e) {
+      ultimoError = e.message === 'Failed to fetch' ? 'no hay conexión' : e.message;
       pintarSync(e.message === 'Clave incorrecta' ? 'clave' : 'error');
       reintento = setTimeout(sincronizar, 30000);
-    } finally { sincronizando = false; }
+    }
   }
   function aplicarEstado(r) {
     db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.solicitudes = r.solicitudes || []; db.agenda = r.agenda || []; db.informes = unirInformes(r.informes || []); db.tests = r.tests || []; db.plantillas = r.plantillas || [];
@@ -1389,10 +1400,10 @@
     if (btn) { btn.disabled = true; btn.textContent = 'Armando el documento…'; }
     try {
       clearTimeout(tInforme); enviar({ op: 'informe', i: clonar(i) });
-      await sincronizar();
-      if (cola.length) throw new Error('Hay cambios sin enviar a la planilla. Revisá la conexión.');
+      await vaciarCola();
       const t = testDe(i.contenido.test);
       const r = await llamar(conexion, { generar: { id: i.id, plantilla: pl.id, titulo: `Informe${t ? ` ${t.nombre}` : ''} · ${nombreLista(p)} · ${fmtDMY(i.fecha).replace(/\//g, '-')}`, datos: datosInforme(p, i.fecha), cuerpo: bloquesInforme(i) } });
+      if (!r.informe) throw new Error('El script de la planilla está desactualizado: pegá el Codigo.gs nuevo y publicalo como nueva versión.');
       Object.assign(i, { estado: 'generado', docUrl: r.informe.docUrl, pdfUrl: r.informe.pdfUrl });
       db.documentos = db.documentos.filter((d) => d.id !== r.informe.docuId).concat([r.documento]);
       guardar(); render();
@@ -1489,8 +1500,7 @@
         const nomPl = (pl.find((x) => x.id === plantilla) || {}).nombre || 'Informe';
         ok.disabled = true; ok.textContent = 'Armando el documento…'; msj.textContent = '';
         try {
-          await sincronizar();
-          if (cola.length) throw new Error('Hay cambios sin enviar a la planilla. Revisá la conexión.');
+          await vaciarCola();
           const r = await llamar(conexion, { informe: { id: uid(), pid: p.id, plantilla, fecha, titulo: `Informe · ${nombreLista(p)} · ${fmtDMY(fecha).replace(/\//g, '-')}`, datos: datosInforme(p, fecha) } });
           db.documentos.push(r.documento); guardar();
           hoja.innerHTML = `<div class="fila entre"><h3>Informe listo</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
@@ -1538,8 +1548,7 @@
         if (!archivo) return;
         ok.disabled = true; ok.textContent = 'Subiendo…'; msj.textContent = '';
         try {
-          await sincronizar();
-          if (cola.length) throw new Error('Hay cambios sin enviar a la planilla. Revisá la conexión.');
+          await vaciarCola();
           const datos = await aBase64(archivo);
           const r = await llamar(conexion, { subir: { id: uid(), pid: p.id, tipo, titulo: titulo.value.trim() || archivo.name, autor: tipo === 'externo' ? $('#d-autor', hoja).value.trim() : '', fecha: $('#d-fecha', hoja).value || hoyISO(), nombre: archivo.name, mime: archivo.type, datos } });
           db.documentos.push(Object.assign(r.documento, { mime: archivo.type })); guardar();
