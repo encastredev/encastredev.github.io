@@ -165,7 +165,7 @@
   let llave = null, sal = null;   // CryptoKey y sal del cofre
   let db = null, conexion = null, cola = [];
 
-  function vacio() { return { pacientes: [], sesiones: [], documentos: [], solicitudes: [], hoja: [], agenda: [], informes: [], tests: [], plantillas: [], borrador: null, meta: { creado: new Date().toISOString(), respaldo: null } }; }
+  function vacio() { return { pacientes: [], sesiones: [], documentos: [], solicitudes: [], hoja: [], agenda: [], informes: [], tests: [], pedidos: [], supera: [], plantillas: [], borrador: null, meta: { creado: new Date().toISOString(), respaldo: null } }; }
   let cadena = Promise.resolve();
   function guardar() {
     if (!llave) return cadena;
@@ -364,7 +364,7 @@
     }
   }
   function aplicarEstado(r) {
-    db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.solicitudes = r.solicitudes || []; db.agenda = r.agenda || []; db.informes = unirInformes(r.informes || []); db.tests = r.tests || []; db.plantillas = r.plantillas || [];
+    db.pacientes = r.pacientes; db.sesiones = r.sesiones; db.documentos = r.documentos || []; db.solicitudes = r.solicitudes || []; db.agenda = r.agenda || []; db.informes = unirInformes(r.informes || []); db.tests = r.tests || []; db.pedidos = r.pedidos || []; db.supera = r.supera || []; db.plantillas = r.plantillas || [];
     if (r.perfil && r.perfil.nombre) {
       const distinto = Object.keys(PERFIL_VACIO).some((k) => String(r.perfil[k] || '') !== String(perfil[k] || ''));
       if (distinto) guardarPerfil(r.perfil, false);
@@ -509,7 +509,7 @@
   }
   // La copia sale cifrada con el PIN actual: sin el PIN no se puede abrir.
   async function guardarCopia() {
-    const c = await cifrar({ pacientes: db.pacientes, sesiones: db.sesiones, documentos: db.documentos, solicitudes: db.solicitudes, agenda: db.agenda, informes: db.informes, tests: db.tests }, llave, sal, ITER);
+    const c = await cifrar({ pacientes: db.pacientes, sesiones: db.sesiones, documentos: db.documentos, solicitudes: db.solicitudes, agenda: db.agenda, informes: db.informes, tests: db.tests, pedidos: db.pedidos, supera: db.supera }, llave, sal, ITER);
     const blob = new Blob([JSON.stringify({ app: 'consultorio', ...c })], { type: 'application/json' });
     if (await entregar(blob, `consultorio-copia-${fechaArchivo()}.json`)) { db.meta.respaldo = new Date().toISOString(); guardar(); render(); }
   }
@@ -526,13 +526,15 @@
         try {
           const k = await derivar($('#rc-pin', hoja).value, deB64(c.sal), c.iter || ITER);
           const d = await descifrar(c, k);
-          db.pacientes = d.pacientes || []; db.sesiones = d.sesiones || []; db.documentos = d.documentos || []; db.solicitudes = d.solicitudes || []; db.agenda = d.agenda || []; db.informes = d.informes || []; db.tests = d.tests || [];
+          db.pacientes = d.pacientes || []; db.sesiones = d.sesiones || []; db.documentos = d.documentos || []; db.solicitudes = d.solicitudes || []; db.agenda = d.agenda || []; db.informes = d.informes || []; db.tests = d.tests || []; db.pedidos = d.pedidos || []; db.supera = d.supera || [];
           db.pacientes.forEach((p) => enviar({ op: 'paciente', p: datosPaciente(p) }));
           db.sesiones.forEach((s) => enviar({ op: 'sesion', s }));
           db.solicitudes.forEach((x) => enviar({ op: 'solicitud', s: x }));
           db.agenda.forEach((a) => enviar({ op: 'agenda', a }));
           db.informes.forEach((i) => enviar({ op: 'informe', i }));
           db.tests.forEach((t) => enviar({ op: 'test', t }));
+          db.pedidos.forEach((x) => enviar({ op: 'pedido', x }));
+          db.supera.forEach((x) => enviar({ op: 'supera', x }));
           guardar(); cerrar(); ir('#/'); aviso(`Copia recuperada: ${db.pacientes.length} pacientes.`);
         } catch (e) { $('#rc-msj', hoja).textContent = 'PIN incorrecto.'; }
       };
@@ -578,6 +580,8 @@
     if (ruta === 'agenda') return vAgenda(partes[1]);
     if (ruta === 'informe') return vInforme(partes[1]);
     if (ruta === 'tests') return vTests(partes[1]);
+    if (ruta === 'pedidos') return vPedidos(partes[1]);
+    if (ruta === 'supera') return vSupera();
     if (ruta === 'ajustes') return vAjustes();
     if (ruta === 'conectar') { let pre = null; try { pre = JSON.parse(atob((partes[1] || '').replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { /* link roto */ } history.replaceState(null, '', '#/'); vInicio(); hojaConectar(pre); return; }
     return vInicio();
@@ -622,6 +626,10 @@
       <div class="buscador">${ic('buscar')}<input class="entrada" id="q-inicio" type="search" placeholder="Buscar paciente por nombre, DNI o escuela" autocomplete="off"></div>
       <ul class="lista caja" id="res-inicio" hidden></ul>
       ${hojaPendiente()}
+      <div class="tareas ips">
+        <a class="tarea" href="#/pedidos"><span class="tarea-ic menos">${ic('receta')}</span><span class="tarea-txt"><b>Pedidos mensuales IPS</b><span>${(() => { const n = pedidosDelMes(mesDe(hoyISO())); return n.length ? `${n.filter((x) => x.devolucion).length} de ${n.length} devueltos en ${MESES[new Date().getMonth()]}` : 'Entregas y devoluciones del mes'; })()}</span></span></a>
+        <a class="tarea" href="#/supera"><span class="tarea-ic menos">${ic('persona')}</span><span class="tarea-txt"><b>Supera entrevistas a padres IPS</b><span>${(db.supera || []).filter((x) => !x.quitado).length} en la lista</span></span></a>
+      </div>
       <div class="tareas">
         <button class="tarea" data-accion="sesion"><span class="tarea-ic mas">${ic('sesion')}</span><span class="tarea-txt"><b>Anotar sesión</b><span>Asistencia y nota de evolución</span></span></button>
         <button class="tarea" data-accion="nuevo-paciente"><span class="tarea-ic menos">${ic('persona')}</span><span class="tarea-txt"><b>Paciente nuevo</b><span>Cargar la ficha</span></span></button>
@@ -1221,6 +1229,130 @@
     });
   }
 
+  /* ------------------------------------------------------------ pedidos mensuales y supera entrevistas (IPS) */
+  const pedidosDelMes = (mes) => (db.pedidos || []).filter((x) => x.mes === mes && !x.quitado).sort((a, b) => a.paciente.localeCompare(b.paciente, 'es'));
+  function guardarLista(op, x) {
+    const k = op === 'pedido' ? 'pedidos' : 'supera';
+    db[k] = db[k] || [];
+    const i = db[k].findIndex((y) => y.id === x.id);
+    if (i >= 0) db[k][i] = x; else db[k].push(x);
+    enviar({ op, x });
+    guardar();
+  }
+  // Paciente: se elige de la lista o se escribe un nombre (por si no está cargado).
+  const campoPaciente = (id, valor) => `<label class="campo"><span class="etq">Paciente</span><input class="entrada" id="${id}" list="${id}-l" value="${esc(valor || '')}" placeholder="Apellido, Nombre" autocomplete="off"></label>
+    <datalist id="${id}-l">${activos().sort(ordenNombre).map((p) => `<option value="${esc(nombreLista(p))}">`).join('')}</datalist>`;
+  const pacientePorNombre = (n) => db.pacientes.find((p) => norm(nombreLista(p)) === norm(n));
+
+  function vPedidos(mesRuta) {
+    titulo('Pedidos mensuales IPS');
+    const mes = /^\d{4}-\d{2}$/.test(mesRuta || '') ? mesRuta : mesDe(hoyISO());
+    const lista = pedidosDelMes(mes);
+    const conSolicitud = [...new Set((db.solicitudes || []).filter((x) => !x.anulada && mesDe(x.fecha) === mes).map((x) => x.pid))].filter((pid) => !lista.some((y) => y.pid === pid));
+    vista.innerHTML = `
+      <div class="mes"><a class="btn" href="#/pedidos/${sumarMes(mes, -1)}" aria-label="Mes anterior">${ic('izq')}</a><h2>${fmtMes(mes)}</h2><a class="btn" href="#/pedidos/${sumarMes(mes, 1)}" aria-label="Mes siguiente">${ic('der')}</a></div>
+      <div class="tablero tres">
+        <div class="cuadro"><span class="etq">Pedidos</span><b>${lista.length}</b></div>
+        <div class="cuadro"><span class="etq">Entregados</span><b>${lista.filter((x) => x.entrega).length}</b></div>
+        <div class="cuadro${lista.some((x) => !x.devolucion) ? ' aviso' : ''}"><span class="etq">Devueltos</span><b>${lista.filter((x) => x.devolucion).length}</b></div>
+      </div>
+      ${conSolicitud.length ? `<div class="nota fila entre" style="flex-wrap:wrap"><span>${conSolicitud.length} ${conSolicitud.length === 1 ? 'paciente tiene' : 'pacientes tienen'} solicitud este mes y no ${conSolicitud.length === 1 ? 'está' : 'están'} en el cuadro.</span><button class="btn btn-chico" data-accion="pedidos-traer" data-mes="${mes}">Agregarlos</button></div>` : ''}
+      <section class="caja">
+        <div class="ped-fila ped-cab"><span class="etq">Nombre del paciente</span><span class="etq">Fecha de entrega</span><span class="etq">Devolución</span></div>
+        ${lista.length ? lista.map((x) => `<div class="ped-fila" data-ped="${x.id}">
+          <button class="ped-nom" data-accion="pedido-editar" data-id="${x.id}">${avatar(paciente(x.pid) || { id: x.id, nombre: x.paciente, apellido: '' })}<span>${esc(x.paciente)}${x.nota ? `<small>${esc(x.nota)}</small>` : ''}</span></button>
+          <input class="entrada entrada-chica" type="date" data-entrega value="${esc(x.entrega || '')}" aria-label="Fecha de entrega">
+          <label class="chip ped-si${x.devolucion ? ' si' : ''}"><input type="checkbox" data-dev ${x.devolucion ? 'checked' : ''}>SI${x.devolucion && x.fechaDev ? `<small>${fmtCorta(x.fechaDev)}</small>` : ''}</label>
+        </div>`).join('') : '<p class="vacio">Todavía no hay pedidos en este mes.</p>'}
+      </section>
+      <div class="acciones">
+        <button class="btn btn-acento btn-grande" data-accion="pedido-nuevo" data-mes="${mes}">${ic('mas')}Agregar paciente</button>
+        <button class="btn btn-grande" data-accion="pedidos-imprimir" data-mes="${mes}">${ic('imprimir')}Imprimir cuadro</button>
+      </div>`;
+    $$('[data-ped]', vista).forEach((fila) => {
+      const x = db.pedidos.find((y) => y.id === fila.dataset.ped);
+      $('[data-entrega]', fila).onchange = (e) => { guardarLista('pedido', Object.assign({}, x, { entrega: e.target.value })); };
+      $('[data-dev]', fila).onchange = (e) => { guardarLista('pedido', Object.assign({}, x, { devolucion: e.target.checked, fechaDev: e.target.checked ? hoyISO() : '' })); render(); };
+    });
+  }
+  function hojaPedido(mes, x) {
+    const nuevo = !x;
+    abrirHoja(`<div class="fila entre"><h3>${nuevo ? 'Agregar al pedido' : 'Pedido'} · ${fmtMes(mes)}</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      ${campoPaciente('pe-pac', x && x.paciente)}
+      <label class="campo"><span class="etq">Fecha de entrega</span><input class="entrada" type="date" id="pe-ent" value="${esc((x && x.entrega) || '')}"></label>
+      <label class="campo"><span class="etq">Nota</span><input class="entrada" id="pe-nota" value="${esc((x && x.nota) || '')}"></label>
+      <p class="chico alerta-txt" id="pe-msj" role="status"></p>
+      <button class="btn btn-oscuro btn-grande btn-bloque" data-ok>${nuevo ? 'Agregar' : 'Guardar'}</button>
+      ${nuevo ? '' : '<button class="btn btn-chico btn-peligro" data-quitar style="align-self:flex-start">Sacar del cuadro</button>'}`, (hoja, cerrar) => {
+      $('[data-ok]', hoja).onclick = () => {
+        const n = $('#pe-pac', hoja).value.trim();
+        if (!n) { $('#pe-msj', hoja).textContent = 'Escribí o elegí el paciente.'; return; }
+        const p = pacientePorNombre(n);
+        if (nuevo && p && pedidosDelMes(mes).some((y) => y.pid === p.id)) { $('#pe-msj', hoja).textContent = 'Ya está en el pedido de este mes.'; return; }
+        guardarLista('pedido', Object.assign(nuevo ? { id: uid(), mes, devolucion: false, fechaDev: '', quitado: false, creado: new Date().toISOString() } : x, { pid: p ? p.id : '', paciente: p ? nombreLista(p) : n, entrega: $('#pe-ent', hoja).value, nota: $('#pe-nota', hoja).value.trim() }));
+        cerrar(); render();
+      };
+      const q = $('[data-quitar]', hoja);
+      if (q) q.onclick = () => { guardarLista('pedido', Object.assign({}, x, { quitado: true })); cerrar(); render(); };
+      if (nuevo) setTimeout(() => $('#pe-pac', hoja).focus(), 80);
+    });
+  }
+  function traerSolicitudes(mes) {
+    const lista = pedidosDelMes(mes);
+    const sols = (db.solicitudes || []).filter((x) => !x.anulada && mesDe(x.fecha) === mes);
+    const vistos = new Set(lista.map((y) => y.pid));
+    sols.sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach((x) => {
+      if (vistos.has(x.pid)) return; vistos.add(x.pid);
+      const p = paciente(x.pid);
+      guardarLista('pedido', { id: uid(), mes, pid: x.pid, paciente: p ? nombreLista(p) : x.paciente, entrega: '', devolucion: false, fechaDev: '', nota: '', quitado: false, creado: new Date().toISOString() });
+    });
+    render();
+  }
+  async function imprimirPedidos(mes) {
+    const lista = pedidosDelMes(mes);
+    const filas = lista.map((x) => `<tr><td>${esc(x.paciente)}</td><td>${x.entrega ? fmtDMY(x.entrega) : ''}</td><td>${x.devolucion ? 'SI' : ''}</td></tr>`);
+    while (filas.length < 25) filas.push('<tr><td>&nbsp;</td><td></td><td></td></tr>');
+    let el = $('#impresion');
+    if (!el) { el = document.createElement('div'); el.id = 'impresion'; document.body.appendChild(el); }
+    el.className = 'tabla';
+    el.innerHTML = `<table class="ped-imp"><tr><th>MES: ${esc(fmtMes(mes).toLocaleUpperCase('es-AR'))}</th><th>FECHA DE ENTREGA</th><th>DEVOLUCION</th></tr><tr><td><b>Nombre del paciente</b></td><td></td><td></td></tr>${filas.join('')}</table>`;
+    document.body.classList.add('imprimiendo');
+    const fin = () => { window.removeEventListener('afterprint', fin); document.body.classList.remove('imprimiendo'); el.className = ''; };
+    window.addEventListener('afterprint', fin);
+    setTimeout(() => window.print(), 50);
+  }
+
+  function vSupera() {
+    titulo('Supera entrevistas a padres IPS');
+    const lista = (db.supera || []).filter((x) => !x.quitado).sort((a, b) => a.paciente.localeCompare(b.paciente, 'es'));
+    vista.innerHTML = `
+      <p class="tinta-2">Pacientes que superan las entrevistas a padres que cubre IPS.</p>
+      <section class="caja">${lista.length ? `<ul class="lista">${lista.map((x) => `<li><button class="item" data-accion="supera-editar" data-id="${x.id}">${avatar(paciente(x.pid) || { id: x.id, nombre: x.paciente, apellido: '' })}<span class="txt"><span class="nom">${esc(x.paciente)}</span><span class="sub">${x.fecha ? `Desde ${fmtCorta(x.fecha)}` : ''}${x.nota ? ` · ${esc(x.nota)}` : ''}</span></span></button></li>`).join('')}</ul>` : '<p class="vacio">La lista está vacía.</p>'}</section>
+      <button class="btn btn-acento btn-grande btn-bloque" data-accion="supera-nuevo">${ic('mas')}Agregar paciente</button>`;
+  }
+  function hojaSupera(x) {
+    const nuevo = !x;
+    abrirHoja(`<div class="fila entre"><h3>${nuevo ? 'Agregar a la lista' : 'Supera entrevistas'}</h3><button class="cerrar" data-cerrar>${ic('cerrar')}</button></div>
+      ${campoPaciente('su-pac', x && x.paciente)}
+      <label class="campo"><span class="etq">Fecha</span><input class="entrada" type="date" id="su-fecha" value="${esc((x && x.fecha) || hoyISO())}"></label>
+      <label class="campo"><span class="etq">Nota</span><input class="entrada" id="su-nota" value="${esc((x && x.nota) || '')}"></label>
+      <p class="chico alerta-txt" id="su-msj" role="status"></p>
+      <button class="btn btn-oscuro btn-grande btn-bloque" data-ok>${nuevo ? 'Agregar' : 'Guardar'}</button>
+      ${nuevo ? '' : '<button class="btn btn-chico btn-peligro" data-quitar style="align-self:flex-start">Sacar de la lista</button>'}`, (hoja, cerrar) => {
+      $('[data-ok]', hoja).onclick = () => {
+        const n = $('#su-pac', hoja).value.trim();
+        if (!n) { $('#su-msj', hoja).textContent = 'Escribí o elegí el paciente.'; return; }
+        const p = pacientePorNombre(n);
+        if (nuevo && p && db.supera.some((y) => !y.quitado && y.pid === p.id)) { $('#su-msj', hoja).textContent = 'Ya está en la lista.'; return; }
+        guardarLista('supera', Object.assign(nuevo ? { id: uid(), quitado: false, creado: new Date().toISOString() } : x, { pid: p ? p.id : '', paciente: p ? nombreLista(p) : n, fecha: $('#su-fecha', hoja).value, nota: $('#su-nota', hoja).value.trim() }));
+        cerrar(); render();
+      };
+      const q = $('[data-quitar]', hoja);
+      if (q) q.onclick = () => { guardarLista('supera', Object.assign({}, x, { quitado: true })); cerrar(); render(); };
+      if (nuevo) setTimeout(() => $('#su-pac', hoja).focus(), 80);
+    });
+  }
+
   /* ------------------------------------------------------------ informes escritos en la app */
   const clonar = (x) => JSON.parse(JSON.stringify(x));
   function testsActuales() { return TESTS_BASE.map((b) => (db.tests || []).find((t) => t.id === b.id) || b).concat((db.tests || []).filter((t) => !TESTS_BASE.some((b) => b.id === t.id))); }
@@ -1698,6 +1830,7 @@
     if (!perfil.nombre || !perfil.matricula) { aviso('Completá tu nombre y matrícula para el membrete.'); hojaPerfil(); return; }
     let el = $('#impresion');
     if (!el) { el = document.createElement('div'); el.id = 'impresion'; document.body.appendChild(el); }
+    el.className = '';
     el.innerHTML = Array.from({ length: POR_HOJA }, (_, i) => recetaHTML(db.solicitudes.find((x) => x.id === ids[i]))).join('');
     try { await Promise.all([document.fonts.load('600 15pt "Baloo 2"'), document.fonts.load('500 10pt "Baloo 2"'), document.fonts.load('11pt "DM Sans"')]); } catch (e) { /* imprime igual */ }
     await Promise.all($$('img', el).map((im) => (im.complete ? 0 : new Promise((ok) => { im.onload = im.onerror = ok; }))));
@@ -1801,6 +1934,12 @@
       case 'turno': hojaTurno(null, { pid: p ? p.id : undefined, fecha: b.dataset.fecha }); break;
       case 'alerta': hojaAlerta(null, { fecha: b.dataset.fecha }); break;
       case 'nuevo-informe': if (p) nuevoInforme(p); break;
+      case 'pedido-nuevo': hojaPedido(b.dataset.mes); break;
+      case 'pedido-editar': { const x = db.pedidos.find((y) => y.id === b.dataset.id); if (x) hojaPedido(x.mes, x); break; }
+      case 'pedidos-traer': traerSolicitudes(b.dataset.mes); break;
+      case 'pedidos-imprimir': imprimirPedidos(b.dataset.mes); break;
+      case 'supera-nuevo': hojaSupera(); break;
+      case 'supera-editar': { const x = db.supera.find((y) => y.id === b.dataset.id); if (x) hojaSupera(x); break; }
       case 'vista-informe': { const i = db.informes.find((x) => x.id === vista.dataset.inf); if (i) hojaVistaInforme(i); break; }
       case 'generar-informe': { const i = db.informes.find((x) => x.id === vista.dataset.inf); if (i) generarInforme(i); break; }
       case 'borrar-informe': { const i = db.informes.find((x) => x.id === vista.dataset.inf); if (i) confirmar('Borrar informe', 'Se saca de la ficha. Si ya lo habías generado, el PDF y el Docs siguen en tu Drive.', 'Borrar', () => { i.estado = 'borrado'; guardarInforme(i, true); ir(`#/p/${i.pid}`); }); break; }

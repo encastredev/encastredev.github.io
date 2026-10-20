@@ -19,6 +19,8 @@ const H_SOL = 'Solicitudes';
 const H_AGE = 'Agenda';
 const H_INF = 'Informes';
 const H_TST = 'Tests';
+const H_PED = 'Pedidos IPS';
+const H_SUP = 'Supera entrevistas';
 const CALENDARIO = 'Consultorio';
 const H_REG = 'Registro';
 
@@ -61,6 +63,17 @@ const COL_INF = [
   ['creado', 'CREADO', 130, 'momento'], ['editado', 'EDITADO', 130, 'momento'],
 ];
 // Configuración de cada test (escalas, rangos y textos), en JSON.
+// Pedidos mensuales a IPS: una fila por paciente y mes, con fecha de entrega y si volvió autorizado.
+const COL_PED = [
+  ['id', 'ID', 100, 'txt'], ['mes', 'MES (AAAA-MM)', 90, 'txt'], ['pid', 'ID PACIENTE', 100, 'txt'], ['paciente', 'PACIENTE', 220, 'txt'],
+  ['entrega', 'FECHA DE ENTREGA', 110, 'fecha'], ['devolucion', 'DEVOLUCIÓN', 90, 'si'], ['fechaDev', 'FECHA DEVOLUCIÓN', 110, 'fecha'],
+  ['nota', 'NOTA', 220, 'txt'], ['quitado', 'QUITADO', 75, 'si'], ['creado', 'CREADO', 130, 'momento'],
+];
+// Pacientes que superan las entrevistas a padres que cubre IPS.
+const COL_SUP = [
+  ['id', 'ID', 100, 'txt'], ['pid', 'ID PACIENTE', 100, 'txt'], ['paciente', 'PACIENTE', 220, 'txt'], ['fecha', 'FECHA', 95, 'fecha'],
+  ['nota', 'NOTA', 260, 'txt'], ['quitado', 'QUITADO', 75, 'si'], ['creado', 'CREADO', 130, 'momento'],
+];
 const COL_TST = [['id', 'ID', 90, 'txt'], ['nombre', 'TEST', 120, 'txt'], ['config', 'CONFIGURACIÓN (NO TOCAR)', 500, 'txt']];
 const COL_AGE = [
   ['id', 'ID', 100, 'txt'], ['tipo', 'TIPO', 80, 'txt'], ['pid', 'ID PACIENTE', 100, 'txt'], ['titulo', 'TÍTULO', 220, 'txt'],
@@ -94,8 +107,10 @@ function configurar() {
   prepararHoja_(ss, H_AGE, COL_AGE);
   prepararHoja_(ss, H_INF, COL_INF);
   prepararHoja_(ss, H_TST, COL_TST);
+  prepararHoja_(ss, H_PED, COL_PED);
+  prepararHoja_(ss, H_SUP, COL_SUP);
   prepararHoja_(ss, H_REG, COL_REG);
-  const vacia = ss.getSheets().find((h) => ![H_PAC, H_SES, H_DOC, H_SOL, H_AGE, H_INF, H_TST, H_REG].includes(h.getName()) && h.getLastRow() === 0);
+  const vacia = ss.getSheets().find((h) => ![H_PAC, H_SES, H_DOC, H_SOL, H_AGE, H_INF, H_TST, H_PED, H_SUP, H_REG].includes(h.getName()) && h.getLastRow() === 0);
   if (vacia) ss.deleteSheet(vacia);
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('CLAVE')) props.setProperty('CLAVE', Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8));
@@ -199,6 +214,7 @@ function aplicar_(ops) {
   const tp = tabla_(ss, H_PAC, COL_PAC);
   const ts = tabla_(ss, H_SES, COL_SES);
   let td = null, tsol = null, tage = null, tinf = null, ttst = null;
+  const listas = {}; // pedido y supera: misma forma, distinta hoja
   const registro = [];
   const ahora = new Date().toISOString();
   for (const op of ops) {
@@ -236,6 +252,13 @@ function aplicar_(ops) {
       ['docUrl', 'pdfUrl', 'docId', 'pdfId', 'docuId'].forEach((k) => { i[k] = viejo ? viejo[k] : ''; });
       tinf.guardar(i);
       if (!viejo) registro.push([ahora, 'Informe empezado', i.id, JSON.stringify({ pid: i.pid, test: i.test })]);
+    } else if (op.op === 'pedido' || op.op === 'supera') {
+      const [hoja, cols, que] = op.op === 'pedido' ? [H_PED, COL_PED, 'Pedido IPS'] : [H_SUP, COL_SUP, 'Supera entrevistas'];
+      const t = listas[op.op] = listas[op.op] || tabla_(ss, hoja, cols);
+      const viejo = t.porId(op.x.id);
+      const accion = !viejo ? 'agregado' : op.x.quitado && !viejo.quitado ? 'quitado' : 'cambiado';
+      t.guardar(op.x);
+      registro.push([ahora, `${que}: ${accion}`, op.x.id, JSON.stringify(op.x)]);
     } else if (op.op === 'test') {
       ttst = ttst || tabla_(ss, H_TST, COL_TST);
       ttst.guardar({ id: op.t.id, nombre: op.t.nombre, config: JSON.stringify(op.t) });
@@ -269,6 +292,7 @@ function aplicar_(ops) {
   if (tage) tage.escribir();
   if (tinf) tinf.escribir();
   if (ttst) ttst.escribir();
+  Object.keys(listas).forEach((k) => listas[k].escribir());
   if (registro.length) agregarFilas_(tabla_(ss, H_REG, COL_REG), registro);
 }
 
@@ -488,6 +512,8 @@ function leerEstado_() {
     solicitudes: tabla_(ss, H_SOL, COL_SOL).todas(),
     agenda: tabla_(ss, H_AGE, COL_AGE).todas(),
     informes: tabla_(ss, H_INF, COL_INF).todas().map((i) => Object.assign(i, { contenido: JSON.parse(i.contenido || '{}') })),
+    pedidos: tabla_(ss, H_PED, COL_PED).todas(),
+    supera: tabla_(ss, H_SUP, COL_SUP).todas(),
     tests: tabla_(ss, H_TST, COL_TST).todas().map((t) => JSON.parse(t.config || 'null')).filter(Boolean),
     plantillas: plantillas,
     planilla: ss.getUrl(),

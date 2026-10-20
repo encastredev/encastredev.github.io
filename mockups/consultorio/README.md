@@ -13,7 +13,7 @@ Archivos estáticos (HTML, CSS y JS sin build). **El repo no tiene datos de paci
 
 ## Dónde se guardan los datos
 
-En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Documentos, Solicitudes, Agenda, Informes, Tests y Registro), a través del script [`apps-script/Codigo.gs`](apps-script/Codigo.gs). Cómo instalarlo: [`apps-script/INSTALAR.md`](apps-script/INSTALAR.md).
+En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Documentos, Solicitudes, Agenda, Informes, Tests, Pedidos IPS, Supera entrevistas y Registro), a través del script [`apps-script/Codigo.gs`](apps-script/Codigo.gs). Cómo instalarlo: [`apps-script/INSTALAR.md`](apps-script/INSTALAR.md).
 
 - **Cada dispositivo guarda una copia cifrada** para abrir rápido y sin internet. La clave sale del PIN (PBKDF2-SHA256, 310 000 vueltas → AES-GCM 256) y solo vive en memoria mientras la app está abierta. En `localStorage` hay un único valor, `consultorio.cofre`, que contiene los datos, la conexión y la cola de envíos, todo cifrado.
 - **Se bloquea sola** a los 5 minutos en segundo plano o a los 20 sin tocarla (`BLOQUEO_OCULTA`, `BLOQUEO_QUIETA`), y con el candado de arriba. Con el PIN mal 5 veces, espera 30 s, 60 s, 120 s…
@@ -48,6 +48,9 @@ En una **planilla de Google de la profesional** (hojas Pacientes, Sesiones, Docu
   - **Generar Word y PDF:** el script copia su plantilla (membrete, pie y número de página), vacía el cuerpo y lo escribe con su formato a partir de los bloques que arma la app (`bloquesInforme`). Guarda el Google Docs y el PDF en **Mis informes** del paciente, y el PDF queda en la ficha. Si se genera de nuevo, el anterior va a la papelera.
 - **Empezar un informe en Google Docs** (opcional): copia una plantilla de `Consultorio/Plantillas` en **Mis informes** y reemplaza los `{{campos}}` con los datos de la ficha (lista en `CAMPOS_INFORME`, en `app.js`). La plantilla de ejemplo tiene solo el encabezado con los datos, porque cada informe lo escribe ella según el caso.
 - **Solicitudes a la obra social (recetario):** desde la ficha, **Solicitudes → Nueva**. Trae el paciente, el n.º de afiliado y el diagnóstico; se marcan los códigos (`CODIGOS`: 450105 y 450102) con la cantidad de sesiones. Se imprime con su membrete, **4 por hoja A4** para cortar (`POR_HOJA`): "Agregar a la hoja" junta varias y "Imprimir" las imprime todas. La firma y el sello van a mano. Cada solicitud queda en la ficha y en la hoja **Solicitudes**, y se puede anular. Funciona sin internet.
+- **Pedidos mensuales IPS** (`#/pedidos/<AAAA-MM>`): el cuadro de su Word, uno por mes. Por paciente: fecha de entrega y **Devolución: SI** (guarda la fecha en que la marcó). Avisa si hay pacientes con solicitud ese mes que no están en el cuadro y los agrega con un toque. Se imprime como su Word (A4, 25 renglones).
+- **Supera entrevistas a padres IPS** (`#/supera`): lista de pacientes con fecha y nota.
+  - Las dos están en la barra lateral de la compu y como accesos en el inicio (en el celular la barra de abajo ya está llena). El paciente se elige de la lista o se escribe, por si no está cargado.
 - **Copia de seguridad** en JSON, cifrada con el PIN. **Exportar a Excel** con pacientes y sesiones.
 - Instalable (manifest + `sw.js`), abre sin internet. **Al publicar cambios, subir `VERSION` en `sw.js` y el `?v=` de `app.css`, `importar-word.js` y `app.js` en `index.html` (y en la lista `APP` del `sw.js`)**: así la página y el código siempre son de la misma versión, aunque el navegador tenga guardada una copia vieja (GitHub Pages las guarda 10 minutos).
 
