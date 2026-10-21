@@ -73,6 +73,15 @@ Se hace una vez por cuenta: primero con la tuya para probar y después con la de
 - Las solicitudes quedan en la hoja **Solicitudes** de la planilla, que se crea sola la primera vez.
 - Para imprimir desde el celular hace falta una impresora conectada al celular, o guardar como PDF y mandarlo a imprimir.
 
+## Publicar cambios del script sin tocar su compu (clasp)
+
+Desde octubre de 2026 el script se sube con [clasp](https://github.com/google/clasp), la herramienta de Google, desde la compu de Daniel:
+
+- clasp está conectado con **la cuenta de Google de Mariela** (`clasp login --no-localhost`, autorizando desde un Chrome donde esté su sesión). Tiene que ser su cuenta: la app web corre como "el usuario que la implementa" (`executeAs: USER_DEPLOYING`) y usa su Drive y su calendario.
+- El proyecto está clonado **fuera del repo**, en `Encastre/consultorio-clasp/` (ahí están `.clasp.json` con el ID del script y `appsscript.json`). Los IDs no van al repo.
+- Para publicar: copiar `apps-script/Codigo.gs` a `consultorio-clasp/Código.js` (mismo nombre que tiene en el proyecto) y correr ahí `clasp push --force` y `clasp deploy -i <ID de la implementación activa> -d "qué cambió"`. Así se actualiza la misma implementación y la dirección no cambia. El ID de la implementación sale de `clasp list-deployments` (la que no es `@HEAD`).
+- Si un cambio necesita un **permiso nuevo** de Google, igual hay que ejecutar una función en el editor con su cuenta y aceptarlo.
+
 ## Si cambiás el script
 
 Si se modifica `Codigo.gs`, hay que pegarlo de nuevo y publicarlo así: **Implementar → Administrar implementaciones → lápiz → Versión: Nueva versión → Implementar**. La dirección no cambia.
