@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>App · Mis turnos · Encastre Turnos</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230e1210'/%3E%3Cpath d='M2 3h9v4H7.5v4H11v2H7.5v4H11v4H2z' fill='%23e8ede8'/%3E%3Cpath d='M22 3h-9v4h3.5v4H13v2h3.5v4H13v4h9z' fill='%234fbe8e'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+  <link rel="stylesheet" href="assets/turnos.css">
+</head>
+<body data-shell="telefono" data-pantalla="11-app-agenda.html" data-app-titulo="Mis turnos de hoy">
+<main id="pagina" style="display:contents">
+  <div class="pila" style="gap:12px">
+    <div class="selector-prof" id="profs"></div>
+    <section class="prox" id="prox"></section>
+    <section class="card"><div class="card-cab"><div class="card-titulo"><i data-i="calendar"></i><span id="titulo-lista"></span></div><span class="chico tenue" id="cuenta"></span></div>
+      <div class="card-cuerpo" id="lista" style="padding-top:0;padding-bottom:0"></div></section>
+  </div>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, aHora, icono } = G;
+  const $ = (id) => document.getElementById(id);
+  let pid = G.prof(G.qs('prof') || '') ? G.qs('prof') : G.profesionales[0].id;
+  const dia = G.HOY;
+
+  function render() {
+    const p = G.prof(pid);
+    const av = document.getElementById('avatar-app'); if (av) av.textContent = p.iniciales;
+    $('profs').innerHTML = G.profesionales.map((x) => `<button type="button" class="btn btn-chico ${x.id === pid ? 'btn-oscuro' : ''}" data-p="${x.id}">${esc(x.nombre)}</button>`).join('');
+    const mios = G.turnosDelDia(dia).filter((t) => t.prof === pid && t.estado !== 'cancelado');
+    const ahora = G.ahoraMin();
+    const prox = mios.find((t) => t.inicio + t.dur > ahora && t.estado !== 'atendido' && t.estado !== 'ausente');
+    $('prox').innerHTML = prox
+      ? `<div class="paso-n">Próximo turno</div><div class="fila entre" style="align-items:flex-end;margin-top:4px"><div class="h">${aHora(prox.inicio)}</div>${G.badge(prox.estado)}</div>
+         <div class="fuerte" style="font-size:18px;margin-top:2px">${esc(G.cliente(prox.cli).nombre)}</div><div class="chico tinta-2">${esc(G.servicio(prox.serv).nombre)} · ${fmt.dur(prox.dur)}</div>`
+      : `<div class="paso-n">Por hoy</div><div class="fuerte" style="font-size:18px;margin-top:4px">No quedan turnos. ¡Buen trabajo!</div>`;
+    $('titulo-lista').textContent = `${fmt.dia(dia)}, ${fmt.diaLargo(dia).split(' ').slice(1).join(' ')}`;
+    $('cuenta').textContent = `${mios.length} turnos`;
+    $('lista').innerHTML = mios.map((t) => {
+      const c = G.cliente(t.cli), s = G.servicio(t.serv);
+      const hecho = t.estado === 'atendido' || t.estado === 'ausente';
+      return `<div class="tl${hecho ? ' hecho' : ''}" data-id="${t.id}"><div class="h">${aHora(t.inicio)}</div><div style="min-width:0">
+        <div class="fila entre" style="gap:6px"><strong class="corta">${esc(c.nombre)}</strong>${G.badge(t.estado)}</div>
+        <div class="chico tinta-2">${esc(s.nombre)} · ${fmt.dur(t.dur)}</div>
+        ${hecho ? '' : `<div class="acc"><button class="btn btn-chico btn-acento" data-est="atendido">${icono('check')}Llegó</button><button class="btn btn-chico" data-est="ausente">${icono('x')}No vino</button></div>`}
+      </div></div>`;
+    }).join('') || `<div class="vacio-estado chico">Hoy no tenés turnos.</div>`;
+  }
+  document.getElementById('pagina').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-p]');
+    if (b) { pid = b.dataset.p; history.replaceState(null, '', G.href('11-app-agenda.html', { prof: pid })); return render(); }
+    const a = e.target.closest('[data-est]');
+    if (a) { const id = a.closest('[data-id]').dataset.id; G.cambiarEstado(id, a.dataset.est); render(); G.toast(a.dataset.est === 'atendido' ? 'Marcado: llegó' : 'Marcado: no vino', a.dataset.est === 'atendido' ? 'check' : 'x'); }
+  });
+  render();
+})();
+</script>
+</body>
+</html>

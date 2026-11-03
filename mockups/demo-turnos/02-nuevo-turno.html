@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Dar un turno · Encastre Turnos</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230e1210'/%3E%3Cpath d='M2 3h9v4H7.5v4H11v2H7.5v4H11v4H2z' fill='%23e8ede8'/%3E%3Cpath d='M22 3h-9v4h3.5v4H13v2h3.5v4H13v4h9z' fill='%234fbe8e'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+  <link rel="stylesheet" href="assets/turnos.css">
+</head>
+<body data-shell="escritorio" data-pantalla="02-nuevo-turno.html">
+<main id="pagina">
+  <div class="cabecera">
+    <div>
+      <div class="antetitulo"><i data-i="plus" class="i-sm"></i> Recepción</div>
+      <h1 class="titulo">Dar un turno</h1>
+      <p class="bajada">Elegís el servicio y el sistema solo te muestra los horarios donde entra, sin pisar otros turnos.</p>
+    </div>
+  </div>
+
+  <div class="dos-col" id="vista-form">
+    <section class="card">
+      <div class="card-cuerpo pila" style="gap:20px">
+        <div class="campo"><span class="paso-n">1 · Servicio</span><div class="opciones" id="servicios"></div></div>
+        <div class="campo"><span class="paso-n">2 · Con quién</span><div class="opciones" id="profs"></div></div>
+        <div class="campo"><span class="paso-n">3 · Día</span><div class="dias" id="dias"></div></div>
+        <div class="campo"><span class="paso-n">4 · Horario libre</span><div id="horarios"></div></div>
+        <div class="campo">
+          <span class="paso-n">5 · Clienta</span>
+          <label class="buscador"><span class="sr">Buscar clienta</span><i data-i="search"></i><input class="input" id="q" placeholder="Buscá por nombre o teléfono…" autocomplete="off"></label>
+          <div class="opciones" id="sugerencias" style="margin-top:8px"></div>
+          <details id="nueva-caja" style="margin-top:8px"><summary class="chico">¿Es nueva? Cargala acá</summary>
+            <div class="form-grilla" style="margin-top:8px">
+              <label class="campo"><span>Nombre y apellido</span><input class="input" id="n-nombre"></label>
+              <label class="campo"><span>Teléfono</span><input class="input" id="n-tel" inputmode="tel"></label>
+            </div>
+            <button class="btn btn-chico" type="button" id="n-ok" style="margin-top:8px">Usar esta clienta</button>
+          </details>
+        </div>
+      </div>
+    </section>
+    <aside class="card">
+      <div class="card-cab"><div class="card-titulo"><i data-i="calendar"></i><span>Resumen</span></div></div>
+      <div class="card-cuerpo pila" style="gap:14px">
+        <dl class="kv" id="resumen"></dl>
+        <button class="btn btn-oscuro btn-grande btn-bloque" type="button" id="guardar" disabled><i data-i="check"></i>Guardar turno</button>
+        <p class="chico tenue" id="falta"></p>
+      </div>
+    </aside>
+  </div>
+
+  <div id="vista-exito" hidden>
+    <section class="card"><div class="card-cuerpo pila" style="gap:16px;max-width:620px">
+      <div class="fila" style="gap:10px"><span class="badge b-ok"><i data-i="check"></i>Turno guardado</span><span class="chico tenue" id="e-cuando"></span></div>
+      <h2 id="e-titulo" style="margin:0"></h2>
+      <div><div class="paso-n" style="margin-bottom:8px">Mensaje listo para mandar por WhatsApp</div><div class="wa"><div class="burbuja" id="e-msg"></div><div class="meta">Se abre WhatsApp con el texto escrito; solo elegís el contacto y mandás.</div></div></div>
+      <div class="fila" style="flex-wrap:wrap;gap:8px">
+        <a class="btn btn-acento" id="e-wa" target="_blank" rel="noopener"><i data-i="msg"></i>Abrir WhatsApp</a>
+        <a class="btn btn-oscuro" id="e-agenda"><i data-i="calendar"></i>Ver en la agenda</a>
+        <a class="btn" href="02-nuevo-turno.html"><i data-i="plus"></i>Dar otro turno</a>
+      </div>
+    </div></section>
+  </div>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, aHora, icono } = G;
+  const $ = (id) => document.getElementById(id);
+  const sel = { serv: null, prof: null, dia: null, hora: null, cli: null };
+  // lo que viene de la agenda (un hueco libre)
+  const qProf = G.qs('prof'), qDia = G.qs('dia'), qHora = G.qs('hora');
+  sel.dia = qDia && G.abierto(qDia) ? qDia : G.HOY;
+  if (qHora) sel.hora = Number(qHora);
+  if (qProf && G.prof(qProf)) {
+    sel.prof = qProf;
+    // el primer servicio de esa profesional que entra en el hueco elegido
+    const entra = G.serviciosDe(qProf).find((s) => sel.hora == null || G.libres(sel.dia, qProf, s.dur).includes(sel.hora));
+    sel.serv = (entra || G.serviciosDe(qProf)[0]).id;
+    if (!entra && sel.hora != null) setTimeout(() => G.toast(`A las ${G.aHora(sel.hora)} no entra ningún servicio de ${G.prof(qProf).nombre}: elegí otro horario`, 'info'), 300);
+  }
+
+  const proximosDias = (() => { const out = []; let d = G.HOY; while (out.length < 6) { if (G.abierto(d)) out.push(d); d = G.sumarDias(d, 1); } return out; })();
+  if (!proximosDias.includes(sel.dia)) proximosDias.unshift(sel.dia);
+
+  function render() {
+    $('servicios').innerHTML = G.servicios.map((s) => `<button type="button" class="opcion" data-serv="${s.id}" aria-pressed="${sel.serv === s.id}"><span><strong>${esc(s.nombre)}</strong><small>${fmt.dur(s.dur)}</small></span><span class="p">${fmt.ars(s.precio)}</span></button>`).join('');
+    const posibles = sel.serv ? G.profesionales.filter((p) => G.servicio(sel.serv).prof.includes(p.id)) : G.profesionales;
+    if (sel.prof && !posibles.some((p) => p.id === sel.prof)) sel.prof = null;
+    if (!sel.prof && posibles.length === 1) sel.prof = posibles[0].id;
+    $('profs').innerHTML = posibles.map((p) => `<button type="button" class="opcion" data-prof="${p.id}" data-color="${p.color}" aria-pressed="${sel.prof === p.id}"><span><strong>${esc(p.nombre)}</strong><small>${esc(p.rol)}</small></span><span class="punto"></span></button>`).join('');
+    $('dias').innerHTML = proximosDias.map((d) => `<button type="button" class="horario" data-dia="${d}" aria-pressed="${sel.dia === d}">${esc(fmt.dia(d) === 'Hoy' || fmt.dia(d) === 'Mañana' ? fmt.dia(d) : fmt.diaCorto(d))}</button>`).join('');
+    if (sel.serv && sel.prof && sel.dia) {
+      const libres = G.libres(sel.dia, sel.prof, G.servicio(sel.serv).dur);
+      if (sel.hora != null && !libres.includes(sel.hora)) sel.hora = null;
+      $('horarios').innerHTML = libres.length
+        ? `<div class="horarios">${libres.map((h) => `<button type="button" class="horario" data-hora="${h}" aria-pressed="${sel.hora === h}">${aHora(h)}</button>`).join('')}</div><p class="chico tenue" style="margin-top:6px">Solo aparecen los horarios donde entra ${fmt.dur(G.servicio(sel.serv).dur)} sin pisar otro turno.</p>`
+        : `<div class="vacio-estado chico">No queda lugar ese día para este servicio. Probá otro día.</div>`;
+    } else $('horarios').innerHTML = `<div class="chico tenue">Elegí servicio, profesional y día.</div>`;
+    sugerir();
+    resumen();
+  }
+  function sugerir() {
+    const q = G.norm($('q').value);
+    const lista = G.clientes().filter((c) => !q || G.norm(c.nombre).includes(q) || c.tel.replace(/\D/g, '').includes(q.replace(/\D/g, '') || '§')).slice(0, q ? 6 : 4);
+    $('sugerencias').innerHTML = lista.map((c) => `<button type="button" class="opcion" data-cli="${c.id}" aria-pressed="${sel.cli === c.id}"><span><strong>${esc(c.nombre)}</strong><small class="mono">${esc(c.tel)}</small></span>${c.nueva ? '<span class="badge b-acento">Nueva</span>' : ''}</button>`).join('') || `<div class="chico tenue">No hay nadie con ese nombre. Cargala como nueva.</div>`;
+  }
+  function resumen() {
+    const s = sel.serv && G.servicio(sel.serv), p = sel.prof && G.prof(sel.prof), c = sel.cli && G.cliente(sel.cli);
+    $('resumen').innerHTML = `
+      <dt>Servicio</dt><dd>${s ? `${esc(s.nombre)} · ${fmt.dur(s.dur)}` : '—'}</dd>
+      <dt>Con</dt><dd>${p ? esc(p.nombre) : '—'}</dd>
+      <dt>Día</dt><dd>${sel.dia ? esc(fmt.diaLargo(sel.dia)) : '—'}</dd>
+      <dt>Hora</dt><dd class="mono">${sel.hora != null ? `${aHora(sel.hora)}${s ? ' a ' + aHora(sel.hora + s.dur) : ''}` : '—'}</dd>
+      <dt>Clienta</dt><dd>${c ? esc(c.nombre) : '—'}</dd>
+      <dt class="total">Precio</dt><dd class="total mono">${s ? fmt.ars(s.precio) : '—'}</dd>`;
+    const faltan = [!s && 'el servicio', !p && 'con quién', sel.hora == null && 'el horario', !c && 'la clienta'].filter(Boolean);
+    $('guardar').disabled = faltan.length > 0;
+    $('falta').textContent = faltan.length ? `Falta elegir ${faltan.join(', ')}.` : 'Al guardar, el turno aparece en la agenda y en el celular de la profesional.';
+  }
+
+  document.getElementById('vista-form').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-serv],[data-prof],[data-dia],[data-hora],[data-cli]');
+    if (!b) return;
+    if (b.dataset.serv) { sel.serv = b.dataset.serv; }
+    if (b.dataset.prof) sel.prof = b.dataset.prof;
+    if (b.dataset.dia) sel.dia = b.dataset.dia;
+    if (b.dataset.hora) sel.hora = Number(b.dataset.hora);
+    if (b.dataset.cli) sel.cli = b.dataset.cli;
+    render();
+  });
+  $('q').addEventListener('input', () => { sugerir(); });
+  $('n-ok').addEventListener('click', () => {
+    const n = $('n-nombre').value.trim();
+    if (n.length < 3) { G.toast('Escribí el nombre de la clienta', 'alert'); return; }
+    const c = G.agregarCliente(n, $('n-tel').value);
+    sel.cli = c.id; $('q').value = ''; $('nueva-caja').open = false; render();
+  });
+  $('guardar').addEventListener('click', () => {
+    const t = G.agregarTurno({ dia: sel.dia, prof: sel.prof, serv: sel.serv, cli: sel.cli, inicio: sel.hora });
+    const c = G.cliente(t.cli), s = G.servicio(t.serv), p = G.prof(t.prof);
+    const texto = `¡Hola ${c.nombre.split(' ')[0]}! Te confirmamos tu turno de ${s.nombre.toLowerCase()} con ${p.nombre} el ${fmt.diaLargo(t.dia)} a las ${aHora(t.inicio)} en ${G.NEG.nombre}. Si no podés venir, avisanos así le damos el lugar a otra persona. ¡Te esperamos!`;
+    $('vista-form').hidden = true; $('vista-exito').hidden = false;
+    $('e-titulo').textContent = `${c.nombre} · ${s.nombre}`;
+    $('e-cuando').textContent = `${fmt.diaLargo(t.dia)}, ${aHora(t.inicio)} con ${p.nombre}`;
+    $('e-msg').textContent = texto;
+    $('e-wa').href = 'https://wa.me/?text=' + encodeURIComponent(texto);
+    $('e-agenda').href = G.href('01-agenda.html', t.dia === G.HOY ? null : { dia: t.dia });
+    G.toast('Turno guardado');
+    window.scrollTo(0, 0);
+  });
+  if (!sel.serv) sel.serv = G.servicios[0].id;
+  render();
+})();
+</script>
+</body>
+</html>

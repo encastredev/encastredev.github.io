@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Recordatorios · Encastre Turnos</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230e1210'/%3E%3Cpath d='M2 3h9v4H7.5v4H11v2H7.5v4H11v4H2z' fill='%23e8ede8'/%3E%3Cpath d='M22 3h-9v4h3.5v4H13v2h3.5v4H13v4h9z' fill='%234fbe8e'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+  <link rel="stylesheet" href="assets/turnos.css">
+</head>
+<body data-shell="escritorio" data-pantalla="03-recordatorios.html">
+<main id="pagina">
+  <div class="cabecera">
+    <div>
+      <div class="antetitulo"><i data-i="msg" class="i-sm"></i> Recepción</div>
+      <h1 class="titulo">Recordatorios de mañana</h1>
+      <p class="bajada">Los turnos que todavía no confirmaron, con el mensaje de WhatsApp ya escrito. Un toque por clienta.</p>
+    </div>
+  </div>
+
+  <div class="pila" style="gap:16px">
+    <div class="kpis" id="kpis"></div>
+    <section class="card">
+      <div class="card-cab"><div class="card-titulo"><i data-i="clock"></i><span id="titulo-lista"></span></div><span class="chico tenue" id="dia"></span></div>
+      <div id="lista"></div>
+    </section>
+    <p class="chico tenue">El mensaje se abre en WhatsApp con el texto escrito; se elige el contacto y se manda. En un sistema de verdad el envío se puede automatizar con WhatsApp Business.</p>
+  </div>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, aHora, icono } = G;
+  const $ = (id) => document.getElementById(id);
+  const dia = G.MANIANA;
+
+  function render() {
+    const turnos = G.turnosDelDia(dia).filter((t) => t.estado !== 'cancelado');
+    const sin = turnos.filter((t) => t.estado === 'pendiente');
+    $('kpis').innerHTML = `
+      <div class="kpi"><div class="v">${turnos.length}</div><div class="k">Turnos mañana</div></div>
+      <div class="kpi ok"><div class="v">${turnos.filter((t) => t.estado === 'confirmado').length}</div><div class="k">Confirmados</div></div>
+      <div class="kpi aviso"><div class="v">${sin.length}</div><div class="k">Sin confirmar</div></div>
+      <div class="kpi"><div class="v">${turnos.filter((t) => t.aviso).length}</div><div class="k">Recordatorios enviados</div></div>`;
+    $('titulo-lista').textContent = `${sin.length} sin confirmar`;
+    $('dia').textContent = fmt.diaLargo(dia);
+    const orden = turnos.filter((t) => t.estado === 'pendiente' || t.estado === 'cambio').sort((a, b) => a.aviso - b.aviso || a.inicio - b.inicio);
+    $('lista').innerHTML = orden.length ? orden.map((t) => {
+      const c = G.cliente(t.cli), s = G.servicio(t.serv), p = G.prof(t.prof);
+      return `<div class="rec" data-id="${t.id}">
+        <div class="hora">${aHora(t.inicio)}</div>
+        <div style="min-width:0"><strong>${esc(c.nombre)}</strong><div class="chico tinta-2">${esc(s.nombre)} con ${esc(p.nombre)} · <span class="mono">${esc(c.tel)}</span></div>
+          <div style="margin-top:4px">${G.badge(t.estado)}${t.aviso ? ` <span class="badge b-neutro">${icono('send')}Recordatorio enviado</span>` : ''}</div></div>
+        <div class="acciones">
+          <button class="btn ${t.aviso ? '' : 'btn-acento'} btn-chico" data-ver>${icono('msg')}${t.aviso ? 'Ver mensaje' : 'Mandar recordatorio'}</button>
+          <button class="btn btn-chico" data-est="confirmado">${icono('check')}Confirmó</button>
+          <button class="btn btn-chico btn-fantasma" data-est="cambio">${icono('refresh')}Pidió cambiar</button>
+        </div></div>`;
+    }).join('') : `<div class="vacio-estado">${icono('check')} Todos confirmaron. Mañana no debería haber sillas vacías.</div>`;
+  }
+
+  function ver(id) {
+    const t = G.turno(id), c = G.cliente(t.cli);
+    const m = G.modal(`Recordatorio para ${c.nombre}`, `
+      <div class="wa"><div class="burbuja">${esc(G.mensaje(t))}</div><div class="meta">${esc(c.tel)}</div></div>
+      <p class="chico tenue" style="margin-top:10px">Al tocar "Abrir WhatsApp" el turno queda marcado como avisado.</p>`,
+      `<a class="btn btn-acento" data-abrir href="${G.waLink(t)}" target="_blank" rel="noopener">${icono('msg')}Abrir WhatsApp</a><button class="btn" data-marcar>${icono('send')}Marcar como enviado</button>`);
+    m.el.addEventListener('click', (e) => {
+      if (e.target.closest('[data-abrir],[data-marcar]')) { G.marcarAviso(id); setTimeout(() => { m.cerrar(); render(); G.toast(`Recordatorio a ${esc(c.nombre)}`, 'send'); }, 200); }
+    });
+  }
+
+  $('lista').addEventListener('click', (e) => {
+    const fila = e.target.closest('.rec'); if (!fila) return;
+    if (e.target.closest('[data-ver]')) return ver(fila.dataset.id);
+    const b = e.target.closest('[data-est]');
+    if (b) { G.cambiarEstado(fila.dataset.id, b.dataset.est); render(); G.toast(G.ESTADOS[b.dataset.est].txt, b.dataset.est === 'confirmado' ? 'check' : 'refresh'); }
+  });
+  render();
+})();
+</script>
+</body>
+</html>
