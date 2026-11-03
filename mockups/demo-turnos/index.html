@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Encastre Turnos · demo</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230e1210'/%3E%3Cpath d='M2 3h9v4H7.5v4H11v2H7.5v4H11v4H2z' fill='%23e8ede8'/%3E%3Cpath d='M22 3h-9v4h3.5v4H13v2h3.5v4H13v4h9z' fill='%234fbe8e'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+  <link rel="stylesheet" href="assets/turnos.css">
+</head>
+<body data-shell="portada" data-pantalla="index.html">
+<main id="pagina">
+  <section class="hero">
+    <div class="hero-in">
+      <div class="antetitulo">Demo · Sistema de turnos a medida</div>
+      <h1>Del cuaderno y los audios de WhatsApp a una agenda que <em>no se pisa y avisa sola</em>.</h1>
+      <p>Esta es una demo de ejemplo hecha por Encastre para un estudio de peluquería y estética. El negocio, las personas y los turnos son inventados. En la demo siempre son las 11:30 de la mañana y lo que hagas queda mientras tengas la pestaña abierta. Sirve igual para consultorios, barberías, centros de estética o cualquier negocio que trabaje con turnos.</p>
+      <div class="fila">
+        <a class="btn btn-oscuro btn-grande" href="01-agenda.html">Ver la agenda del día <i data-i="next"></i></a>
+        <a class="btn btn-grande" href="11-app-agenda.html"><i data-i="phone"></i> Ver la app de profesionales</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <h2>Qué resuelve</h2>
+    <div class="grilla">
+      <div class="card dolor"><i data-i="calendar"></i><strong>Una sola agenda para todo el equipo</strong><span class="tinta-2 chico">Cada profesional con su columna y los huecos libres a la vista.</span></div>
+      <div class="card dolor"><i data-i="clock"></i><strong>Turnos que no se pisan</strong><span class="tinta-2 chico">Elegís el servicio y solo aparecen los horarios donde entra.</span></div>
+      <div class="card dolor"><i data-i="msg"></i><strong>Recordatorios por WhatsApp</strong><span class="tinta-2 chico">El mensaje sale escrito con el nombre, el día y la hora. Un toque por clienta.</span></div>
+      <div class="card dolor"><i data-i="check"></i><strong>Quién confirmó y quién no</strong><span class="tinta-2 chico">La agenda de mañana muestra a quién falta avisar.</span></div>
+      <div class="card dolor"><i data-i="phone"></i><strong>Cada profesional en su celular</strong><span class="tinta-2 chico">Ve sus turnos del día y marca quién llegó y quién no vino.</span></div>
+      <div class="card dolor"><i data-i="users"></i><strong>Clientas a mano</strong><span class="tinta-2 chico">Se buscan por nombre o teléfono; las nuevas se cargan en el momento.</span></div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <h2>Recorrido sugerido</h2>
+    <p>Lo que se carga en una pantalla aparece en las otras.</p>
+    <div class="pasos-demo">
+      <a class="card paso-demo" href="01-agenda.html"><strong>Mirar el día</strong><span class="tinta-2 chico">Agenda → tocar un turno sin confirmar y marcarlo.</span></a>
+      <a class="card paso-demo" href="02-nuevo-turno.html"><strong>Dar un turno</strong><span class="tinta-2 chico">Elegir "Color" y ver qué horarios quedan donde entra.</span></a>
+      <a class="card paso-demo" href="03-recordatorios.html"><strong>Avisar a las de mañana</strong><span class="tinta-2 chico">Mandar el recordatorio y marcar quién confirmó.</span></a>
+      <a class="card paso-demo" href="11-app-agenda.html"><strong>La vista de la profesional</strong><span class="tinta-2 chico">Sus turnos de hoy en el celular.</span></a>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <h2>Pantallas</h2>
+    <div class="grilla" id="indice"></div>
+  </section>
+
+  <p class="pie-portada">Demo de Encastre · encastredev.github.io. Negocio, personas, teléfonos, precios y turnos inventados. ¿Querés algo así para tu negocio? Escribinos.</p>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  document.getElementById('indice').innerHTML = G.SCREENS.slice(1).map((s) => `
+    <a class="card pantalla-card" href="${s.archivo}">
+      <div class="fila entre"><span class="num-p">${s.n}</span><span class="badge ${s.disp === 'celular' ? 'b-acento' : 'b-neutro'}">${G.icono(s.disp === 'celular' ? 'phone' : 'laptop')}${s.disp === 'celular' ? 'Celular' : 'Notebook'}</span></div>
+      <div><strong>${G.esc(s.titulo)}</strong><div class="tinta-2 chico" style="margin:4px 0 8px">${G.esc(s.resumen)}</div>
+      <ul>${s.probar.map((t) => `<li>${G.esc(t)}</li>`).join('')}</ul></div>
+      <span class="chico tenue">${G.esc(s.rol)}</span>
+    </a>`).join('');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+/* Encastre Turnos · piezas propias de la demo (la base es ui.css, igual que demo-stock) */
+
+/* colores por profesional: variaciones del mismo verde + dos neutros, sin sumar acentos nuevos */
+:root { --prof-a: var(--acento); --prof-b: var(--tinta-2); --prof-c: var(--acento-2); --fila: 30px; }
+
+/* ---------- barra de día ---------- */
+.barra-dia { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.barra-dia .dia { font-family: var(--f-titulo); font-weight: 700; font-size: 18px; min-width: 190px; }
+.barra-dia .dia small { display: block; font-family: var(--f-mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--tenue); }
+
+/* ---------- indicadores ---------- */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpi { border: 1px solid var(--linea); background: var(--superficie); padding: 14px 16px; }
+.kpi .v { font-family: var(--f-mono); font-size: 26px; font-weight: 600; }
+.kpi .k { font-family: var(--f-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--tenue); }
+.kpi.ok .v { color: var(--acento); }
+.kpi.aviso .v { color: var(--aviso-tinta); }
+@media (max-width: 720px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- agenda por profesional ---------- */
+.agenda { display: grid; grid-template-columns: 56px repeat(var(--cols, 3), minmax(150px, 1fr)); border: 1px solid var(--linea); background: var(--superficie); overflow-x: auto; }
+.agenda .cab { position: sticky; top: 0; z-index: 2; background: var(--superficie); border-bottom: 1px solid var(--linea); border-left: 1px solid var(--linea); padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
+.agenda .cab:first-child { border-left: 0; }
+.agenda .cab strong { display: block; }
+.agenda .cab small { color: var(--tenue); font-size: 12px; }
+.agenda .horas { position: relative; }
+.agenda .horas span { position: absolute; left: 0; right: 6px; text-align: right; font-family: var(--f-mono); font-size: 11px; color: var(--tenue); transform: translateY(-6px); }
+.agenda .horas span:first-child { transform: none; }
+.agenda .col { position: relative; border-left: 1px solid var(--linea);
+  background: repeating-linear-gradient(180deg, transparent 0 calc(var(--fila) * 2 - 1px), var(--linea) calc(var(--fila) * 2 - 1px) calc(var(--fila) * 2)); }
+.agenda .col, .agenda .horas { height: calc(var(--fila) * var(--filas, 22)); }
+
+.tn { position: absolute; left: 4px; right: 4px; padding: 5px 8px; border: 1px solid var(--linea-2); border-left: 3px solid var(--color, var(--acento)); background: var(--superficie-2); text-align: left; font: inherit; color: inherit; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 1px; }
+.tn:hover { border-color: var(--acento); }
+.tn .h { font-family: var(--f-mono); font-size: 11px; color: var(--tenue); }
+.tn .c { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tn .s { font-size: 12px; color: var(--tinta-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tn.corto { flex-direction: row; align-items: center; gap: 6px; }
+.tn.corto .s { display: none; }
+.tn .marca-estado { position: absolute; top: 5px; right: 6px; }
+.tn.pendiente { border-style: dashed; border-left-style: solid; }
+.tn.ausente { opacity: .55; text-decoration: line-through; }
+.tn.atendido { opacity: .7; }
+.tn.nuevo { box-shadow: inset 0 0 0 2px var(--acento); }
+.libre { position: absolute; left: 4px; right: 4px; border: 1px dashed var(--acento-borde); background: transparent; color: var(--acento); font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; opacity: .8; }
+.libre:hover { background: var(--acento-suave); opacity: 1; }
+.ahora { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--acento); z-index: 1; }
+.ahora::before { content: ""; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; background: var(--acento); }
+
+.punto { display: inline-block; width: 10px; height: 10px; background: var(--color, var(--acento)); flex: none; }
+[data-color="a"] { --color: var(--prof-a); }
+[data-color="b"] { --color: var(--prof-b); }
+[data-color="c"] { --color: var(--prof-c); }
+
+/* ---------- horarios libres (chips grandes) ---------- */
+.horarios { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.horario { border: 1px solid var(--linea-2); background: var(--superficie); padding: 10px 0; font-family: var(--f-mono); font-size: 15px; font-weight: 600; cursor: pointer; color: var(--tinta); }
+.horario:hover { border-color: var(--acento); }
+.horario[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: var(--sobre-solido); }
+.opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.opcion { border: 1px solid var(--linea-2); background: var(--superficie); padding: 12px 14px; text-align: left; font: inherit; color: inherit; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.opcion:hover { border-color: var(--acento); }
+.opcion[aria-pressed="true"] { border-color: var(--acento); background: var(--acento-suave); box-shadow: inset 3px 0 0 var(--acento); }
+.opcion small { display: block; color: var(--tenue); font-size: 12px; }
+.opcion .p { font-family: var(--f-mono); font-size: 13px; color: var(--tinta-2); white-space: nowrap; }
+.paso-n { font-family: var(--f-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--acento); }
+.dias { display: flex; gap: 6px; flex-wrap: wrap; }
+.dias .horario { padding: 8px 12px; font-size: 13px; min-width: 92px; }
+
+/* ---------- WhatsApp ---------- */
+.wa { background: var(--superficie-2); border: 1px solid var(--linea); padding: 14px; }
+.wa .burbuja { max-width: 440px; margin-left: auto; background: var(--acento-suave); border: 1px solid var(--acento-borde); padding: 10px 12px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; }
+.wa .burbuja.resp { margin-left: 0; margin-top: 8px; background: var(--superficie); border-color: var(--linea-2); max-width: 260px; }
+.wa .meta { font-family: var(--f-mono); font-size: 11px; color: var(--tenue); text-align: right; margin-top: 4px; }
+
+/* ---------- lista de recordatorios ---------- */
+.rec { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--linea); }
+.rec:last-child { border-bottom: 0; }
+.rec .hora { font-family: var(--f-mono); font-size: 16px; font-weight: 600; }
+.rec .acciones { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 720px) { .rec { grid-template-columns: 52px minmax(0, 1fr); } .rec .acciones { grid-column: 1 / -1; justify-content: flex-start; } }
+
+/* ---------- app del celular ---------- */
+.prox { border: 1px solid var(--acento); background: var(--acento-suave); padding: 14px; }
+.prox .h { font-family: var(--f-mono); font-size: 28px; font-weight: 600; color: var(--acento); }
+.tl { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--linea); }
+.tl .h { font-family: var(--f-mono); font-size: 14px; font-weight: 600; padding-top: 2px; }
+.tl .acc { display: flex; gap: 6px; margin-top: 8px; }
+.tl.hecho { opacity: .6; }
+.selector-prof { display: flex; gap: 6px; }
+.selector-prof button { flex: 1; }

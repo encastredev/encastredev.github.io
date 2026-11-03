@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Agenda del día · Encastre Turnos</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230e1210'/%3E%3Cpath d='M2 3h9v4H7.5v4H11v2H7.5v4H11v4H2z' fill='%23e8ede8'/%3E%3Cpath d='M22 3h-9v4h3.5v4H13v2h3.5v4H13v4h9z' fill='%234fbe8e'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/ui.css">
+  <link rel="stylesheet" href="assets/turnos.css">
+</head>
+<body data-shell="escritorio" data-pantalla="01-agenda.html">
+<main id="pagina">
+  <div class="cabecera">
+    <div>
+      <div class="antetitulo"><i data-i="calendar" class="i-sm"></i> Recepción</div>
+      <h1 class="titulo">Agenda del día</h1>
+      <p class="bajada">Todos los turnos por profesional. Los huecos libres se ven y se ocupan con un toque.</p>
+    </div>
+  </div>
+
+  <div class="pila" style="gap:16px">
+    <div class="fila entre" style="flex-wrap:wrap;gap:12px">
+      <div class="barra-dia">
+        <button class="btn btn-icono" type="button" id="ant" aria-label="Día anterior"><i data-i="prev"></i></button>
+        <div class="dia" id="dia"></div>
+        <button class="btn btn-icono" type="button" id="sig" aria-label="Día siguiente"><i data-i="chevron"></i></button>
+        <button class="btn btn-chico btn-fantasma" type="button" id="hoy">Hoy</button>
+      </div>
+      <a class="btn btn-oscuro" href="02-nuevo-turno.html" id="nuevo"><i data-i="plus"></i> Dar un turno</a>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="agenda" id="agenda"></div>
+    <p class="chico tenue">Línea punteada: turno sin confirmar. Tocá un turno para confirmarlo o marcar si vino, o un hueco libre para dar un turno ahí.</p>
+  </div>
+</main>
+<script src="assets/datos.js"></script>
+<script src="assets/nav.js"></script>
+<script>
+(function () {
+  const { fmt, esc, aMin, aHora, icono } = G;
+  const $ = (id) => document.getElementById(id);
+  const FILA = 34, ABRE = aMin(G.NEG.abre), CIERRA = aMin(G.NEG.cierra), PASO = G.NEG.paso;
+  const px = (min) => (min / PASO) * FILA;
+  let dia = G.qs('dia') && G.abierto(G.qs('dia')) ? G.qs('dia') : G.HOY;
+
+  function render() {
+    const turnos = G.turnosDelDia(dia);
+    $('dia').innerHTML = `<small>${esc(G.NEG.nombre)}</small>${esc(fmt.dia(dia))} · ${esc(fmt.diaLargo(dia))}`;
+    $('nuevo').href = G.href('02-nuevo-turno.html', { dia });
+    const activos = turnos.filter((t) => t.estado !== 'cancelado');
+    const libresCant = G.profesionales.reduce((a, p) => a + G.libres(dia, p.id, PASO).length, 0);
+    $('kpis').innerHTML = `
+      <div class="kpi"><div class="v">${activos.length}</div><div class="k">Turnos</div></div>
+      <div class="kpi ok"><div class="v">${activos.filter((t) => t.estado === 'confirmado' || t.estado === 'atendido').length}</div><div class="k">Confirmados o atendidos</div></div>
+      <div class="kpi aviso"><div class="v">${activos.filter((t) => t.estado === 'pendiente').length}</div><div class="k">Sin confirmar</div></div>
+      <div class="kpi"><div class="v">${libresCant}</div><div class="k">Huecos de ${PASO} min libres</div></div>`;
+
+    const filas = (CIERRA - ABRE) / PASO;
+    const ag = $('agenda');
+    ag.style.setProperty('--cols', G.profesionales.length);
+    ag.style.setProperty('--filas', filas);
+    ag.style.setProperty('--fila', FILA + 'px');
+    let html = `<div class="cab"></div>` + G.profesionales.map((p) => `<div class="cab" data-color="${p.color}"><span class="punto"></span><div><strong>${esc(p.nombre)}</strong><small>${esc(p.rol)}</small></div></div>`).join('');
+    html += `<div class="horas">${Array.from({ length: filas / 2 + 1 }, (_, i) => `<span style="top:${px(i * 60)}px">${aHora(ABRE + i * 60)}</span>`).join('')}</div>`;
+    const ahora = dia === G.HOY ? G.HORA_DEMO : -1;
+    G.profesionales.forEach((p) => {
+      const mios = turnos.filter((t) => t.prof === p.id && t.estado !== 'cancelado');
+      let col = `<div class="col" data-color="${p.color}">`;
+      // huecos libres agrupados
+      const libres = G.libres(dia, p.id, PASO);
+      let i = 0;
+      while (i < libres.length) {
+        let j = i;
+        while (j + 1 < libres.length && libres[j + 1] === libres[j] + PASO) j++;
+        const ini = libres[i], fin = libres[j] + PASO;
+        col += `<button type="button" class="libre" data-prof="${p.id}" data-hora="${ini}" style="top:${px(ini - ABRE) + 2}px;height:${px(fin - ini) - 4}px">${icono('plus', 'i-sm')}${fin - ini >= 60 ? 'Libre ' : ''}${aHora(ini)}</button>`;
+        i = j + 1;
+      }
+      mios.forEach((t) => {
+        const c = G.cliente(t.cli), s = G.servicio(t.serv);
+        const corto = t.dur <= PASO;
+        const marca = t.estado === 'pendiente' ? icono('clock', 'i-sm') : t.estado === 'ausente' ? icono('x', 'i-sm') : t.estado === 'confirmado' ? icono('check', 'i-sm') : '';
+        col += `<button type="button" class="tn ${t.estado}${t.nuevo ? ' nuevo' : ''}${corto ? ' corto' : ''}" data-id="${t.id}" style="top:${px(t.inicio - ABRE) + 2}px;height:${px(t.dur) - 4}px">
+          <span class="h">${aHora(t.inicio)}</span><span class="c">${esc(c.nombre)}</span><span class="s">${esc(s.nombre)}</span><span class="marca-estado">${marca}</span></button>`;
+      });
+      if (ahora > ABRE && ahora < CIERRA) col += `<div class="ahora" style="top:${px(ahora - ABRE)}px" aria-hidden="true"></div>`;
+      col += `</div>`;
+      html += col;
+    });
+    ag.innerHTML = html;
+  }
+
+  function abrir(id) {
+    const t = G.turno(id), c = G.cliente(t.cli), s = G.servicio(t.serv), p = G.prof(t.prof);
+    const pasado = t.dia < G.HOY || (t.dia === G.HOY && t.inicio <= G.HORA_DEMO);
+    const acciones = [];
+    if (t.estado === 'pendiente') acciones.push(`<button class="btn btn-acento" data-est="confirmado">${icono('check')}Confirmó</button>`, `<a class="btn" data-aviso href="${G.waLink(t)}" target="_blank" rel="noopener">${icono('msg')}Recordatorio por WhatsApp</a>`);
+    if (pasado || t.dia === G.HOY) acciones.push(`<button class="btn" data-est="atendido">${icono('check')}Llegó</button>`, `<button class="btn" data-est="ausente">${icono('x')}No vino</button>`);
+    acciones.push(`<button class="btn btn-fantasma" data-est="cancelado">Cancelar turno</button>`);
+    const m = G.modal(`${aHora(t.inicio)} · ${c.nombre}`, `
+      <dl class="kv">
+        <dt>Servicio</dt><dd>${esc(s.nombre)} · ${fmt.dur(s.dur)}</dd>
+        <dt>Con</dt><dd>${esc(p.nombre)} (${esc(p.rol)})</dd>
+        <dt>Día</dt><dd>${esc(fmt.diaLargo(t.dia))}, ${aHora(t.inicio)} a ${aHora(t.inicio + t.dur)}</dd>
+        <dt>Teléfono</dt><dd class="mono">${esc(c.tel)}</dd>
+        <dt>Precio</dt><dd class="mono">${fmt.ars(s.precio)}</dd>
+        <dt>Estado</dt><dd>${G.badge(t.estado)}${t.aviso ? ' <span class="chico tenue">· recordatorio enviado</span>' : ''}</dd>
+      </dl>`, `<div class="fila" style="flex-wrap:wrap;gap:8px">${acciones.join('')}</div>`);
+    m.el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-est]');
+      if (b) { G.cambiarEstado(id, b.dataset.est); m.cerrar(); render(); G.toast(`${esc(c.nombre)}: ${G.ESTADOS[b.dataset.est].txt.toLowerCase()}`); }
+      if (e.target.closest('[data-aviso]')) { G.marcarAviso(id); setTimeout(() => { m.cerrar(); render(); }, 300); }
+    });
+  }
+
+  $('agenda').addEventListener('click', (e) => {
+    const t = e.target.closest('.tn');
+    if (t) return abrir(t.dataset.id);
+    const l = e.target.closest('.libre');
+    if (l) location.href = G.href('02-nuevo-turno.html', { dia, prof: l.dataset.prof, hora: l.dataset.hora });
+  });
+  const mover = (n) => { let d = G.sumarDias(dia, n); d = G.proximoAbierto(d, n); dia = d; history.replaceState(null, '', G.href('01-agenda.html', dia === G.HOY ? null : { dia })); render(); };
+  $('ant').onclick = () => mover(-1);
+  $('sig').onclick = () => mover(1);
+  $('hoy').onclick = () => { dia = G.HOY; history.replaceState(null, '', '01-agenda.html'); render(); };
+  render();
+})();
+</script>
+</body>
+</html>
