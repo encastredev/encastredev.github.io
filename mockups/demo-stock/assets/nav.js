@@ -829,6 +829,8 @@ window.G = (function () {
   const idx = SCREENS.indexOf(pantalla);
 
   const LOGO = '<svg viewBox="2 3 20 18" aria-hidden="true"><path d="M2 3h9v4H7.5v4H11v2H7.5v4H11v4H2z" fill="currentColor"/><path d="M22 3h-9v4h3.5v4H13v2h3.5v4H13v4h9z" fill="var(--acento)"/></svg>';
+  // vuelta a la web de Encastre, en todas las pantallas
+  const volverHTML = () => `<a class="volver-encastre" href="../../#proyectos" title="Volver a encastredev.github.io">${icono('back', 'i-sm')}<span>Encastre</span></a>`;
   function marcaHTML(sub) {
     return `<a class="marca" href="${href('index.html')}"><span class="marca-logo marca-encastre">${LOGO}<span class="marca-txt">Encastre</span></span><span class="marca-sub">${sub || 'Stock'}</span></a>`;
   }
@@ -839,7 +841,7 @@ window.G = (function () {
     const lista = SCREENS.map((s) => `<a href="${href(s.archivo)}" class="${s === pantalla ? 'activo' : ''}"><span class="n">${s.n}</span><span class="corta">${esc(s.titulo)}</span><span class="disp">${s.disp === 'celular' ? icono('phone', 'i-sm') : s.disp === 'notebook' ? icono('laptop', 'i-sm') : ''}</span></a>`).join('');
     return `<nav class="nav-pantallas" aria-label="Pantallas de la demo">
       ${prev ? `<a class="paso ant" href="${href(prev.archivo)}"><small>← Anterior</small><span>${prev.n} · ${esc(prev.titulo)}</span></a>` : '<span class="vacio"></span>'}
-      <details class="indice-desplegable"><summary class="btn btn-chico">${icono('grid')}Pantalla ${pantalla.n} de ${SCREENS.length - 1}</summary><div class="indice-lista">${lista}</div></details>
+      <details class="indice-desplegable"><summary class="btn btn-chico">${icono('grid')}Pantalla ${pantalla.n} de ${SCREENS.length - 1}</summary><div class="indice-lista">${lista}<a href="../../#proyectos"><span class="n">←</span><span class="corta">Volver a Encastre</span><span class="disp"></span></a></div></details>
       ${sig ? `<a class="paso sig" href="${href(sig.archivo)}"><small>Siguiente →</small><span>${sig.n} · ${esc(sig.titulo)}</span></a>` : '<span class="vacio"></span>'}
     </nav>`;
   }
@@ -866,7 +868,7 @@ window.G = (function () {
         <div class="lateral-pie"><strong>Demo</strong><span>Sistema de ejemplo hecho por Encastre. Todos los datos son inventados y nada se guarda.</span><a href="${location.pathname.split('/').pop()}">Reiniciar esta pantalla</a></div>
       </aside>
       <div class="principal">
-        <header class="barra-sup"><div class="titulo-sup"><span class="n">${pantalla.n}</span><span class="corta">${esc(pantalla.titulo)}</span><span class="badge b-etapa1">Demo</span></div><span class="espacio"></span>
+        <header class="barra-sup"><div class="titulo-sup"><span class="n">${pantalla.n}</span><span class="corta">${esc(pantalla.titulo)}</span><span class="badge b-etapa1">Demo</span></div><span class="espacio"></span>${volverHTML()}
           <div class="usuario"><span class="avatar">${pantalla.rol.slice(0, 2).toUpperCase()}</span><div><strong>${esc(pantalla.rol)}</strong><small>Depósito central</small></div></div></header>
         <div class="contenido">${flujoHTML()}</div>
         ${navPantallas()}
@@ -881,6 +883,7 @@ window.G = (function () {
     cont.innerHTML = `
       <div class="escenario">
         <div class="escenario-info">
+          ${volverHTML()}
           ${marcaHTML('Depósito')}
           <div><div class="antetitulo">${icono('phone', 'i-sm')} Pantalla ${pantalla.n} · App del depósito · Demo</div><h1>${esc(pantalla.titulo.replace('App · ', ''))}</h1></div>
           <p class="tinta-2">${esc(pantalla.resumen)}</p>
@@ -902,7 +905,7 @@ window.G = (function () {
   function shellPortada(pagina) {
     const top = document.createElement('header');
     top.className = 'portada-top';
-    top.innerHTML = `${marcaHTML('Stock · Demo')}<a class="btn btn-acento" href="${href('02-inventario.html')}">Empezar el recorrido ${icono('next')}</a>`;
+    top.innerHTML = `${marcaHTML('Stock · Demo')}<div class="portada-acciones">${volverHTML()}<a class="btn btn-acento" href="${href('02-inventario.html')}">Empezar el recorrido ${icono('next')}</a></div>`;
     document.body.prepend(top);
     top.after(pagina);
     pagina.insertAdjacentHTML('afterend', navPantallas());

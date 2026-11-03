@@ -434,6 +434,11 @@ mark { background: var(--acento-suave); color: var(--acento); font-weight: 600; 
 /* ==========================================================================
    RESPONSIVE (siempre al final)
    ========================================================================== */
+/* vuelta a la web de Encastre */
+.volver-encastre { display: inline-flex; align-items: center; gap: 6px; flex: none; justify-self: start; padding: 6px 10px; border: 1px solid var(--linea-2); font-family: var(--f-mono); font-size: 10.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--tinta-2); text-decoration: none; }
+.volver-encastre:hover { color: var(--acento); border-color: var(--acento); }
+.portada-acciones { display: flex; align-items: center; gap: 10px; }
+
 @media (max-width: 1180px) {
   .dos-col { grid-template-columns: minmax(0, 1fr); }
   #tabla-inventario th:nth-child(4), #tabla-inventario td:nth-child(4),
